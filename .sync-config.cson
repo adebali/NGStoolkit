@@ -1,0 +1,20 @@
+remote:
+  host: "killdevil.unc.edu"
+  user: "adebali"
+  path: "/proj/sancarlb/users/ogun/scripts"
+behaviour:
+  uploadOnSave: true
+  syncDownOnOpen: false
+  forgetConsole: false
+  autoHideConsole: true
+  alwaysSyncAll: false
+option:
+  deleteFiles: false
+  exclude: [
+    ".sync-config.cson"
+    ".git"
+    "node_modules"
+    "tmp"
+    "vendor"
+    "*.pyc"
+  ]

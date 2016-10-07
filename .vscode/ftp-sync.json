@@ -1,0 +1,15 @@
+{
+    "remotePath": "/proj/sancarlb/users/ogun/scripts",
+    "host": "killdevil.unc.edu",
+    "username": "adebali",
+    "port": 22,
+    "password": "d=Ekd6asoy",
+    "protocol": "sftp",
+    "uploadOnSave": true,
+    "passive": false,
+    "debug": false,
+    "ignore": [
+        "\\.vscode",
+        "\\.git"
+    ]
+}

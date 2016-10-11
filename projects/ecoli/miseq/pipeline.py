@@ -2,9 +2,29 @@ import os
 import sys
 import subprocess
 import generalUtils
+import fasta
 from seqPipeline import SeqPipeline
 from glob import glob
 
+def fileName2adapter(fileName):
+	illumina_small_RNA_adaptor = '/nas02/home/a/d/adebali/ogun/seq/illumina_small_RNA_adaptor.fa'
+	## Assumes index sequence is placed between two underscores (_) in the file name such as UVRD10_TAGCTT_L007_R1_001.fastq
+	adapter = ''
+	indexSeq = fileName.split('_')[1]
+	adapters = fasta.fasta(illumina_small_RNA_adaptor)
+	adapterDict = adapters.read()
+	adapterFound = False
+	for header in adapterDict.keys():
+		sequence = adapterDict[header]
+		if sequence[33:33+len(indexSeq)] == indexSeq:
+			if adapterFound:
+				sys.exit('More than one adapters matching the criteria. Exiting...')
+			adapter = sequence
+			adapterFound = True
+	if adapterFound:
+		return adapter
+	else:
+		sys.exit('Adapter is not found: ' + indexSeq)
 
 
 class XRseqPipeline(SeqPipeline):
@@ -16,6 +36,7 @@ class XRseqPipeline(SeqPipeline):
 		self.referenceBowtieIndex = '/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.0'
 		self.referenceFasta = generalUtils.file('/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.chr.fa')
 		self.e_coli_K12_windowsBedFile = generalUtils.file('/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.chr.w200.bed')
+		self.adapter = fileName2adapter(self.input)
 
 
 	# Class Specific Methods
@@ -25,12 +46,11 @@ class XRseqPipeline(SeqPipeline):
 		input = self.latestOutput
 		output = self.in2out(input, 'fastq', 'cutadapt.fastq')
 		log = self.out2log(output)
-		adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAGTCACTGACCAATCTCGTATGCCGTCTTCTGCTTG'
 		singleCodeList = [
 			'cutadapt',
-			'-a', adapter, # The adapter is located at the 3' end
-			'-m', 13, # Minimum length
-			'-M', 13, # Maximum length
+			'-a', self.adapter, # The adapter is located at the 3' end
+			# '-m', 13, # Minimum length
+			# '-M', 13, # Maximum length
 			'-o', output,
 			input,
 			'>', log
@@ -189,10 +209,9 @@ class XRseqPipeline_seqLengths(XRseqPipeline):
 		input = self.latestOutput
 		output = self.in2out(input, 'fastq', 'cutadaptAll.fastq')
 		log = self.out2log(output)
-		adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAGTCACTGACCAATCTCGTATGCCGTCTTCTGCTTG'
 		singleCodeList = [
 			'cutadapt',
-			'-a', adapter, # The adapter is located at the 3' end
+			'-a', self.adapter, # The adapter is located at the 3' end
 			'-m', 9,
 			'-M', 15,
 			'-o', output,
@@ -212,7 +231,8 @@ class XRseqPipeline_seqLengths(XRseqPipeline):
 			'fa2lengthSeparatedKmerAbundace.py',
 			'-i', input,
 			'-o', output,
-			'-k', 1
+			'-k', 1,
+			'-r', '9-15'
 		]
 		self.run(singleCodeList, runFlag)
 		return self
@@ -220,10 +240,10 @@ class XRseqPipeline_seqLengths(XRseqPipeline):
 
 input = sys.argv[1]
 
-pipeline = XRseqPipeline(input, False)
+pipeline = XRseqPipeline(input)
 
 pipeline\
-	.cutadapt(False)\
+	.cutadapt(True)\
 	.bowtie(False)\
 	.sam2bam(False)\
 	.sortBam(False)\
@@ -235,13 +255,13 @@ pipeline\
 	.windowCoverage(False)\
 	.bedCount2percentageByMax(False)
 
-pipeline_spearateLengths = XRseqPipeline_seqLengths(input, True)
+pipeline_spearateLengths = XRseqPipeline_seqLengths(input)
 
 pipeline_spearateLengths\
-	.cutadapt(True)\
-	.bowtie(True)\
-	.sam2bam(True)\
-	.sortBam(True)\
-	.bam2bed(True)\
-		.bed2fasta(True)\
+	.cutadapt(False)\
+	.bowtie(False)\
+	.sam2bam(False)\
+	.sortBam(False)\
+	.bam2bed(False)\
+		.bed2fasta(False)\
 			.separateByLengthAndWriteKmerAbundance(False)

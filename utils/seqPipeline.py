@@ -134,3 +134,47 @@ class SeqPipeline:
 		self.run(singleCodeList, runFlag)
 		self.latestOutput = output
 		return self
+
+	def sam2bed(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.sam', '.bed')
+		log = self.out2log(output)
+		singleCodeList = [
+			'sam2bed',
+			input,
+			output
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
+	def sortBed(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.bed', '.sorted.bed')
+		self.sorted = True
+		log = self.out2log(output)
+		singleCodeList = [
+			'sortBed',
+			input,
+			'>', output
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
+	def unixSortBed(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.bed', '.sorted.bed')
+		self.sorted = True		
+		log = self.out2log(output)
+		singleCodeList = [
+			'sort',
+			input,
+			'-k1,1',
+			'-k2,2n',
+			'>', output
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+	

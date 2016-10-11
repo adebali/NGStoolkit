@@ -240,7 +240,7 @@ class fasta:
 		if append:
 			writeMode = 'a'
 		else:
-			writeMode = 'm'
+			writeMode = 'w'
 		if percentage:
 			kmerAbundanceDict = self.getKmerPercentages(kmerAbundanceDict)
 		separator = '\t'

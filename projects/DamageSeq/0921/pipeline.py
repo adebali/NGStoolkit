@@ -72,7 +72,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 
 	def slopBed(self, runFlag=True):
 		input = self.latestOutput
-		slopB = 3
+		slopB = 6
 		output = self.in2out(input, 'bed', 'slopB' + str(slopB) + '.bed')
 		genome = kHomeDir + '/seq/hg19/hg19.bed'
 		log = self.out2log(output)
@@ -113,7 +113,21 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 			'fa2nucleotideAbundanceTable.py',
 			'-i', input,
 			'-o', output,
-			'-n', nucleotideOrder
+			'-n', nucleotideOrder,
+			'--percentage'
+		]
+		self.run(singleCodeList, runFlag)
+		return self
+
+	def fa2dimerAbundanceTable(self, runFlag=False):
+		input = self.fasta
+		output = self.in2out(input, '.fa', '.fa.dimerAbu.csv')
+		singleCodeList = [
+			'fa2kmerAbundanceTable.py',
+			'-i', input,
+			'-o', output,
+			'-k', 2,
+			'--percentage'
 		]
 		self.run(singleCodeList, runFlag)
 		return self
@@ -191,7 +205,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 			'-k4,4',
 			'-k5,5',
 			'-k6,6',
-			'-k9,9',
+			#'-k9,9',
 			input,
 			'>', output
 		]
@@ -214,12 +228,15 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 
 	def bed2fixedRangeBed(self, runFlag=True):
 		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.frL10.bed')
+		side = 'left'
+		sideInput = side[0]
+		fixedRange = 10
+		output = self.in2out(input, '.bed', '.fr' + sideInput.upper() + str(fixedRange) + '.bed')
 		singleCodeList = [
 			'bed2fixedRangeBed.py',
 			'-i', input,
-			'-s', 'l',
-			'-l', 4,
+			'-s', sideInput,
+			'-l', fixedRange,
 			'>', output
 		]
 		self.run(singleCodeList, runFlag)
@@ -248,16 +265,16 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 			multiplyFactor = 1000
 			singleCodeList = [
 				'bedCount2normalizedCount.py',
-				'-i', coverageInput,
-				'-o', normalizedOutput,
-				'-l', multiplyFactor,
-				'-c', 7
+				coverageInput,
+				normalizedOutput,
+				multiplyFactor
 			]
 			self.run(singleCodeList, runFlag)
 			#########################################
 
 		return self
 
+#bsub -M 32 'grep -Pv "\t0" iterativeCov.4.bed | sort -u -k1,1 -k2,2 -k3,3 >escapingUniqueDamages.bed'
 
 input = sys.argv[1]
 pipeline = DamageSeqPairedEndPipeline(input)
@@ -265,12 +282,13 @@ pipeline = DamageSeqPairedEndPipeline(input)
 pipeline\
 	.cutadapt(False)\
 	.bowtie(False)\
-	.sam2bam(True)\
-	.bam2bed(True)\
-	.bed2uniquelySortedBed(True)\
-	.bedpe2bed(True)\
-	.slopBed(True)\
-	.bed2fixedRangeBed(True)\
-		.bed2fasta(True)\
-			.fa2nucleotideAbundanceTable(True)\
-		.coverageChromHMM(True)
+	.sam2bam(False)\
+	.bam2bed(False)\
+	.bed2uniquelySortedBed(False)\
+	.bedpe2bed(False)\
+	.slopBed(False)\
+	.bed2fixedRangeBed(False)\
+		.bed2fasta(False)\
+			.fa2nucleotideAbundanceTable(False)\
+			.fa2dimerAbundanceTable(True)\
+		.coverageChromHMM(False)

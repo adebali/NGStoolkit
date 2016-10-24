@@ -5,15 +5,15 @@ def run(codeList, runFlag=True):
 	code = list2gappedString(codeList)
 	allStringList = list2allStringList(codeList)
 	if runFlag:
-		print('running the following code:')
-		print(code)
+		# print('running the following code:')
+		print('-->\t' + code)
 		failedHere = os.system(code)
 		if failedHere:
 			sys.exit('we cannot execute the code: ' + code)
 	else:
 		a = 1
-		print('skipping the following code:')
-		print(code)
+		# print('skipping the following code:')
+		print('--|\t' + code)
 
 def file(input):
 	if os.path.isfile(input):
@@ -44,6 +44,14 @@ def in2out(input, oldExtension, newExtension):
 		output = input + oldExtension
 	return output
 
+def in2tempOut(input, oldExtension, newExtension, tempDir):
+	if input.endswith(oldExtension):
+		output = replaceLast(input, oldExtension, newExtension)
+	else:
+		output = input + oldExtension
+	temporaryOutput = os.path.join(tempDir, os.path.basename(output))
+	return temporaryOutput
+
 def out2log(output):
 		return output + '_log.txt'
 
@@ -71,3 +79,38 @@ def linesAreDuplicate(line1, line2, columns):
 		if ll1[int(field) - 1].strip() != ll2[int(field) - 1].strip():
 			return False
 	return True
+
+def line2switchColumnsBasedOnValue(line, valueColNo, value, col1no, col2no, separator = '\t'):
+	ll = line.strip().split(separator)
+	newll = list(ll)
+	if ll[valueColNo] == value:
+		 newll[col1no] = ll[col2no]
+		 newll[col2no] = ll[col1no]
+	return separator.join(newll)
+
+def lineBasedFileOperation(input, output, function, arguments):
+	filein = open(input, 'r')
+	out = open(output, 'w')
+	for line in filein:
+		currentArguments = list([line] + arguments)
+		newLine = function(*currentArguments)
+		out.write(newLine.strip() + '\n')
+	out.close()
+
+def dna2reverseComplement(seq):
+	seq_dict = {'A':'T', 'T':'A', 'G':'C', 'C':'G',
+				'a':'t', 't':'a', 'g':'c', 'c':'g',
+				'n':'n', 'N':'N', 'x':'x', 'X':'X'}
+	return "".join([seq_dict[base] for base in reversed(seq)])
+
+def subseq(seq, start, end):
+	return seq[start - 1 : end]
+
+def motifCount(sequence, motif):
+	count = start = 0
+	while True:
+		start = sequence.find(motif, start) + 1
+		if start > 0:
+			count+=1
+		else:
+			return count

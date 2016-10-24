@@ -10,6 +10,80 @@ kChromHmmDir = os.path.join(kHomeDir, "chromHMM")
 
 chromHMMfiles = glob(os.path.join(kHomeDir, 'chromHMM', '*_chromHMM'))
 
+treatments = {
+	'NCPD-A6N.1.fastq':  'NHF1_CPD_Control_A',
+	'NC-B17N.1.fastq': 'NHF1_CPD_Control_B',	
+	'NCPD0HA1N.1.fastq': 'NHF1_CPD_10J_0h_A',
+	'NC0HB13N.1.fastq': 'NHF1_CPD_10J_0h_B',
+	'NC1HB14N.1.fastq': 'NHF1_CPD_10J_1h_A',
+	'NC1HA2N.1.fastq': 'NHF1_CPD_10J_1h_B',	
+	'NC8HB15N.1.fastq': 'NHF1_CPD_10J_8h_A',
+	'NC8HA3N.1.fastq': 'NHF1_CPD_10J_8h_B',	
+	'NC1DB16N.1.fastq': 'NHF1_CPD_10J_24h_A',
+	'NC1DA4N.1.fastq': 'NHF1_CPD_10J_24h_B',	
+	'NCPD2DA5N.1.fastq': 'NHF1_CPD_10J_48h_A',
+	'NC2DB18N.1.fastq': 'NHF1_CPD_10J_48h_B',
+	##
+	'N6-4-A33N.1.fastq': 'NHF1_6-4_Control_A',
+	'N6-4-C35N.1.fastq': 'NHF1_6-4_Control_B',
+	'N60HA7N.1.fastq': 'NHF1_6-4_20J_0h_A',	
+	'N6-0HB19N.1.fastq': 'NHF1_6-4_20J_0h_B',
+	'N620MA8N.1.fastq': 'NHF1_6-4_20J_20min_A',
+	'N6-20MB9N.1.fastq': 'NHF1_6-4_20J_20min_B',
+	'N62HA11N.1.fastq': 'NHF1_6-4_20J_2h_A',
+	'N6-1HB20N.1.fastq': 'NHF1_6-4_20J_2h_B',
+	'N61HA10N.1.fastq': 'NHF1_6-4_20J_1h_A',
+	'N6-2HB12N.1.fastq': 'NHF1_6-4_20J_1h_B',
+	'N64HC34N.1.fastq': 'NHF1_6-4_20J_4h_A',
+	'N6-4HB21N.1.fastq': 'NHF1_6-4_20J_4h_B',
+	##
+	'G-6-4A22.1.fastq': 'GM12787_6-4_20J_nakedDNA_A',
+	'G-6-4B24.1.fastq': 'GM12787_6-4_20J_nakedDNA_B',
+	'G6-4A23.1.fastq': 'GM12787_6-4_20J_cell_A',
+	'G6-4B25.1.fastq': 'GM12787_6-4_20J_cell_B',
+	##
+	'G-CPDA29.1.fastq': 'GM12787_CPD_20J_nakedDNA_A',
+	'G-CPDB31.1.fastq': 'GM12787_CPD_20J_nakedDNA_B',
+	'GCPDA36.1.fastq': 'GM12787_CPD_20J_cell_A',
+	'GCPDB32.1.fastq': 'GM12787_CPD_20J_cell_B'
+}
+
+
+# Sample ID	Pool	Dose/damage			Time			Rep (A/B)
+# NCPD0hA1N	UVDT1	10J/CPD				0h				A
+# NCPD2dA5N	UVDT1	10J/CPD				48h(2days)		A
+# NCPD-A6N	UVDT1	0J(No UV)/CPD		-				A
+# N6-0hB19N	UVDT1	20J/6-4				0h				B
+# N6-20mB9N	UVDT1	20J/6-4				20min			B
+# N6-1hB20N	UVDT1	20J/6-4				1h				B
+# N6-2hB12N	UVDT1	20J/6-4				2h				B
+# N6-4hB21N	UVDT1	20J/6-4				4h				B
+# #########
+# NC0HB13N	UVDT2	10J/CPD				0h				B
+# NC1HB14N	UVDT2	10J/CPD				1h				B
+# NC8HB15N	UVDT2	10J/CPD				8h				B
+# NC1DB16N	UVDT2	10J/CPD				24h(1day)		B
+# NC2DB18N	UVDT2	10J/CPD				48h(2days)		B
+# NC-B17N	UVDT2	0J(No UV)/CPD		-				B
+# N6-4-C35N	UVDT2	0J(No UV)/6-4		-				C (B)
+# NC1HA2N	UVDT2	10J/CPD				1h				A
+# NC8HA3N	UVDT3	10J/CPD				8h				A
+# NC1DA4N	UVDT3	10J/CPD				24h(1day)		A
+# N60HA7N	UVDT3	20J/6-4				0h				A
+# N620MA8N	UVDT3	20J/6-4				20min			A
+# N61HA10N	UVDT3	20J/6-4				1h				A
+# N62HA11N	UVDT3	20J/6-4				2h				A
+# N64HC34N	UVDT3	20J/6-4				4h				C (A)
+# N6-4-A33N	UVDT3	0J(No UV)/6-4		-				A
+# G-6-4A22	HLUVB	20J/6-4				0h (naked DNA)	A
+# G6-4A23	HLUVB	20J/6-4				0h (cell)		A
+# G-6-4B24	HLUVB	20J/6-4				0h (naked DNA)	B
+# G6-4B25	HLUVB	20J/6-4				0h (cell)		B
+# G-CPDA29	HLUVB	20J/CPD				0h (naked DNA)	A
+# GCPDA36	HLUVB	20J/CPD				0h (cell)		A
+# G-CPDB31	HLUVB	20J/CPD				0h (naked DNA)	B
+# GCPDB32	HLUVB	20J/CPD				0h (cell)		B
+
 # General utils
 
 class DamageSeqPairedEndPipeline(SeqPipeline):
@@ -18,6 +92,8 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 	def __init__(self, input):
 		SeqPipeline.__init__(self, input)
 		self.checkPairedEndInput()
+		self.treatment = treatments[os.path.basename(self.input)]
+		self.genomeSize = '~/ogun/seq/hg19/hg19.bed'
 
 	# Methods
 	##########################################################
@@ -61,6 +137,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 			'-m', 4, # Do not report the reads that are mapped on to more than 4 genomic locations
 			'-X', 1000,
 			'--seed', 123, # Randomization parameter in bowtie,
+			'-p', 8,
 			'-1', input1,
 			'-2', input2,
 			output,
@@ -72,7 +149,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 
 	def slopBed(self, runFlag=True):
 		input = self.latestOutput
-		slopB = 3
+		slopB = 6
 		output = self.in2out(input, 'bed', 'slopB' + str(slopB) + '.bed')
 		genome = kHomeDir + '/seq/hg19/hg19.bed'
 		log = self.out2log(output)
@@ -113,7 +190,20 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 			'fa2nucleotideAbundanceTable.py',
 			'-i', input,
 			'-o', output,
-			'-n', nucleotideOrder
+			'-n', nucleotideOrder,
+			'--percentage'
+		]
+		self.nucleotideAbundance = output
+		self.run(singleCodeList, runFlag)
+		return self
+
+	def plotNucleotideAbundance(self, runFlag=False):
+		input = self.nucleotideAbundance
+		nucleotideOrder = 'TCGA'
+		singleCodeList = [
+			'plotNucleotideAbundance.r',
+			input,
+			self.treatment
 		]
 		self.run(singleCodeList, runFlag)
 		return self
@@ -139,6 +229,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 			'samtools',
 			'view',
 			'-bf', '0x2', #	each segment properly aligned according to the aligner
+			#'-Sb'
 			'-o',
 			output,
 			input,
@@ -147,6 +238,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 		self.run(singleCodeList, runFlag)
 		self.latestOutput = output
 		return self
+#-bf 0X2 bam bedpe
 
 	def bam2bed(self, runFlag=True):
 		input = self.latestOutput
@@ -199,12 +291,26 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 			'sort',
 			'-u',
 			'-k1,1',
-			'-k2,2',
-			'-k3,3',
-			'-k4,4',
-			'-k5,5',
-			'-k6,6',
+			'-k2,2n',
+			# '-k3,3n',
+			# '-k4,4',
+			# '-k5,5',
+			# '-k6,6',
 			#'-k9,9',
+			input,
+			'>', output
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
+	def bed2sortedBed(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.bed', '.srt.bed')
+		singleCodeList = [
+			'sort',
+			'-k1,1',
+			'-k2,2n',
 			input,
 			'>', output
 		]
@@ -243,6 +349,74 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 		self.finalBed = output
 		return self
 
+	def bed2bedGraph(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.bed', '.bdg')
+		singleCodeList = [
+			'bedtools',
+			'genomecov',
+			'-i', input,
+			'-g', self.genomeSize,
+			'>', output
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
+	def bed2wig(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.bed', '.wig')
+		singleCodeList = [
+			'igvtools',
+			'count',
+			input,
+			output,
+			self.genomeSize
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
+	def bed2bigBed(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.bed', '.bb')
+		singleCodeList = [
+			'bedToBigBed',
+			input,
+			self.genomeSize,
+			output
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
+
+	def bedGraph2bigWig(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.bdg', '.bw')
+		singleCodeList = [
+			'wigToBigWig',
+			'-clip',
+			input,
+			self.genomeSize,
+			output
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
+	def addHeaderToBedGraph(self, runFlag=True):
+		input= self.latestOutput
+		output = self.in2out(input, '.bdg', '.head.bdg')
+		singleCodeList = [
+			'echo "track type=bedGraph name=' + self.treatment + '"', '>', output,
+			'&&',
+			'tail -n +2', input, '>>', output
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
 	def coverageChromHMM(self, runFlag=False):
 		input = self.finalBed
 		for chromHMMfile in chromHMMfiles:
@@ -279,15 +453,22 @@ input = sys.argv[1]
 pipeline = DamageSeqPairedEndPipeline(input)
 
 pipeline\
-	.cutadapt(False)\
-	.bowtie(False)\
-	.sam2bam(False)\
-	.bam2bed(False)\
-	.bed2uniquelySortedBed(False)\
-	.bedpe2bed(False)\
-	.slopBed(False)\
-	.bed2fixedRangeBed(False)\
-		.bed2fasta(False)\
-			.fa2nucleotideAbundanceTable(False)\
+	.cutadapt(True)\
+	.bowtie(True)\
+	.sam2bam(True)\
+	.bam2bed(True)\
+	.bed2uniquelySortedBed(True)\
+	.bedpe2bed(True)\
+	.slopBed(True)\
+	.bed2fixedRangeBed(True)\
+	.bed2sortedBed(True)\
+		.bed2fasta(True)\
+			.fa2nucleotideAbundanceTable(True)\
+				.plotNucleotideAbundance(True)\
 			.fa2dimerAbundanceTable(True)\
-		.coverageChromHMM(False)
+		.coverageChromHMM(False)\
+	.bed2bigBed(True)
+	# .bed2bedGraph(True)\
+	# .addHeaderToBedGraph(True)\
+	# .bedGraph2bigWig(True)
+	# .bed2wig(True)\

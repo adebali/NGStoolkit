@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import itertools
 
 def nucleotideAbundanceDict2percentageDict(theDict):
@@ -13,9 +14,37 @@ def nucleotideAbundanceDict2percentageDict(theDict):
 			newDict[key][letter] = float(theDict[key][letter])/positionTotalCount
 	return newDict
 
+
 class fasta:
 	def __init__(self, input):
 		self.file = input
+
+	def stream(self, bufsize=4096):
+		def chunk2seqDict(chunk):
+			lines = chunk.split('\n')
+			header = lines[0]
+			del lines[0]
+			sequence = ''.join(lines)
+			seqObject = {'h': header, 's': sequence}
+			return seqObject
+
+		filein = open(self.file, 'r')
+		delimiter = '\n>'
+		buf = ''
+		justStarted = True
+		while True:
+			newbuf = filein.read(bufsize)
+			if not newbuf:
+				yield chunk2seqDict(buf)
+				return
+			buf += newbuf
+			sequenceChunks = buf.split(delimiter)
+			for chunk in sequenceChunks[0:-1]:
+				if justStarted and chunk.startswith('>'):
+					chunk = chunk[1:]
+					justStarted = False
+				yield chunk2seqDict(chunk)
+			buf = sequenceChunks[-1]
 
 	def getSequenceCount(self):
 		count = 0
@@ -56,7 +85,6 @@ class fasta:
 
 	def getKmerAbundance(self, kmer, firstNletters=None):
 		nucleotides = 'ATGC'
-		print(kmer)
 		subseqTupleList = itertools.product(nucleotides, repeat=int(kmer))
 		subseqList = sorted(list(subseqTupleList))
 
@@ -200,6 +228,7 @@ class fasta:
 		filein = open(self.file)
 		header = False
 		myDict = {}
+		sequence = ''		
 		for line in filein:
 			if line.startswith('>'):
 				if header:
@@ -272,3 +301,5 @@ class fasta:
 				out.write(separator + str(nucleotideAbundanceDict[position][nucleotide]))
 			out.write("\n")
 		return 1
+
+

@@ -7,7 +7,7 @@ output = paste(input,'.',treatment,'.pdf',sep='')
 
 pdf(output,width=5,height=5)
 dat <- as.matrix(read.table(input, header = TRUE))
-title = paste(treatment, "-", "Nucleotide Frequencies")
+title = gsub("_", " ", paste(treatment, "-", "Nucleotide Frequencies"))
 positionLength = length(dat[1,])
 colors = rev(c("#a1dab4", 
                "#41b6c4", 

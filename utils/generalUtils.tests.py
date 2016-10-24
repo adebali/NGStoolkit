@@ -27,5 +27,24 @@ class generalUtilsTests(Testcase):
 		self.assertEqual(generalUtils.linesAreDuplicate(line1, line2, '1,2,3,4,5,6,8'), True)
 		self.assertEqual(generalUtils.linesAreDuplicate(line1, line2, '1,2,3,4,5,6,7'), False)
 
+	def test_line2switchColumnsBasedOnValue(self):
+		line = 'chr\t100\t135\t+\t30\t40'
+		expectedResult = 'chr\t100\t135\t+\t40\t30'
+		valueColNo = 3
+		value = '+'
+		col1no = 4
+		col2no = 5
+		self.assertEqual(generalUtils.line2switchColumnsBasedOnValue(line, valueColNo, value, col1no, col2no, separator = '\t'), expectedResult)
+
+	def test_reverseComplement(self):
+		self.assertEqual(generalUtils.dna2reverseComplement('ATCGGCAntAxXGCG'), 'CGCXxTanTGCCGAT')
+
+	def test_subseq(self):
+		self.assertEqual(generalUtils.subseq('ATGCGCA', 2, 5), 'TGCG')
+
+	def test_motifCount(self):
+		self. assertEqual(generalUtils.motifCount('AATTTAGCGTTAGCTGCTTTT', 'TT'), 6)
+
+
 if __name__ == "__main__":
 	unittest.main()

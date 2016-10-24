@@ -17,6 +17,7 @@ class SeqPipeline:
 		self.latestOutput = input
 		self.executedModules = []
 		self.in2out = generalUtils.in2out
+		self.in2tempOut = generalUtils.in2tempOut
 		self.out2log = generalUtils.out2log
 		self.runMode = runMode
 		if '--mock' in sys.argv:
@@ -24,20 +25,27 @@ class SeqPipeline:
 
 	def run(self, codeList, runFlag=True):
 		code = generalUtils.list2gappedString(codeList)
+		code = code.replace('"', '\\"')
 		allStringList = generalUtils.list2allStringList(codeList)
 		if runFlag:
-			print('running the following code:')
-			print(code)
+			print('-->\t' + code)
 			if self.runMode:
 				failedHere = os.system(code)
 				if failedHere:
 					sys.exit('we cannot execute the code: ' + code)
-			else:
-				print("gave up running the code, because the command is not given in the default 'RUN' mode.")
+			# else:
+			# 	print("gave up running the code, because the command is not given in the default 'RUN' mode.")
 		else:
-			print('skipping the following code:')
-			print(code)
+			print('X\t' + code)
 
+	def internalRun(self, function, arguments, runFlag=True):
+		functionName = function.__name__
+		if runFlag:
+			print('-->\t' + functionName)
+			if self.runMode:
+				function(*arguments)
+		else:
+			print('X\t' + functionName)
 
 	def checkInput(self, pairedEnd=False):
 		expectedExtension = '.fastq'

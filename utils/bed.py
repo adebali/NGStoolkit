@@ -13,9 +13,14 @@ class bed:
 			ll = line.split('\t')
 			beg = int(ll[1])
 			end = int(ll[2])
-			regionLength = end - beg + 1
+			regionLength = end - beg
 			totalLength += regionLength
 		return totalLength
+
+	def getAverageLength(self):
+		totalLength = self.getTotalRegionLength()
+		hitNum = self.getHitNum()
+		return float(totalLength)/hitNum
 
 	def getHitNum(self):
 		hitNum = 0

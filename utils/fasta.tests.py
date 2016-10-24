@@ -6,9 +6,11 @@ scriptDir = os.path.dirname(os.path.realpath(__file__))
 kTestFilesDir = os.path.join(scriptDir, 'testFiles')
 kFastaExample1 = os.path.join(kTestFilesDir, 'fastaExample1.fa')
 kFastaExample2 = os.path.join(kTestFilesDir, 'fastaExample2.fa')
+kFastaExample4 = os.path.join(kTestFilesDir, 'fastaExample4.fa')
 
 fasta1 = fasta(kFastaExample1)
 fasta2 = fasta(kFastaExample2)
+fasta4 = fasta(kFastaExample4)
 
 class fastaTests(unittest.TestCase):
 	def test_sequenceCount(self):
@@ -50,7 +52,7 @@ class fastaTests(unittest.TestCase):
 			6: { 'A': 0, 'T':0.5, 'G': 0.5, 'C': 0},
 			7: { 'A': 1, 'T':0, 'G': 0, 'C': 0}
 		}
-		self.assertEqual(fasta1.getNucleotidePercentages(), expectedResult)
+		self.assertEqual(fasta1.getNucleotidePercentages(fasta1.getNucleotideAbundance()), expectedResult)
 
 
 	def test_getKmerAbundance(self):
@@ -70,6 +72,29 @@ class fastaTests(unittest.TestCase):
 		}
 
 		self.assertEqual(fasta1.getKmerAbundance(2), expectedResult)
+
+	def test_FastaStream(self):
+		expectedObjects_1 = [{'h': 'header1', 's': 'ATGCGtA'}, {'h': 'header2', 's':'GXGTTGA'}]
+		fastaStream_1 = fasta1.stream(4)
+		results_1 = []
+		for e in fastaStream_1:
+			results_1.append(e)
+		self.assertEqual(results_1, expectedObjects_1)
+		
+
+		fastaStream_4 = fasta4.stream(6)
+		expectedObjects_4 = [{'h': 'header1', 's': 'ATGCGtA'}, {'h': 'header2', 's':'GXGTTGAATGCGTA'}, {'h': 'header3', 's':'headerthree'}]
+		results_4 = []
+		for e in fastaStream_4:
+			results_4.append(e)
+		self.assertEqual(results_4, expectedObjects_4)
+
+		fastaStream_4 = fasta4.stream(4096)
+		results_4b = []
+		for e in fastaStream_4:
+			results_4b.append(e)
+		self.assertEqual(results_4, results_4b)
+
 
 if __name__ == "__main__":
 	unittest.main()

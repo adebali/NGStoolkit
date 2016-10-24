@@ -225,9 +225,10 @@ class XRseqPipeline(SeqPipeline):
 			multiplyFactor = 1000
 			singleCodeList = [
 				'bedCount2normalizedCount.py',
-				coverageInput,
-				normalizedOutput,
-				multiplyFactor
+				'-i', coverageInput,
+				'-o', normalizedOutput,
+				'-l', multiplyFactor,
+				'-c', 7
 			]
 			self.run(singleCodeList, runFlag)
 			#########################################

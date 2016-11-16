@@ -8,12 +8,17 @@ from seqPipeline import SeqPipeline
 from glob import glob
 
 
-treatments = {
-	"WT04_TGACC_L001_R1_001.fastq": "WT",
-	"UVRD10_TAGCTT_L007_R1_001.fastq": "uvrD",
-	"MFD09_GATCAG_L007_R1_001.fastq": "Mfd",
-	"PHR11_GGCTAC_L007_R1_001.fastq": "phr"
-}
+def name2treatment(name):	
+	treatments = {
+		"WT": "WT",
+		"UVRD": "UvrD",
+		"MFD": "Mfd",
+		"PHR": "Phr"
+	}
+	for key in treatments.keys():
+		if name.startswith(key):
+			return treatments[key]
+	raise ValueError('no treatment found')
 
 tempDirectory = ' /netscr/adebali'
 
@@ -44,19 +49,22 @@ class XRseqPipeline(SeqPipeline):
 	def __init__(self, input):
 		SeqPipeline.__init__(self, input)
 		self.checkInput()
-		self.referenceBowtieIndex = '/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.0'
-		self.referenceFasta = generalUtils.file('/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.chr.fa')
-		self.referencesGenesBed = generalUtils.file('/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.genes.bed')
-		self.e_coli_K12_windowsBedFile = generalUtils.file('/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.chr.w200.bed')
-		self.referenceGenomeLength = generalUtils.file('/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.genome')
-		self.genomeSize = generalUtils.file('/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.chrom.sizes')
-		self.fiftyWindowBed = generalUtils.file('/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.win50.bed')
-		self.twohundredWindowPlusBed = generalUtils.file('/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.win200.Plus.bed')
-		self.twohundredWindowMinusBed = generalUtils.file('/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.win200.Minus.bed')
+		self.ecoliReferenceRoot = '/nas02/home/a/d/adebali/ncbi/ecoli'
+		self.referenceVersion = 'NC_000913.2'
+		self.referenceRoot = os.path.join(self.ecoliReferenceRoot, self.referenceVersion)
+		self.referenceBowtieIndex = os.path.join(self.referenceRoot, self.referenceVersion)
+		self.referenceFasta = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.fa'))
+		self.referenceGenesBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.genes.bed'))
+		self.referenceGFF = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.gff3'))
+		# self.referenceWindowsBedFile = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.bed'))
+		# self.fiftyWindowBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win50.bed'))
+		self.referenceGenomeSize = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chrom.sizes'))
+		# self.twohundredWindowPlusBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.Plus.bed'))
+		# self.twohundredWindowMinusBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.Minus.bed'))
 		
 		self.baseFileName = os.path.basename(self.input)
 		self.adapter = fileName2adapter(self.baseFileName)
-		self.treatment = treatments[self.baseFileName]
+		self.treatment = name2treatment(self.baseFileName)
 		# self.latestOutputs = []
 
 
@@ -93,6 +101,20 @@ class XRseqPipeline(SeqPipeline):
 		self.run(singleCodeList, runFlag)
 		return self
 
+	def fastqSampling(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.fastq', '.2900K.fastq')
+		singleCodeList = [
+			'fastq2sampling.py',
+			'-i', input,
+			'-o', output,
+			'-c', 2900000
+		]
+		self.run(singleCodeList, runFlag)
+		self.latestOutput = output
+		return self
+
+
 	def bowtie(self, runFlag=True):
 		input = self.latestOutput
 		output = self.in2out(input, 'fastq', 'bowtie_ecoli.sam')
@@ -104,7 +126,9 @@ class XRseqPipeline(SeqPipeline):
 			'--nomaqround', # Do NOT round MAC
 			'--phred33-quals', # Depends on the sequencing platform
 			'-S', # Output in SAM format
-			# '-m 4', # Do not report the reads that are mapped on to more than 4 genomic locations
+			'--all', 
+			'--strata',
+			'--best',
 			'--seed 123', # Randomization parameter in bowtie,
 			input,
 			output,
@@ -113,6 +137,64 @@ class XRseqPipeline(SeqPipeline):
 		self.run(singleCodeList, runFlag)
 		self.latestOutput = output
 		return self
+
+
+	def splitBamByStrand(self, runFlag=True):
+		input = self.latestOutput
+		outputPlus = self.in2out(input, '.bam', '.Plus.bam')
+		outputMinus = self.in2out(input, '.bam', '.Minus.bam')
+		outputs = [outputPlus, outputMinus]
+		codeList = [
+			'samtools',
+			'view',
+			'-bF', '0x10',
+			input,
+			'>', outputPlus
+		]
+		self.run(codeList, runFlag)
+
+		codeList = [
+			'samtools',
+			'view',
+			'-bf', '0x10',
+			input,
+			'>', outputMinus
+		]
+		self.run(codeList, runFlag)
+
+		self.latestOutputs = outputs
+		return self
+
+	def bed2bam(self, runFlag=True):
+		inputs = self.latestOutputs
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bed','.bam'],
+			'codeList': [
+				'bedToBam',
+				'-i', '#IN',
+				'-g', self.referenceGenomeSize,
+				'>', '#OUT'
+			]
+		}
+		self.latestOutputs = self.runM(codeDict, runFlag)
+		return self
+
+	def bam2bai(self, runFlag=True):
+		inputs = self.latestOutputs
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bam','.bam.bai'],
+			'codeList': [
+				'samtools',
+				'index',
+				'#IN',
+				'#OUT'
+			]
+		}
+		self.runM(codeDict)
+		return self
+
 
 	# def bed2nonRedundantBed(self, runFlag=True):
 	# 	self.checkDependency_(['sorted'])
@@ -127,6 +209,40 @@ class XRseqPipeline(SeqPipeline):
 	# 	self.run(singleCodeList, runFlag)
 	# 	self.latestOutput = output
 	# 	return self
+
+	def sortBam(self, runFlag=True):
+		input = self.latestOutput
+		output = self.in2out(input, '.bam', '.sorted.bam')
+		log = self.out2log(output)
+		temp = '/tmp/' + input.split('/')[-1] + '.temp'
+		singleCodeList = [
+			'samtools',
+			'sort',
+			'-T', temp, # temporary file
+			'-o', output,
+			input,
+			'>', log
+		]
+		self.run(singleCodeList, runFlag)
+		self.sorted = True
+		self.latestOutput = output
+		self.sortedBam = output
+		return self
+
+	def randomSelection(self, runFlag=True):
+		input = self.latestOutput
+		count = 2400000
+		output = self.in2out(input, '.bed', '.2M.bed')
+		codeList = [
+			'bed2sampling.py',
+			'-i', input,
+			'-c', count,
+			'-o', output
+		]
+		self.run(codeList, runFlag)
+		self.latestOutput = output
+		return self
+
 
 	def splitBedByStrand(self, runFlag=True):
 		input = self.latestOutput
@@ -169,7 +285,7 @@ class XRseqPipeline(SeqPipeline):
 					'bedtools',
 					'coverage',
 					'-counts',
-					'-a', self.e_coli_K12_windowsBedFile,
+					'-a', self.referenceWindowsBedFile,
 					'-b', inputs[i], # Read file, to get the read counts overlapping with the primary genomic locations
 					'>', outputs[i]
 				]
@@ -211,7 +327,7 @@ class XRseqPipeline(SeqPipeline):
 		]
 		self.run(singleCodeList, runFlag)
 		firstFasta = fasta.fasta(output)
-		self.totalReadNumber = firstFasta.getSequenceCount()
+		# self.totalReadNumber = self.internalRun(firstFasta.getSequenceCount, [], runFlag)
 		self.latestFasta = output
 		self.latestOutput = output
 		return self
@@ -227,9 +343,27 @@ class XRseqPipeline(SeqPipeline):
 		]
 		self.run(singleCodeList, runFlag)
 		bedObject = bed.bed(output)
-		self.totalReadNumber = bedObject.getHitNum()
+		self.totalReadNumber = self.internalRun(bedObject.getHitNum, [], runFlag)
 		self.latestBed = output
 		self.latestOutput = output
+		return self
+
+
+	def normalizeBedToBedGraph(self, runFlag=False):
+		inputs = self.latestOutputs
+		codeDict = {
+			'inputs': self.latestOutputs,
+			'outputF': ['bed', 'n1Mread.bg'],
+			'codeList': [
+				'bedtools', 'genomecov',
+				'-i', '#IN',
+				'-bg',
+				'-scale', 1000000,
+				'-g', self.referenceGenomeSize,
+				'>', '#OUT'
+			]
+		}
+		self.latestBedGraphs = self.runM(codeDict, runFlag)
 		return self
 
 
@@ -290,21 +424,19 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def genesCoverageCount(self, runFlag=True):
-		inputs = self.firstBeds
-		outputs = []
-		for input in inputs:
-			output = self.in2out(input, '.bed', '.genesCov.bed')
-			outputs.append(output)
-			singleCodeList = [
+		codeDict = {
+			'inputs' : self.latestOutputs,
+			'outputF': ['.bed', '.geneCov.bed'],
+			'codeList' : [
 				'bedtools',
 				'coverage',
 				'-counts',
-				'-a', self.referencesGenesBed,
-				'-b', input,
-				'>', output
+				'-a', self.referenceGenesBed,
+				'-b', '#IN',
+				'>', '#OUT'
 			]
-			self.run(singleCodeList, runFlag)
-		self.latestOutputs = outputs
+		}
+		self.bedCountFiles = self.runM(codeDict, runFlag)
 		return self
 
 	def windowCoverageCount(self, runFlag=True):
@@ -347,9 +479,13 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def normalizeByTT(self, runFlag=True):
-		inputs = self.latestOutputs
+		inputs = self.bedCountFiles
+		strands = ['+', '-']
 		outputs = []
+		i = 0
 		for input in inputs:
+			strand = strands[i]
+			i += 1
 			output = self.in2out(input, '.bed', '.nTT.bed')
 			TTcountOutput = self.in2out(input, '.bed', '.bed.TTcount.txt')
 			outputs.append(output)
@@ -358,7 +494,7 @@ class XRseqPipeline(SeqPipeline):
 				'-i', input,
 				'-f', self.referenceFasta,
 				'-m', 'TT',
-				'-s', 4,
+				'-s', strand,
 				'-perNmotif', 100,
 				'-c', 5, # Count tab number
 				'--conPrint',
@@ -366,26 +502,24 @@ class XRseqPipeline(SeqPipeline):
 				'>', TTcountOutput
 			]
 			self.run(singleCodeList, runFlag)
-		self.latestOutputs = outputs
+		self.bedCountFiles = outputs
 		return self
 
 
 	def normalizeByReadNumber(self, runFlag=True):
-		inputs = self.latestOutputs
-		outputs = []
-		for input in inputs:
-			output = self.in2out(input, '.bed', '.nRead.bed')
-			outputs.append(output)
-			singleCodeList = [
+		codeDict = {
+			'inputs': self.bedCountFiles,
+			'codeList': [
 				'bedCount2normalizedByReadNumber.py',
-				'-i', input,
+				'-i', '#IN',
 				'-c', 5,
 				'-readNum', self.totalReadNumber, # Count tab number
 				'-perNumReads', 1000000, # Value will be per million reads
-				'-o', output
-			]
-			self.run(singleCodeList, runFlag)
-		self.latestOutputs = outputs
+				'-o', '#OUT'
+			],
+			'outputF': ['.bed', '.nRead.bed']
+		}
+		self.bedCountFiles = self.runM(codeDict, runFlag)
 		return self
 
 	def bed2bedgraph(self, runFlag=True):
@@ -399,30 +533,34 @@ class XRseqPipeline(SeqPipeline):
 				'bedtools',
 				'genomecov',
 				'-i', input,
-				'-g', self.referenceGenomeLength,
+				'-g', self.referenceGenomeSize,
 				'>', output
 			]
 			self.run(singleCodeList, runFlag)
 		self.latestOutputs = outputs
 		return self
 
-	def bedgraph2bigwig(self, runFlag=True):
-
+	def addHeaderToBedGraph(self, runFlag=True):
 		inputs = self.latestOutputs
+		treatments = ['Plus', 'Minus']
 		outputs = []
+		i = 0
 		for input in inputs:
-			output = self.in2out(input, '.bedgraph', '.bw')
+			output = self.in2out(input, '.bdg', '.head.bdg')
 			outputs.append(output)
+			treatment = self.treatment + '_' + treatments[i]
+			i += 1
+			trackLine = 'track type=bedGraph name="' + treatment + '"'
 			singleCodeList = [
-				'bedtools',
-				'genomecov',
-				'-i', input,
-				'-g', self.referenceGenomeLength,
-				'>', output
-			]
+				'echo', trackLine, '>', output,
+				'&&',
+				'tail -n +2', input, '>>', output
+				]
 			self.run(singleCodeList, runFlag)
 		self.latestOutputs = outputs
 		return self
+
+
 
 	def bed2wig(self, runFlag=True):
 		inputs = self.latestOutputs
@@ -435,8 +573,8 @@ class XRseqPipeline(SeqPipeline):
 				'count',
 				input,
 				output,
-				self.genomeSize
-			]
+				self.referenceGenomeSize
+				]
 			self.run(singleCodeList, runFlag)
 		self.latestOutputs = outputs
 		return self
@@ -504,7 +642,71 @@ class XRseqPipeline(SeqPipeline):
 		self.run(singleCodeList, runFlag)
 		return self
 
+	def bedGraph2bigWig(self, runFlag=True):
+		inputs = self.latestBedGraphs
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bg', '.bw'],
+			'codeList': [
+				'bedGraphToBigWig',
+				'#IN',
+				self.referenceGenomeSize,
+				'#OUT'
+			]
+		}
+		self.latestBigWigFiles = self.runM(codeDict, runFlag)
+		return self
 
+	def sendBigWigFiles(self, runFlag=True):
+		inputs = self.latestBigWigFiles
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['NaN','Nan'],
+			'codeList': [
+				'scp',
+				'#IN',
+				'ftp:ftp/ecoli'
+			]
+		}
+		self.runM(codeDict, runFlag)
+		return self
+
+	def bed2bigBed(self, runFlag=True):
+		inputs = self.latestOutputs
+		outputs = []
+		for input in inputs:
+			output = self.in2out(input, '.bed', '.bb')
+			outputs.append(output)
+			singleCodeList = [
+				'bedToBigBed',
+				input,
+				self.referenceGenomeSize,
+				output
+				]
+			self.run(singleCodeList, runFlag)
+		self.latestOutputs = outputs
+		return self
+
+
+	def unixSortBed(self, runFlag=True):
+		inputs = self.latestOutputs
+		outputs = []
+		for input in inputs:
+			output = self.in2out(input, '.bed', '.sorted.bed')
+			outputs.append(output)
+			self.sorted = True		
+			log = self.out2log(output)
+			singleCodeList = [
+				'sort',
+				input,
+				'-k1,1',
+				'-k2,2n',
+				'>', output
+			]
+			self.run(singleCodeList, runFlag)
+		self.latestOutputs = outputs
+		return self
+	
 
 class XRseqPipeline_seqLengths(XRseqPipeline):
 	'''XRseq Pipeline class'''
@@ -542,6 +744,7 @@ class XRseqPipeline_seqLengths(XRseqPipeline):
 		self.run(singleCodeList, runFlag)
 		return self
 
+
 input = sys.argv[1]
 
 pipeline = XRseqPipeline(input)
@@ -549,21 +752,34 @@ pipeline = XRseqPipeline(input)
 pipeline\
 	.cutadapt(False)\
 		.fastq2lengthDistribution(False)\
+	.fastqSampling(False)\
 	.bowtie(False)\
 	.sam2bam(False)\
-	.sortBam(False)\
-	.bam2bed(False)\
-	.bed2fasta(False)\
-		.fa2nucleotideAbundanceTable(False)\
-			.plotNucleotideAbundance(False)\
-		.fa2dimerAbundanceTable(False)\
-	.fasta2bed_GetTT(False)\
-	.splitBedByStrand(False)\
-	.genesCoverageCount(False)\
-	.normalizeByTT(True)\
-	.normalizeByReadNumber(True)\
-		.bed2wig(True)\
-		.addHeaderToWig(True)\
+	.sortBam(True)\
+	.bam2bed(True)\
+	.bed2fasta(True)\
+		.fa2nucleotideAbundanceTable(True)\
+			.plotNucleotideAbundance(True)\
+		.fa2dimerAbundanceTable(True)\
+	.fasta2bed_GetTT(True)\
+	.splitBedByStrand(True)\
+		.normalizeBedToBedGraph(True)\
+			.bedGraph2bigWig(True)\
+			.sendBigWigFiles(True)\
+		.genesCoverageCount(True)\
+			.normalizeByReadNumber(True)\
+	.bed2bam(True)\
+		.bam2bai(True)\
+
+
+# 1224167
+		# .normalizeByTT(False)\
+
+		# .bed2bedgraph(False)\
+		# .addHeaderToBedGraph(False)\
+
+		# .bed2wig(True)\
+		# .addHeaderToWig(True)\
 	# .lateralConcatanate(True)\
 	# .normalizeByGeneLength(False)\
 	#.windowCoverageCount(False)\

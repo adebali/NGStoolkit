@@ -2,8 +2,10 @@ import os
 import sys
 from glob import glob
 
-gunzipFiles = sorted(glob('/proj/sancarlb/HTSF/161010_UNC17-D00216_0412_BCA3T0ANXX/*.fastq.gz'))
-outDir = '/proj/sancarlb/users/ogun/DamageSeq/hiSeq/1017/'
+gunzipFiles = []
+# gunzipFiles += sorted(glob('/proj/sancarlb/HTSF/161010_UNC17-D00216_0412_BCA3T0ANXX/*.fastq.gz'))
+gunzipFiles += sorted(glob('/proj/sancarlb/HTSF/161102_UNC32-K00270_0028_AHFTWJBBXX/*.fastq.gz'))
+outDir = '/proj/sancarlb/users/ogun/DamageSeq/hiSeq/'
 fastqFiles =[]
 
 def run(code):

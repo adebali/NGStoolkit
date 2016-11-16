@@ -17,6 +17,10 @@ class bed:
 			totalLength += regionLength
 		return totalLength
 
+	def getColumnNumber(self):
+		firstLine = open(self.file, 'r').readline()
+		return len(firstLine.split('\t'))
+
 	def getAverageLength(self):
 		totalLength = self.getTotalRegionLength()
 		hitNum = self.getHitNum()

@@ -3,12 +3,14 @@ import sys
 import subprocess
 from seqPipeline import SeqPipeline
 from glob import glob
+import bed
+import generalUtils
 
 # Constants
 kHomeDir = os.path.join(os.path.expanduser("~"), "ogun")
 kChromHmmDir = os.path.join(kHomeDir, "chromHMM")
 
-chromHMMfiles = glob(os.path.join(kHomeDir, 'chromHMM', '*_chromHMM'))
+chromHMMfiles = generalUtils.sorted_nicely(glob(os.path.join(kHomeDir, 'chromHMM', '*_chromHMM')))
 
 treatments = {
 	'NCPD-A6N.1.fastq':  'NHF1_CPD_Control_A',
@@ -23,6 +25,7 @@ treatments = {
 	'NC1DA4N.1.fastq': 'NHF1_CPD_10J_24h_B',	
 	'NCPD2DA5N.1.fastq': 'NHF1_CPD_10J_48h_A',
 	'NC2DB18N.1.fastq': 'NHF1_CPD_10J_48h_B',
+	'NCPD2DB42.1.fastq': 'NHF1_CPD_10J_48h_B2',
 	##
 	'N6-4-A33N.1.fastq': 'NHF1_6-4_Control_A',
 	'N6-4-C35N.1.fastq': 'NHF1_6-4_Control_B',
@@ -45,7 +48,10 @@ treatments = {
 	'G-CPDA29.1.fastq': 'GM12787_CPD_20J_nakedDNA_A',
 	'G-CPDB31.1.fastq': 'GM12787_CPD_20J_nakedDNA_B',
 	'GCPDA36.1.fastq': 'GM12787_CPD_20J_cell_A',
-	'GCPDB32.1.fastq': 'GM12787_CPD_20J_cell_B'
+	'GCPDB32.1.fastq': 'GM12787_CPD_20J_cell_B',
+	##
+	'N6-4HC-29.1.fastq': 'NHF1_6-4_20J_4h_no_CPD_Photolyase',
+	'N6-4HCP31.1.fastq': 'NHF1_6-4_20J_4h_with_CPD_Photolyase',
 }
 
 
@@ -94,6 +100,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 		self.checkPairedEndInput()
 		self.treatment = treatments[os.path.basename(self.input)]
 		self.genomeSize = '~/ogun/seq/hg19/hg19.bed'
+		self.dnaseBed = '/nas02/home/a/d/adebali/ucsc/wgEncodeUwDnaseNHDFAd.fdr01peaks.hg19.bed'
 
 	# Methods
 	##########################################################
@@ -167,7 +174,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 		return self
 
 	def bed2fasta(self, runFlag=False):
-		input = self.finalBed
+		input = self.latestOutput
 		output = self.in2out(input, '.bed', '.bed.fa')
 		referenceFasta = '/proj/seq/data/hg19/sam_index/hg19.fasta'
 		singleCodeList = [
@@ -218,8 +225,21 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 			'-k', 2,
 			'--percentage'
 		]
+		self.dinucleotideAbundance = output
 		self.run(singleCodeList, runFlag)
 		return self
+
+	def plotDinucleotideAbundance(self, runFlag=False):
+		input = self.dinucleotideAbundance
+		singleCodeList = [
+			'plotNucleotideFreqLine.r',
+			input,
+			self.treatment
+		]
+		self.run(singleCodeList, runFlag)
+		return self
+
+
 
 	def sam2bam(self, runFlag=True):
 		input = self.latestOutput
@@ -256,19 +276,19 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 		self.latestOutput = output
 		return self
 
-	def bed2sortedBed(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.sorted.bed')
-		log = self.out2log(output)
-		singleCodeList = [
-			'sortBed',
-			'-i', input,
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		self.sorted=True
-		return self
+	# def bed2sortedBed(self, runFlag=True):
+	# 	input = self.latestOutput
+	# 	output = self.in2out(input, '.bed', '.sorted.bed')
+	# 	log = self.out2log(output)
+	# 	singleCodeList = [
+	# 		'sortBed',
+	# 		'-i', input,
+	# 		'>', output
+	# 	]
+	# 	self.run(singleCodeList, runFlag)
+	# 	self.latestOutput = output
+	# 	self.sorted=True
+	# 	return self
 
 	def bed2nonRedundantBed(self, runFlag=True):
 		self.checkDependency_(['sorted'])
@@ -346,7 +366,7 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 		]
 		self.run(singleCodeList, runFlag)
 		self.latestOutput = output
-		self.finalBed = output
+		# self.finalBed = output
 		return self
 
 	def bed2bedGraph(self, runFlag=True):
@@ -418,10 +438,15 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 		return self
 
 	def coverageChromHMM(self, runFlag=False):
-		input = self.finalBed
+		input = self.latestOutput
+		self.totalMappedReads = self.internalRun(bed.bed(input).getHitNum, [], runFlag)
+		outputs = []
+		os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM"))
 		for chromHMMfile in chromHMMfiles:
 			regionName = chromHMMfile.split('/')[-1].split('_NHFL_')[0]
-			output = self.in2out(input, 'bed', 'coverage_' + regionName + '.bed')
+			os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM", self.treatment))
+			outputDir = os.path.join(os.path.dirname(input), "chromHMM", self.treatment)
+			output = os.path.join(outputDir, regionName + '.bed')
 			singleCodeList = [
 				'bedtools',
 				'coverage',
@@ -431,20 +456,123 @@ class DamageSeqPairedEndPipeline(SeqPipeline):
 				'>', output
 			]
 			self.run(singleCodeList, runFlag)
+			outputs.append(output)
+		self.coverageChromHMMoutputs = outputs
+		return self
 
-			# Normalization between Chromatin States
-			coverageInput = output
-			normalizedOutput = self.in2out(coverageInput, '.bed', '.norm.bed')
-			multiplyFactor = 1000
-			singleCodeList = [
+	def normalizeCoverageChromHMM(self, runFlag=False):
+		# Normalization between Chromatin States
+		multiplicationFactor = float(10000000)/self.totalMappedReads if self.totalMappedReads else 1 # Normalizes counts by total mapped read number
+		inputs = self.coverageChromHMMoutputs
+		codeDict = {
+			"inputs": inputs,
+			"outputF": [".bed", ".n1K.bed"],
+			"codeList": [
 				'bedCount2normalizedCount.py',
-				coverageInput,
-				normalizedOutput,
-				multiplyFactor
+				'-i', '#IN',
+				'-c', 7,
+				'-o', '#OUT',
+				'-l', 1000,
+				'-m', multiplicationFactor
 			]
-			self.run(singleCodeList, runFlag)
-			#########################################
+		}
+		self.coverageChromHMMoutputsN1K = self.runM(codeDict, runFlag)
+		return self
 
+	def appendNull(self, runFlag=False):
+		inputs = self.coverageChromHMMoutputsN1K
+		nullValue = "NA"
+		maxEntry = 115306
+		codeDict = {
+			"inputs": inputs,
+			"outputF": ['.bed', '.appNA.bed'],
+			"codeList": [
+				'bedCount2appendedVoid.py',
+				'-i', '#IN',
+				'-o', '#OUT',
+				'-n', maxEntry,
+				'-null', 'NaN'
+			]
+		}
+		self.chromHMMappendedByVoidOutputs = self.runM(codeDict, runFlag)
+		return self
+
+	def getCountColumn(self, runFlag=False):
+		inputs = self.chromHMMappendedByVoidOutputs
+		columnNo = 7
+		codeDict = {
+			"inputs": inputs,
+			"outputF": ['.bed', '.txt'],
+			"codeList": [
+				'cat', '#IN',
+				'|',
+				'cut', '-f', columnNo,
+				'>', '#OUT'
+			]
+		}
+		self.chromHMMcountLists = self.runM(codeDict, runFlag)
+		return self
+
+	def mergeChromHMM(self, runFlag=False):
+		inputs = self.chromHMMcountLists
+		output = os.path.join(os.path.dirname(self.latestOutput), self.treatment + "_mergedChromHMM.txt")
+		codeList = ['paste'] + inputs + ['>' + output]
+		self.run(codeList, runFlag)
+		self.mergedChromHMM = output
+		return self
+
+	def plotChromHMM(self, runFlag=False):
+		input = self.mergedChromHMM
+		codeList = [
+			"plotChromHMM.r",
+			input,
+			self.treatment
+		]
+		self.run(codeList, runFlag)
+		return self
+
+	def dnaseClosest(self, runFlag=False):
+		input = self.latestOutput
+		output = self.in2out(input,'.bed','.dnaseClosest.bed')
+		self.dnaseClosestBed = output
+		codeList = [
+			'bedtools',
+			'closest',
+			'-a', self.dnaseBed,
+			'-b', input,
+			'-k', 1,
+			'>', output
+		]
+		self.run(codeList, runFlag)
+		return self
+
+	def retrieveOnlyTheClosest(self, runFlag=False):
+		input = self.dnaseClosestBed
+		output = self.in2out(input,'.bed','.k1.bed')
+		self.dnaseClosestBedK1 = output
+		codeList = [
+			'sort',
+			'-u',
+			'-k1,1',
+			'-k2,1n',
+			'-k3,3n',
+			input,
+			'>', output
+		]
+		self.run(codeList, runFlag)
+		return self
+
+	def bedClosest2distance(self, runFlag=False):
+		input = self.dnaseClosestBedK1
+		output = self.in2out(input,'.bed','.bed.distance.txt')
+		codeList = [
+			'bedClosest2distance.py',
+			'-i', input,
+			'-c1', 2,
+			'-c2', 12,
+			'-o', output
+		]
+		self.run(codeList, runFlag)
 		return self
 
 #bsub -M 32 'grep -Pv "\t0" iterativeCov.4.bed | sort -u -k1,1 -k2,2 -k3,3 >escapingUniqueDamages.bed'
@@ -466,7 +594,16 @@ pipeline\
 			.fa2nucleotideAbundanceTable(True)\
 				.plotNucleotideAbundance(True)\
 			.fa2dimerAbundanceTable(True)\
-		.coverageChromHMM(False)\
+				.plotDinucleotideAbundance(True)\
+		.coverageChromHMM(True)\
+			.normalizeCoverageChromHMM(True)\
+			.appendNull(True)\
+			.getCountColumn(True)\
+			.mergeChromHMM(True)\
+			.plotChromHMM(True)\
+		.dnaseClosest(False)\
+		.retrieveOnlyTheClosest(False)\
+		.bedClosest2distance(False)\
 	.bed2bigBed(True)
 	# .bed2bedGraph(True)\
 	# .addHeaderToBedGraph(True)\

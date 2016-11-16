@@ -7,10 +7,12 @@ kTestFilesDir = os.path.join(scriptDir, 'testFiles')
 kFastaExample1 = os.path.join(kTestFilesDir, 'fastaExample1.fa')
 kFastaExample2 = os.path.join(kTestFilesDir, 'fastaExample2.fa')
 kFastaExample4 = os.path.join(kTestFilesDir, 'fastaExample4.fa')
+kFastaExample5 = os.path.join(kTestFilesDir, 'fastaExample5.fa')
 
 fasta1 = fasta(kFastaExample1)
 fasta2 = fasta(kFastaExample2)
 fasta4 = fasta(kFastaExample4)
+fasta5 = fasta(kFastaExample5)
 
 class fastaTests(unittest.TestCase):
 	def test_sequenceCount(self):
@@ -97,4 +99,5 @@ class fastaTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+	fasta5.singleEntry2chromSize()
 	unittest.main()

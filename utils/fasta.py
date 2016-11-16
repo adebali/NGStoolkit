@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import itertools
+import random
 
 def nucleotideAbundanceDict2percentageDict(theDict):
 	newDict = {}
@@ -46,6 +47,21 @@ class fasta:
 				yield chunk2seqDict(chunk)
 			buf = sequenceChunks[-1]
 
+	def getGenomeLength(self):
+		totalLength = 0
+		seqDicts = self.stream()
+		for seqDict in seqDicts:
+			sequenceLength = len(seqDict['s'])
+			totalLength += sequenceLength
+		return totalLength
+
+	def getRandomIndexList(self, numberOfReads):
+		genomeLength = self.getGenomeLength
+		indexList = []
+		for i in numberOfReads:
+			value = random.random * genomeLength 
+			
+
 	def getSequenceCount(self):
 		count = 0
 		filein = open(self.file, 'r')
@@ -54,6 +70,11 @@ class fasta:
 				count += 1
 		return count
 
+	def singleEntry2chromSize(self):
+		d = self.read()
+		if len(d.keys()) != 1:
+			raise ValueError('Fasta file does not have a single entry')
+		return 'chr\t' + str(len(d[d.keys()[0]]))
 
 	def getFirstSeqLength(self):
 		gtCount = 0

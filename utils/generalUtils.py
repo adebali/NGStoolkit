@@ -1,7 +1,27 @@
 import os
 import sys
+import re
+
+def sorted_nicely(l):
+	""" Sorts the given iterable in the way that is expected.
+
+	Required arguments:
+	l -- The iterable to be sorted.
+
+	"""
+	convert = lambda text: int(text) if text.isdigit() else text
+	alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+	return sorted(l, key = alphanum_key)
 
 def run(codeList, runFlag=True):
+	""" System call of the given list
+	
+	Arguments:
+	codeList -- list of the code
+	Optional:
+	runFlag -- Set False for mocking.
+	
+	"""
 	code = list2gappedString(codeList)
 	allStringList = list2allStringList(codeList)
 	if runFlag:
@@ -23,7 +43,11 @@ def file(input):
 
 def runGet(code):
 	import subprocess
-	return subprocess.check_output(code, shell=True)
+	if not '--mock' in sys.argv:
+		return subprocess.check_output(code, shell=True)
+	else:
+		print(code)
+		return False
 
 def list2allStringList(theList):
 	newList = []
@@ -94,7 +118,8 @@ def lineBasedFileOperation(input, output, function, arguments):
 	for line in filein:
 		currentArguments = list([line] + arguments)
 		newLine = function(*currentArguments)
-		out.write(newLine.strip() + '\n')
+		if newLine:
+			out.write(newLine.strip() + '\n')
 	out.close()
 
 def dna2reverseComplement(seq):
@@ -114,3 +139,12 @@ def motifCount(sequence, motif):
 			count+=1
 		else:
 			return count
+
+def mean(numbers):
+	return float(sum(numbers)) / max(len(numbers), 1)
+
+def list2concatString(l, string):
+	newList = []
+	for e in l:
+		newList.append(e + string)
+	return newList

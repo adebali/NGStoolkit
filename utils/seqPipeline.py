@@ -19,6 +19,7 @@ class SeqPipeline:
 		self.in2out = generalUtils.in2out
 		self.in2tempOut = generalUtils.in2tempOut
 		self.out2log = generalUtils.out2log
+		self.runGet = generalUtils.runGet
 		self.runMode = runMode
 		if '--mock' in sys.argv:
 			self.runMode = False
@@ -32,20 +33,45 @@ class SeqPipeline:
 			if self.runMode:
 				failedHere = os.system(code)
 				if failedHere:
-					sys.exit('we cannot execute the code: ' + code)
+					raise ValueError('we cannot execute the code: ' + code)
 			# else:
 			# 	print("gave up running the code, because the command is not given in the default 'RUN' mode.")
 		else:
 			print('X\t' + code)
 
+	def runM(self, codeDict, runFlag=True):
+		# codeDict = {'codeList': ['code', 'input', 'output'],
+		# 			'inputs': inputs,
+		# 			'outputF': ['.in', '.out']
+		# }
+		codeList = codeDict['codeList']
+		inputs = codeDict['inputs']
+		def input2output(input):
+			if 'outputF' in codeDict.keys():
+				outputF = codeDict['outputF']
+				return self.in2out(input, outputF[0], outputF[1])
+			else:
+				outputFunction = codeDict['outputFunction']
+				return outputFunction(input)
+
+		outputs = []
+		for input in inputs:
+			output = input2output(input)
+			outputs.append(output)
+			argPlacedCodeList = [input if x=='#IN' else x for x in codeList]
+			argPlacedCodeList = [output if x=='#OUT' else x for x in argPlacedCodeList]
+			self.run(argPlacedCodeList, runFlag)
+		return outputs
+
 	def internalRun(self, function, arguments, runFlag=True):
 		functionName = function.__name__
 		if runFlag:
-			print('-->\t' + functionName)
+			print('i->\t' + functionName)
 			if self.runMode:
-				function(*arguments)
+				return function(*arguments)
 		else:
-			print('X\t' + functionName)
+			print('iX\t' + functionName)
+			return False
 
 	def checkInput(self, pairedEnd=False):
 		expectedExtension = '.fastq'
@@ -169,20 +195,3 @@ class SeqPipeline:
 		self.run(singleCodeList, runFlag)
 		self.latestOutput = output
 		return self
-
-	def unixSortBed(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.sorted.bed')
-		self.sorted = True		
-		log = self.out2log(output)
-		singleCodeList = [
-			'sort',
-			input,
-			'-k1,1',
-			'-k2,2n',
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
-	

@@ -52,7 +52,7 @@ def line2strand(line):
         strandColIndex = int(args.s) - 1
         strand = line.split('\t')[strandColIndex]
         if not (strand == '+' or strand == '-'):
-            sys.exit(strand + ' --> Strand information is not correct.')
+            raise ValueError(strand + ' --> Strand information is not correct.')
         return strand
 
 countTabNumber = int(args.c)

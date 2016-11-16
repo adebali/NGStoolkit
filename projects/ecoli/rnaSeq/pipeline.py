@@ -6,7 +6,6 @@ from seqPipeline import SeqPipeline
 from glob import glob
 import bed
 
-referenceBowtieIndex = '/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.0'
 
 class rnaSeq(SeqPipeline):
 	'''rna-seq Paired End Pipeline class'''
@@ -14,15 +13,35 @@ class rnaSeq(SeqPipeline):
 	def __init__(self, input):
 		SeqPipeline.__init__(self, input)
 		self.checkInput()
-		self.referenceBowtieIndex = '/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.0'
-		self.referenceFasta = generalUtils.file('/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.chr.fa')
-		self.e_coli_K12_windowsBedFile = generalUtils.file('/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.chr.w200.bed')
-		self.referencesGenesBed = generalUtils.file('/nas02/home/a/d/adebali/ncbi/GCF_000005845.2/GCF_000005845.2.genes.bed')
-		self.fiftyWindowBed = generalUtils.file('/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.win50.bed')
+		self.basename = os.path.basename(self.input).replace('.fastq','')
+		self.dataDir = os.path.dirname(self.input)
+		self.ecoliReferenceRoot = '/nas02/home/a/d/adebali/ncbi/ecoli'
+		self.referenceVersion = 'NC_000913.2'
+		self.referenceRoot = os.path.join(self.ecoliReferenceRoot, self.referenceVersion)
+		self.referenceBowtieIndex = os.path.join(self.referenceRoot, self.referenceVersion)
+		self.referenceTophatIndex = self.referenceBowtieIndex
+		# self.referenceFasta = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.fa'))
+		# self.referenceGenesBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.genes.bed'))
+		self.referenceGenesBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.genes.bed'))
+		self.referenceGFF3 = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.gff3'))
+		# self.referenceGFF = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.gff'))
+		self.referenceGFF = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.gff'))
+		# self.referenceWindowsBedFile = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.bed'))
+		# self.fiftyWindowBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win50.bed'))
+		# self.referenceGenomeSize = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chrom.sizes'))
+		self.referenceGenomeSize = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.sizes'))
+		# self.twohundredWindowPlusBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.Plus.bed'))
+		# self.twohundredWindowMinusBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.Minus.bed'))
+		# self.fiftyWindowBed = generalUtils.file('/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.2/NC_000913.2.win50.bed')
+
 
 
 	# Class Specific Methods
 	##########################################################
+
+	# def reademptionAlign(self, runFlag=True):
+	# 	input = self.input
+	# 	output = 
 
 	def trimNonqualifiedNucleotides(self, runFlag=True):
 		input = self.latestOutput
@@ -60,38 +79,100 @@ class rnaSeq(SeqPipeline):
 	def align(self, runFlag=True):
 		# make sure that index file source (FASTA) starts with >chr followed by the sequence
 		input = self.latestOutput
-		output = self.in2out(input, 'fastq', 'bowtie_ecoli.sam')
+		tophatOutputDir = os.path.join(self.dataDir, 'tophat_' + self.basename)
+		output = os.path.normpath(os.path.join(tophatOutputDir, '..', self.basename + '.bam'))
 		log = self.out2log(output)
 		singleCodeList = [
-			'bowtie',
-			'-t', self.referenceBowtieIndex,
-			'-q', # FASTAQ input (default)
-			'--nomaqround', # Do NOT round MAQ
-			'-S', # Output in SAM format
-			'--seed 123', # Randomization parameter in bowtie,
+			'mkdir -p ',
+			tophatOutputDir,
+			'&&',
+			'tophat',
+			'--library-type', 'fr-firststrand',
+			'-o', tophatOutputDir,
+			self.referenceTophatIndex,
 			input,
-			output,
-			'>', log
+			'&&',
+			'cp', os.path.join(tophatOutputDir, 'accepted_hits.bam'), output
 		]
 		self.run(singleCodeList, runFlag)
 		self.latestOutput = output
 		return self
 
-	def bam2bed(self, runFlag=True):
+	def splitBamByStrand(self, runFlag=True):
 		input = self.latestOutput
-		output = self.in2out(input, '.bam', '.bed')
-		log = self.out2log(output)
-		singleCodeList = [
+		outputPlus = self.in2out(input, '.bam', '.Plus.bam')
+		outputMinus = self.in2out(input, '.bam', '.Minus.bam')
+		outputs = [outputPlus, outputMinus]
+		codeList = [
+			'samtools',
+			'view',
+			'-bF', '0x10',
+			input,
+			'>', outputPlus
+		]
+		self.run(codeList, runFlag)
+
+		codeList = [
+			'samtools',
+			'view',
+			'-bf', '0x10',
+			input,
+			'>', outputMinus
+		]
+		self.run(codeList, runFlag)
+
+		self.latestOutputs = outputs
+		return self
+
+	def bam2bai(self, runFlag=True):
+		inputs = self.latestOutputs
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bam','.bam.bai'],
+			'codeList': [
+				'samtools',
+				'index',
+				'#IN',
+				'#OUT'
+			]
+		}
+		self.runM(codeDict, runFlag)
+		return self
+
+	# def sortBam(self, runFlag=True):
+	# 	input = self.latestOutput
+	# 	output = self.in2out(input, '.bam', '.sorted.bam')
+	# 	log = self.out2log(output)
+	# 	temp = '/tmp/' + input.split('/')[-1] + '.temp'
+	# 	singleCodeList = [
+	# 		'samtools',
+	# 		'sort',
+	# 		'-T', temp, # temporary file
+	# 		'-o', output,
+	# 		input,
+	# 		'>', log
+	# 	]
+	# 	self.run(singleCodeList, runFlag)
+	# 	self.sorted = True
+	# 	self.latestOutput = output
+	# 	self.sortedBam = output
+	# 	return self
+
+	def bam2bed(self, runFlag=True):
+		inputs = self.latestOutputs
+		outputF = ['.bam', '.bed']
+		codeList = [
 			'bedtools',
 			'bamtobed',
-			'-i', input,
-			'>', output
+			'-i', '#IN',
+			'>', '#OUT'
 		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		bedObject = bed.bed(output)
-		self.totalReadNumber = bedObject.getHitNum()
-		self.averageReadLength = bedObject.getAverageLength()
+		codeDict = {'inputs':inputs, 'outputF': outputF, 'codeList': codeList}
+		self.latestOutputs = self.runM(codeDict, runFlag)
+
+		# bedObject = bed.bed(output)
+		#self.totalReadNumber = bedObject.getHitNum()
+		#self.averageReadLength = bedObject.getAverageLength()
 		return self
 
 	def splitBedByStrand(self, runFlag=True):
@@ -99,17 +180,51 @@ class rnaSeq(SeqPipeline):
 		outputs = [	self.in2out(input, '.bed', '.Plus.bed'),
 					self.in2out(input, '.bed', '.Minus.bed')
 		]
-		
+		strands = ['+', '-']
+		i = 0
 		for output in outputs:
 			singleCodeListPlus = [
 				'grep',
-				'-P', '"\+$"',
+				'-P', '\'\\' + strands[i] + '$\'',
 				input,
 				'>', output
 			]
 			self.run(singleCodeListPlus, runFlag)
+			i += 1
 
 		self.latestOutputs = outputs
+		return self
+
+	def bed2bam(self, runFlag=True):
+		inputs = self.latestOutputs
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bed','.bam'],
+			'codeList': [
+				'bedToBam',
+				'-i', '#IN',
+				'-g', self.referenceGenomeSize,
+				'>', '#OUT'
+			]
+		}
+		self.latestOutputs = self.runM(codeDict, runFlag)
+		return self
+	
+	def sortBam(self, runFlag=True):
+		inputs = self.latestOutputs
+		temp = '/tmp/' + os.path.basename(inputs[0]) + '.temp'
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bam', '.sorted.bam'],
+			'codeList': [
+				'samtools',
+				'sort',
+				'-T', temp, # temporary file
+				'-o', '#OUT',
+				'#IN'
+			]
+		}
+		self.latestOutputs = self.runM(codeDict, runFlag)
 		return self
 
 	def windowCoverage(self, runFlag=True):
@@ -156,15 +271,16 @@ class rnaSeq(SeqPipeline):
 	def normalizeByGeneLengthAndAverageReadLength(self, runFlag=True):
 		inputs = self.latestOutputs
 		outputs = []
-		multiplyFactor = 13 / self.averageReadLength
+		# multiplyFactor = 13 / self.averageReadLength
+		multiplyFactor = 1
 		for input in inputs:
 			output = self.in2out(input, '.bed', '.nGene.bed')
 			outputs.append(output)
 			singleCodeList = [
 				'bedCount2normalizedCount.py',
 				'-i', input,
-				# '-c', 5, # Count tab number geneCoverage
-				'-c', 4, # Count tab number
+				'-c', 5, # Count tab number geneCoverage
+				# '-c', 4, # Count tab number
 				'-l', 1000, # Value will be per 1000 nucleotides
 				'-m', multiplyFactor,
 				'-o', output
@@ -182,9 +298,9 @@ class rnaSeq(SeqPipeline):
 			singleCodeList = [
 				'bedCount2normalizedByReadNumber.py',
 				'-i', input,
-				'-c', 4,
+				'-c', 5,
 				'-readNum', self.totalReadNumber, # Count tab number
-				'-perNumReads', 1000000, # Value will be per million reads
+				'-perNumReads', 10000000, # Value will be per million reads
 				'-o', output
 			]
 			self.run(singleCodeList, runFlag)
@@ -193,20 +309,19 @@ class rnaSeq(SeqPipeline):
 
 	def genesCoverageCount(self, runFlag=True):
 		inputs = self.latestOutputs
-		outputs = []
-		for input in inputs:
-			output = self.in2out(input, '.bed', '.genesCov.bed')
-			outputs.append(output)
-			singleCodeList = [
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bed', '.genesCov.bed'],
+			'codeList': [
 				'bedtools',
 				'coverage',
 				'-counts',
-				'-a', self.referencesGenesBed,
-				'-b', input,
-				'>', output
+				'-a', self.referenceGenesBed,
+				'-b', '#IN',
+				'>', '#OUT'
 			]
-			self.run(singleCodeList, runFlag)
-		self.latestOutputs = outputs
+		}
+		self.latestOutputs = self.runM(codeDict, runFlag)
 		return self
 
 	def windowCoverageCount(self, runFlag=True):
@@ -279,6 +394,84 @@ class rnaSeq(SeqPipeline):
 		return self
 
 
+	def bam2assembledTranscripts(self, runFlag=True):
+		# def addCufflinks():
+		# 	self.run(['module add cufflinks'], runFlag)
+
+		#addCufflinks()
+
+		def in2out(input):
+			return os.path.join(os.path.dirname(input),os.path.basename(input)).replace('.','_') + '_cufflinks'
+		
+		inputs = self.latestOutputs
+		for input in inputs:
+			outputDir = in2out(input)
+			codeList = ['mkdir -p', outputDir]
+			self.run(codeList, runFlag)
+
+		codeDict = {
+			'inputs': inputs,
+			'outputFunction': in2out,
+			'codeList' : [
+				'source /nas02/apps/Modules/default/init/bash',
+				'&& module unload samtools',
+				'&& module load cufflinks',
+				'cufflinks',
+				'#IN',
+				'--library-type', 'fr-firststrand',
+				'-r', self.referenceGFF,
+				'-o', '#OUT'
+			]
+		}
+		self.latestOutputs = self.runM(codeDict, runFlag)
+
+	def normalizeBedToBedGraph(self, runFlag=False):
+		inputs = self.latestOutputs
+		codeDict = {
+			'inputs': self.latestOutputs,
+			'outputF': ['bed', 'n1Mread.bg'],
+			'codeList': [
+				'bedtools', 'genomecov',
+				'-i', '#IN',
+				'-bg',
+				'-scale', 1000000,
+				'-g', self.referenceGenomeSize,
+				'>', '#OUT'
+			]
+		}
+		self.latestBedGraphs = self.runM(codeDict, runFlag)
+		return self
+
+	def bedGraph2bigWig(self, runFlag=True):
+		inputs = self.latestBedGraphs
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bg', '.bw'],
+			'codeList': [
+				'bedGraphToBigWig',
+				'#IN',
+				self.referenceGenomeSize,
+				'#OUT'
+			]
+		}
+		self.latestBigWigFiles = self.runM(codeDict, runFlag)
+		return self
+
+	def sendBigWigFiles(self, runFlag=True):
+		inputs = self.latestBigWigFiles
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['NaN','Nan'],
+			'codeList': [
+				'scp',
+				'#IN',
+				'ftp:ftp/ecoli'
+			]
+		}
+		self.runM(codeDict, runFlag)
+		return self
+
+
 input = sys.argv[1]
 
 pipeline = rnaSeq(input)
@@ -287,17 +480,26 @@ pipeline\
 	.trimNonqualifiedNucleotides(False)\
 	.removePolyAtail(False)\
 	.align(False)\
-	.sam2bam(False)\
+	.splitBamByStrand(False)\
 	.sortBam(False)\
+		.bam2bai(False)\
 	.bam2bed(False)\
-	.splitBedByStrand(False)\
-	.windowCoverageCount(False)\
-	.normalizeByGeneLengthAndAverageReadLength(True)\
-	.normalizeByReadNumber(True)\
-	.lateralPaste(True)\
-	#.genesCoverageCount(False)\
+		.normalizeBedToBedGraph(False)\
+		.bedGraph2bigWig(True)\
+		.sendBigWigFiles(True)\
+	.genesCoverageCount(False)\
+	.normalizeByGeneLengthAndAverageReadLength(False)
+
+	# .bam2assembledTranscripts(True)
+	
+	# .splitBedByStrand(False)\
+	# .bed2bam(False)\
+	# .normalizeByReadNumber(False)\
+	# .lateralPaste(False)\
+	# .windowCoverageCount(False)\
 	#.makeTemplateAndCodingStrands(True)
 
+# pipeline.bam2assembledTranscripts(True)
 
 	# .sortByCount(False)
 	# .windowCoverage(True)\

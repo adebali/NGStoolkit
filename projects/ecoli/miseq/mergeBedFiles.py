@@ -4,14 +4,19 @@ from glob import glob
 import re
 
 # files = sorted(glob("dataDir/*50win.nGene.nRead.bed")) + sorted(glob("../rnaSeq/dataDir/RNA_*50win.nGene.nRead.bed"))
-files = sorted(glob("dataDir/*2900K.bowtie_ecoli.sorted.bed.TT.*.geneCov.bed")) + sorted(glob("../rnaSeq/dataDir/RNA_*genesCov.nGene.nRead.bed"))
-output = 'dataDir/genesMergedCounts.csv'
+#files = sorted(glob("dataDir/*2900K.bowtie_ecoli.sorted.bed.TT.*.geneCov.bed")) + sorted(glob("../rnaSeq/dataDir/RNA_*genesCov.nGene.nRead.bed"))
+#files = sorted([fn for fn in glob("dataDir/*cutadapt13.2900K.bowtieNotall.sorted.bed.*.gene.Cov.bed") if not os.path.basename(fn).startswith('STL')]) + sorted(glob("../rnaSeq/dataDir/RNA_*genesCov.nGene.nRead.bed"))
+files = sorted([fn for fn in glob("dataDir/*cutadapt13.2900K.bowtieNotall.sorted.bed.TT.*.gene.Cov.bed") if not os.path.basename(fn).startswith('STL')]) + sorted(glob("../rnaSeq/dataDir/RNA.*.sorted.genesCov.bed"))
+
+#output = 'dataDir/genesMergedCounts.csv'
+output = 'dataDir/genesMergedCounts_notAll_rna2.csv'
 tempFile = 'dataDir/temp.csv'
 headerFile = 'dataDir/headers.csv'
 totalColumn = 5
 unusedCol = 4
 start = True
 metaDataFiles = ["/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.2/NC_000913.2.genes.txt"]
+
 
 def run(code):
     print(code)

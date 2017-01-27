@@ -1,0 +1,6 @@
+chr1	10	11	name1	0	+	interval1	1	2	3	4
+chr1	10	11	name2	0	-	interval2	5	6	7	8
+chr2	0	1	name3	0	+	interval3	9	10	11	12
+chr2	0	1	name4	0	-	interval4	13	14	15	16
+chr3	1	2	name5	0	+	interval5	17	18	19	20
+chr3	1	2	name6	0	-	interval6	21	22	23	24

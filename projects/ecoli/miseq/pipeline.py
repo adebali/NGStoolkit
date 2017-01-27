@@ -10,10 +10,15 @@ from glob import glob
 
 def name2treatment(name):	
 	treatments = {
-		"WT": "WT",
-		"UVRD": "UvrD",
-		"MFD": "Mfd",
-		"PHR": "Phr"
+		"WT": "WT_a",
+		"UVRD": "uvrD_a",
+		"MFD": "mfd_a",
+		"PHR": "phr_a",
+		"STLPHR8": "phr_b",
+		"STLMFD6": "mfd_b",
+		"STLUVRD7": "uvrD_b",
+		"STLWT4": "WT_a2",
+		"STLWT5": "WT_b"
 	}
 	for key in treatments.keys():
 		if name.startswith(key):
@@ -43,6 +48,8 @@ def fileName2adapter(fileName):
 		sys.exit('Adapter is not found: ' + indexSeq)
 
 
+
+
 class XRseqPipeline(SeqPipeline):
 	'''XRseq Pipeline class'''
 
@@ -55,6 +62,11 @@ class XRseqPipeline(SeqPipeline):
 		self.referenceBowtieIndex = os.path.join(self.referenceRoot, self.referenceVersion)
 		self.referenceFasta = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.fa'))
 		self.referenceGenesBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.genes.bed'))
+		self.referenceTranscriptsBed = generalUtils.file(os.path.join('../rnaSeq/dataDir', 'transcripts_FPKM.merged.noOpTr.sorted.noCount.bed'))
+		self.tssBed = generalUtils.file(os.path.join(os.path.dirname(input), 'TSSmap.bins.bed'))
+		# self.binnedGenesBed = generalUtils.file(os.path.join(os.path.dirname(input), 'binnedGenes.bed'))
+		self.bin13 = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.sizes.bin13'))
+		
 		self.referenceGFF = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.gff3'))
 		# self.referenceWindowsBedFile = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.bed'))
 		# self.fiftyWindowBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win50.bed'))
@@ -71,26 +83,51 @@ class XRseqPipeline(SeqPipeline):
 	# Class Specific Methods
 	##########################################################
 
-	def cutadapt(self, runFlag=True):
+	def cutadapt_getAll(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
-		output = self.in2out(input, 'fastq', 'cutadapt.fastq')
+		minLength = 1
+		maxLength = 100
+		# output = self.in2out(input, 'fastq', 'cutadapt' + str(minLength) + 'to' + str(maxLength) + '.fastq')
+		output = self.in2out(input, 'fastq', 'cutadapt_all.fastq')
 		log = self.out2log(output)
 		singleCodeList = [
 			'cutadapt',
 			'-a', self.adapter, # The adapter is located at the 3' end
-			'-m', 13, # Minimum length
-			'-M', 13, # Maximum length
+			'-m', minLength, # Minimum length
+			'-M', maxLength, # Maximum length
 			'-o', output,
 			input,
 			'>', log
 		]
 		self.run(singleCodeList, runFlag)
-		self.executedModules.append(self.cutadapt.__name__)
+		self.allReads = output
+		return self
+
+	def cutadapt_13(self, runFlag=True):
+		if runFlag == "Skip": return self
+		input = self.latestOutput
+		minLength = 13
+		maxLength = 13
+		# output = self.in2out(input, 'fastq', 'cutadapt' + str(minLength) + 'to' + str(maxLength) + '.fastq')
+		output = self.in2out(input, 'fastq', 'cutadapt13.fastq')
+		log = self.out2log(output)
+		singleCodeList = [
+			'cutadapt',
+			'-a', self.adapter, # The adapter is located at the 3' end
+			'-m', minLength, # Minimum length
+			'-M', maxLength, # Maximum length
+			'-o', output,
+			input,
+			'>', log
+		]
+		self.run(singleCodeList, runFlag)
 		self.latestOutput = output
 		return self
 
 	def fastq2lengthDistribution(self, runFlag=True):
-		input = self.latestOutput
+		if runFlag == "Skip": return self
+		input = self.allReads
 		output = self.in2out(input, '.fastq', '.fastq.lengthDist.txt')
 		singleCodeList = [
 			'fastq2lengthDistribution.py',
@@ -102,6 +139,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def fastqSampling(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, '.fastq', '.2900K.fastq')
 		singleCodeList = [
@@ -116,8 +154,9 @@ class XRseqPipeline(SeqPipeline):
 
 
 	def bowtie(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
-		output = self.in2out(input, 'fastq', 'bowtie_ecoli.sam')
+		output = self.in2out(input, 'fastq', 'bowtieNotall.sam')
 		log = self.out2log(output)
 		singleCodeList = [
 			'bowtie',
@@ -126,9 +165,9 @@ class XRseqPipeline(SeqPipeline):
 			'--nomaqround', # Do NOT round MAC
 			'--phred33-quals', # Depends on the sequencing platform
 			'-S', # Output in SAM format
-			'--all', 
-			'--strata',
-			'--best',
+			#'--all', 
+			#'--strata',
+			#'--best',
 			'--seed 123', # Randomization parameter in bowtie,
 			input,
 			output,
@@ -140,6 +179,7 @@ class XRseqPipeline(SeqPipeline):
 
 
 	def splitBamByStrand(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		outputPlus = self.in2out(input, '.bam', '.Plus.bam')
 		outputMinus = self.in2out(input, '.bam', '.Minus.bam')
@@ -166,6 +206,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def bed2bam(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		codeDict = {
 			'inputs': inputs,
@@ -181,6 +222,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def bam2bai(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		codeDict = {
 			'inputs': inputs,
@@ -192,7 +234,7 @@ class XRseqPipeline(SeqPipeline):
 				'#OUT'
 			]
 		}
-		self.runM(codeDict)
+		self.runM(codeDict, runFlag)
 		return self
 
 
@@ -211,6 +253,7 @@ class XRseqPipeline(SeqPipeline):
 	# 	return self
 
 	def sortBam(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, '.bam', '.sorted.bam')
 		log = self.out2log(output)
@@ -230,6 +273,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def randomSelection(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		count = 2400000
 		output = self.in2out(input, '.bed', '.2M.bed')
@@ -245,6 +289,7 @@ class XRseqPipeline(SeqPipeline):
 
 
 	def splitBedByStrand(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		outputPlus = self.in2out(input, '.bed', '.Plus.bed')
 		outputMinus = self.in2out(input, '.bed', '.Minus.bed')
@@ -275,6 +320,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def windowCoverage(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = [self.latestOutputPlus, self.latestOutputMinus]
 		outputPlus = self.in2out(self.latestOutputPlus, '.bed', '.covCnt.bed')
 		outputMinus = self.in2out(self.latestOutputMinus, '.bed', '.covCnt.bed')
@@ -296,6 +342,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def bedCount2percentageByMax(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = [self.latestOutputPlus, self.latestOutputMinus]
 		outputPlus = self.in2out(self.latestOutputPlus, '.bed', '.perc.bed')
 		outputMinus = self.in2out(self.latestOutputMinus, '.bed', '.perc.bed')
@@ -314,6 +361,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def bed2fasta(self, runFlag=False):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, '.bed', '.bed.fa')
 		referenceFasta = self.referenceFasta
@@ -333,6 +381,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def fasta2bed_GetTT(self, runFlag=False):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, '.fa', '.TT.bed')
 		singleCodeList = [
@@ -342,14 +391,31 @@ class XRseqPipeline(SeqPipeline):
 			'-c', 'sequence[7:9]=="TT"' # Get sequences having TT dimer at the positions 8 and 9.
 		]
 		self.run(singleCodeList, runFlag)
-		bedObject = bed.bed(output)
-		self.totalReadNumber = self.internalRun(bedObject.getHitNum, [], runFlag)
+		self.finalBed = output
+
 		self.latestBed = output
 		self.latestOutput = output
 		return self
 
+	def removeHotSpots(self, runFlag=False):
+		if runFlag == "Skip": return self
+		input = self.latestOutput
+		output = self.in2out(input, '.bed', '.noHS.bed')
+		singleCodeList = [
+			'bed2removeHotspots.py',
+			'-i', input,
+			'-o', output,
+			'-n', 100
+		]
+		self.run(singleCodeList, runFlag)
+		self.finalBed = output
+
+		self.latestBed = output
+		self.latestOutput = output
+		return self
 
 	def normalizeBedToBedGraph(self, runFlag=False):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		codeDict = {
 			'inputs': self.latestOutputs,
@@ -368,6 +434,7 @@ class XRseqPipeline(SeqPipeline):
 
 
 	def fa2nucleotideAbundanceTable(self, runFlag=False):
+		if runFlag == "Skip": return self
 		input = self.latestFasta
 		output = self.in2out(input, '.fa', '.fa.nucAbu.csv')
 		nucleotideOrder = 'TCGA'
@@ -399,6 +466,7 @@ class XRseqPipeline(SeqPipeline):
 	# 	return self
 
 	def fa2dimerAbundanceTable(self, runFlag=False):
+		if runFlag == "Skip": return self
 		input = self.latestFasta
 		output = self.in2out(input, '.fa', '.fa.dimerAbu.csv')
 		singleCodeList = [
@@ -413,6 +481,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def plotNucleotideAbundance(self, runFlag=False):
+		if runFlag == "Skip": return self
 		input = self.nucleotideAbundance
 		nucleotideOrder = 'TCGA'
 		singleCodeList = [
@@ -423,15 +492,112 @@ class XRseqPipeline(SeqPipeline):
 		self.run(singleCodeList, runFlag)
 		return self
 
-	def genesCoverageCount(self, runFlag=True):
+	def intervalCoverageCount(self, runFlag=True):
+		if runFlag == "Skip": return self
+		coverageType = 'gene'
+		# coverageType = 'transcript'
+		coverageReference = self.referenceGenesBed
+		# coverageReference = self.referenceTranscriptsBed
+		
 		codeDict = {
 			'inputs' : self.latestOutputs,
-			'outputF': ['.bed', '.geneCov.bed'],
+			'outputF': ['.bed', '.' + coverageType + '.Cov.bed'],
 			'codeList' : [
 				'bedtools',
 				'coverage',
 				'-counts',
-				'-a', self.referenceGenesBed,
+				'-a', coverageReference,
+				'-b', '#IN',
+				'>', '#OUT'
+			]
+		}
+		self.bedCountFiles = self.runM(codeDict, runFlag)
+		return self
+
+	def bed2totalCount(self, runFlag=True):
+		if runFlag == "Skip": return self
+		codeDict = {
+			'inputs' : self.latestOutputs,
+			'outputF': ['.bed', '.bed.count.txt'],
+			'codeList' : [
+				'cat', '#IN', '|',
+				'cut -f 5', '|',
+				"awk '{s+=$1} END {print s}'",
+				'>', '#OUT'
+			]
+		}
+		self.bedCountSizes = self.runM(codeDict, runFlag)
+		return self
+
+	def TssMapCoverageCount(self, runFlag=True):
+		if runFlag == "Skip": return self
+		coverageType = 'TSSmap'
+		coverageReference = self.tssBed
+		
+		codeDict = {
+			'inputs' : self.latestOutputs,
+			'outputF': ['.bed', '.' + coverageType + 'Cov.bed'],
+			'codeList' : [
+				'bedtools',
+				'coverage',
+				'-counts',
+				'-a', coverageReference,
+				'-b', '#IN',
+				'>', '#OUT'
+			]
+		}
+		self.bedCountFiles = self.runM(codeDict, runFlag)
+		return self
+
+	def BinnedGenesCoverageCount(self, runFlag=True):
+		if runFlag == "Skip": return self
+		coverageType = 'binnedGenes'
+		coverageReference = self.binnedGenesBed
+		
+		codeDict = {
+			'inputs' : self.latestOutputs,
+			'outputF': ['.bed', '.' + coverageType + 'Cov.bed'],
+			'codeList' : [
+				'bedtools',
+				'coverage',
+				'-counts',
+				'-a', coverageReference,
+				'-b', '#IN',
+				'>', '#OUT'
+			]
+		}
+		self.bedCountFiles = self.runM(codeDict, runFlag)
+		return self
+
+	def mergeBins(self, runFlag=True):
+		if runFlag == "Skip": return self
+		codeDict = {
+			'inputs' : self.bedCountFiles,
+			'outputF': ['.bed', '.mergedBin.bed'],
+			'codeList' : [
+				'binnedBedCount2intervalMatrix.py',
+				'-i', '#IN',
+				'-o', '#OUT',
+				'-c', 5
+			]
+		}
+		self.mergedBinsBedFiles = self.runM(codeDict, runFlag)
+		return self
+
+
+	def countBin13(self, runFlag=True):
+		if runFlag == "Skip": return self
+		coverageType = 'bin13'
+		coverageReference = self.bin13
+		
+		codeDict = {
+			'inputs' : self.latestOutputs,
+			'outputF': ['.bed', '.' + coverageType + 'Cov.bed'],
+			'codeList' : [
+				'bedtools',
+				'coverage',
+				'-counts',
+				'-a', coverageReference,
 				'-b', '#IN',
 				'>', '#OUT'
 			]
@@ -440,6 +606,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def windowCoverageCount(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.firstBeds
 		covereageFiles = [self.twohundredWindowPlusBed, self.twohundredWindowMinusBed]
 		outputs = []
@@ -461,6 +628,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 	
 	def normalizeByGeneLength(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		for input in inputs:
@@ -479,6 +647,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def normalizeByTT(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.bedCountFiles
 		strands = ['+', '-']
 		outputs = []
@@ -507,6 +676,9 @@ class XRseqPipeline(SeqPipeline):
 
 
 	def normalizeByReadNumber(self, runFlag=True):
+		if runFlag == "Skip": return self
+		bedObject = bed.bed(self.finalBed)
+		self.totalReadNumber = self.internalRun(bedObject.getHitNum, [], runFlag)
 		codeDict = {
 			'inputs': self.bedCountFiles,
 			'codeList': [
@@ -523,6 +695,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def bed2bedgraph(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = [self.firstPlusBed, self.firstMinusBed]
 		outputs = []
 
@@ -541,6 +714,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def addHeaderToBedGraph(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		treatments = ['Plus', 'Minus']
 		outputs = []
@@ -563,6 +737,7 @@ class XRseqPipeline(SeqPipeline):
 
 
 	def bed2wig(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		for input in inputs:
@@ -580,6 +755,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def addHeaderToWig(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		i = 0
@@ -597,6 +773,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def lateralConcatanate(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		output = self.in2out(inputs[0], '.bed', '.mrg.bed')
 		singleCodeList = [
@@ -612,6 +789,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def makeTemplateAndCodingStrands(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, '.bed', '.TempCode.bed')
 		valueColNo = 3
@@ -631,6 +809,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def templateMinusCoding(self,runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, '.bed', '.tmc.bed')
 		singleCodeList = [
@@ -643,6 +822,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def bedGraph2bigWig(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestBedGraphs
 		codeDict = {
 			'inputs': inputs,
@@ -658,6 +838,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def sendBigWigFiles(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestBigWigFiles
 		codeDict = {
 			'inputs': inputs,
@@ -672,6 +853,7 @@ class XRseqPipeline(SeqPipeline):
 		return self
 
 	def bed2bigBed(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		for input in inputs:
@@ -689,6 +871,7 @@ class XRseqPipeline(SeqPipeline):
 
 
 	def unixSortBed(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		for input in inputs:
@@ -707,6 +890,7 @@ class XRseqPipeline(SeqPipeline):
 		self.latestOutputs = outputs
 		return self
 	
+
 
 class XRseqPipeline_seqLengths(XRseqPipeline):
 	'''XRseq Pipeline class'''
@@ -750,30 +934,40 @@ input = sys.argv[1]
 pipeline = XRseqPipeline(input)
 
 pipeline\
-	.cutadapt(False)\
-		.fastq2lengthDistribution(False)\
-	.fastqSampling(False)\
-	.bowtie(False)\
-	.sam2bam(False)\
+		.cutadapt_getAll(False)\
+			.fastq2lengthDistribution(False)\
+	.cutadapt_13(True)\
+	.fastqSampling(True)\
+	.bowtie(True)\
+	.sam2bam(True)\
 	.sortBam(True)\
 	.bam2bed(True)\
 	.bed2fasta(True)\
-		.fa2nucleotideAbundanceTable(True)\
-			.plotNucleotideAbundance(True)\
-		.fa2dimerAbundanceTable(True)\
+		.fa2nucleotideAbundanceTable(False)\
+			.plotNucleotideAbundance(False)\
+		.fa2dimerAbundanceTable(False)\
 	.fasta2bed_GetTT(True)\
+	.removeHotSpots("Skip")\
 	.splitBedByStrand(True)\
-		.normalizeBedToBedGraph(True)\
-			.bedGraph2bigWig(True)\
-			.sendBigWigFiles(True)\
-		.genesCoverageCount(True)\
-			.normalizeByReadNumber(True)\
+		.intervalCoverageCount(True)\
+			.bed2totalCount(True)\
 	.bed2bam(True)\
-		.bam2bai(True)\
+		.bam2bai(True)
 
+
+
+		# .BinnedGenesCoverageCount(True)\
+		# 	.mergeBins(True)\
+
+		# .normalizeBedToBedGraph(False)\
+		# 	.bedGraph2bigWig(False)\
+		# 	.sendBigWigFiles(False)\
+		# 	.normalizeByReadNumber(False)\
+
+#.intervalCoverageCount(True)\
 
 # 1224167
-		# .normalizeByTT(False)\
+#pipeline.normalizeByTT(False)\
 
 		# .bed2bedgraph(False)\
 		# .addHeaderToBedGraph(False)\
@@ -787,7 +981,26 @@ pipeline\
 	##.templateMinusCoding(True)
 	# .windowCoverage(False)\
 	# .bedCount2percentageByMax(False)
+def printMaterialMethods():
+	text = '''
+Sequencing and Genome Alignment
 
+One replicate of wildtype strain library was sequenced on MiSeq platform where as other wildtype and mutant libraries were sequenced on a Hiseq 2000 platform at the University of North Carolina High-Throughput Sequencing Facility. Reads were trimmed to remove flanking adapter sequences by cutadapt version 1.10 (Ref). Only reads of 13-mer length were taken into account for further analysis. Reads were aligned to the Escherichia coli str. K-12 substr. MG1655 genome with NCBI assembly accession no. NC_000913.2 (https://www.ncbi.nlm.nih.gov/nuccore/NC_000913.2) by using bowtie (Ref) with the arguments --nomaqround --phred33-quals -S -all --strata --best --seed 123. Nucleotide distribution of the reads were obtained using bedtools (Ref) coupled by custom scripts. The reads having TT dinucleotide at the positions of 8 and 9 were used for further analysis. The alignment were separeted into strand-specific files by using custom scripts. The raw data and bigwig tracks are availble in the Gene EXpression Omnibus database with accession no. XXXXXXX (www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=XXXXXXX)
+
+rnaSeq Data
+
+We used a publicly available rnaSeq data from .. et al (Ref). We trimmed non-qualified sequences by using fastq-quality-trimmer from FASTX-Toolkit with the arguments -t 20 -Q 33. We removed the poly-A tails by using cutadapt version 1.10 and retrieved reads having at least 12 nucleotides with the arguments -a A{100} --minimum-length 12. We aligned the reads to the same reference genome (NC_000913.2) by using tophat (Ref) with the argument --library-type fr-firststrand. Alignment were separated by strand.
+
+Interval coverage
+All feature counting processes were handled using bedtools.
+
+Visualization
+
+
+Statistics
+
+
+'''
 
 
 

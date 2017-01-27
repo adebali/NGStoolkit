@@ -15,6 +15,7 @@ def run(code):
     
 startedFileList = []
 
+
 for gunzipFile in gunzipFiles:
     fastqFile = gunzipFile[:-3]
     fastqBasename = os.path.basename(fastqFile)

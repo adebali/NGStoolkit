@@ -323,4 +323,7 @@ class fasta:
 			out.write("\n")
 		return 1
 
-
+	def getSequenceLengths(self):
+		'''prints header and the sequence length in tab-separated format'''
+		for seqObject in self.stream(4096*64*64):
+			print(seqObject['h'] + '\t' + str(len(seqObject['s'])))

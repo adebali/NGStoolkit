@@ -18,11 +18,13 @@ class rnaSeq(SeqPipeline):
 		self.ecoliReferenceRoot = '/nas02/home/a/d/adebali/ncbi/ecoli'
 		self.referenceVersion = 'NC_000913.2'
 		self.referenceRoot = os.path.join(self.ecoliReferenceRoot, self.referenceVersion)
-		self.referenceBowtieIndex = os.path.join(self.referenceRoot, self.referenceVersion)
+		# self.referenceBowtieIndex = os.path.join(self.referenceRoot, self.referenceVersion)
+		self.referenceBowtieIndex = os.path.join(self.referenceRoot, self.referenceVersion) + '_chr'
 		self.referenceTophatIndex = self.referenceBowtieIndex
 		# self.referenceFasta = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.fa'))
-		# self.referenceGenesBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.genes.bed'))
-		self.referenceGenesBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.genes.bed'))
+		self.referenceGenesBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.genes.bed'))
+		# self.referenceGenesBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.genes.bed'))
+		self.TSSbed = generalUtils.file(os.path.join(self.dataDir, 'TSSmap.bed'))
 		self.referenceGFF3 = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.gff3'))
 		# self.referenceGFF = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.gff'))
 		self.referenceGFF = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.gff'))
@@ -30,6 +32,7 @@ class rnaSeq(SeqPipeline):
 		# self.fiftyWindowBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win50.bed'))
 		# self.referenceGenomeSize = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chrom.sizes'))
 		self.referenceGenomeSize = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.sizes'))
+		self.referenceGenomeSize = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.sizes'))
 		# self.twohundredWindowPlusBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.Plus.bed'))
 		# self.twohundredWindowMinusBed = generalUtils.file(os.path.join(self.referenceRoot, self.referenceVersion + '.chr.win200.Minus.bed'))
 		# self.fiftyWindowBed = generalUtils.file('/nas02/home/a/d/adebali/ncbi/ecoli/NC_000913.2/NC_000913.2.win50.bed')
@@ -44,6 +47,7 @@ class rnaSeq(SeqPipeline):
 	# 	output = 
 
 	def trimNonqualifiedNucleotides(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, 'fastq', 'trimmed.fastq')
 		log = self.out2log(output)
@@ -60,6 +64,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def removePolyAtail(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, 'fastq', 'noAtail.fastq')
 		log = self.out2log(output)
@@ -77,6 +82,7 @@ class rnaSeq(SeqPipeline):
 
 
 	def align(self, runFlag=True):
+		if runFlag == "Skip": return self
 		# make sure that index file source (FASTA) starts with >chr followed by the sequence
 		input = self.latestOutput
 		tophatOutputDir = os.path.join(self.dataDir, 'tophat_' + self.basename)
@@ -99,6 +105,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def splitBamByStrand(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		outputPlus = self.in2out(input, '.bam', '.Plus.bam')
 		outputMinus = self.in2out(input, '.bam', '.Minus.bam')
@@ -125,6 +132,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def bam2bai(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		codeDict = {
 			'inputs': inputs,
@@ -159,6 +167,7 @@ class rnaSeq(SeqPipeline):
 	# 	return self
 
 	def bam2bed(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputF = ['.bam', '.bed']
 		codeList = [
@@ -176,6 +185,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def splitBedByStrand(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		outputs = [	self.in2out(input, '.bed', '.Plus.bed'),
 					self.in2out(input, '.bed', '.Minus.bed')
@@ -196,6 +206,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def bed2bam(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		codeDict = {
 			'inputs': inputs,
@@ -211,6 +222,7 @@ class rnaSeq(SeqPipeline):
 		return self
 	
 	def sortBam(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		temp = '/tmp/' + os.path.basename(inputs[0]) + '.temp'
 		codeDict = {
@@ -228,6 +240,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def windowCoverage(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputMinus = self.in2out(self.latestOutputMinus, '.bed', '.covCnt.bed')
 		outputs = [outputPlus, outputMinus]
@@ -250,6 +263,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def bedCount2percentageByMax(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = [self.latestOutputPlus, self.latestOutputMinus]
 		outputPlus = self.in2out(self.latestOutputPlus, '.bed', '.perc.bed')
 		outputMinus = self.in2out(self.latestOutputMinus, '.bed', '.perc.bed')
@@ -269,6 +283,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def normalizeByGeneLengthAndAverageReadLength(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		# multiplyFactor = 13 / self.averageReadLength
@@ -290,6 +305,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def normalizeByReadNumber(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		for input in inputs:
@@ -307,16 +323,40 @@ class rnaSeq(SeqPipeline):
 		self.latestOutputs = outputs
 		return self
 
-	def genesCoverageCount(self, runFlag=True):
+	def intervalCoverageCount(self, runFlag=True):
+		if runFlag == "Skip": return self
+		coverageType = 'genes'
+		coverageReference = self.referenceGenesBed
 		inputs = self.latestOutputs
 		codeDict = {
 			'inputs': inputs,
-			'outputF': ['.bed', '.genesCov.bed'],
+			'outputF': ['.bed', '.' + coverageType + 'Cov.bed'],
 			'codeList': [
 				'bedtools',
 				'coverage',
 				'-counts',
-				'-a', self.referenceGenesBed,
+				'-a', coverageReference,
+				'-b', '#IN',
+				'>', '#OUT'
+			]
+		}
+		self.latestOutputs = self.runM(codeDict, runFlag)
+		return self
+
+	def tssCoverageCount(self, runFlag=True):
+		if runFlag == "Skip": return self
+		coverageType = 'Tss'
+		coverageReference = self.TSSbed
+		inputs = self.latestOutputs
+		codeDict = {
+			'inputs': inputs,
+			'outputF': ['.bed', '.' + coverageType + 'Cov.bed'],
+			'codeList': [
+				'bedtools',
+				'coverage',
+				'-counts',
+				'-s',
+				'-a', coverageReference,
 				'-b', '#IN',
 				'>', '#OUT'
 			]
@@ -325,6 +365,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def windowCoverageCount(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		for input in inputs:
@@ -343,6 +384,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def lateralPaste(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		output = self.in2out(inputs[0], '.bed', '.mrg.bed')
 		singleCodeList = [
@@ -358,6 +400,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def sortByCount(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		outputs = []
 		for input in inputs:
@@ -375,6 +418,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def makeTemplateAndCodingStrands(self, runFlag=True):
+		if runFlag == "Skip": return self
 		input = self.latestOutput
 		output = self.in2out(input, '.bed', '.TempCode.bed')
 		valueColNo = 3
@@ -395,6 +439,7 @@ class rnaSeq(SeqPipeline):
 
 
 	def bam2assembledTranscripts(self, runFlag=True):
+		if runFlag == "Skip": return self
 		# def addCufflinks():
 		# 	self.run(['module add cufflinks'], runFlag)
 
@@ -426,6 +471,7 @@ class rnaSeq(SeqPipeline):
 		self.latestOutputs = self.runM(codeDict, runFlag)
 
 	def normalizeBedToBedGraph(self, runFlag=False):
+		if runFlag == "Skip": return self
 		inputs = self.latestOutputs
 		codeDict = {
 			'inputs': self.latestOutputs,
@@ -443,6 +489,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def bedGraph2bigWig(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestBedGraphs
 		codeDict = {
 			'inputs': inputs,
@@ -458,6 +505,7 @@ class rnaSeq(SeqPipeline):
 		return self
 
 	def sendBigWigFiles(self, runFlag=True):
+		if runFlag == "Skip": return self
 		inputs = self.latestBigWigFiles
 		codeDict = {
 			'inputs': inputs,
@@ -485,10 +533,12 @@ pipeline\
 		.bam2bai(False)\
 	.bam2bed(False)\
 		.normalizeBedToBedGraph(False)\
-		.bedGraph2bigWig(True)\
-		.sendBigWigFiles(True)\
-	.genesCoverageCount(False)\
+		.bedGraph2bigWig(False)\
+		.sendBigWigFiles(False)\
+	.intervalCoverageCount(False)\
 	.normalizeByGeneLengthAndAverageReadLength(False)
+
+	# .tssCoverageCount(True)\
 
 	# .bam2assembledTranscripts(True)
 	

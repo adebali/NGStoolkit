@@ -7,4 +7,5 @@ parser.add_argument('-i', required= True, help='input')
 
 args = parser.parse_args()
 Fasta = fasta.fasta(args.i)
-Fasta.printSeqLength()
+Fasta.getSequenceLengths()
+

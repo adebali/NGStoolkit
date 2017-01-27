@@ -17,6 +17,7 @@ class SeqPipeline:
 		self.latestOutput = input
 		self.executedModules = []
 		self.in2out = generalUtils.in2out
+		self.funIn2out = generalUtils.funIn2out
 		self.in2tempOut = generalUtils.in2tempOut
 		self.out2log = generalUtils.out2log
 		self.runGet = generalUtils.runGet
@@ -27,6 +28,8 @@ class SeqPipeline:
 	def run(self, codeList, runFlag=True):
 		code = generalUtils.list2gappedString(codeList)
 		code = code.replace('"', '\\"')
+		code = code.replace('(', '\\(')
+		code = code.replace(')', '\\)')
 		allStringList = generalUtils.list2allStringList(codeList)
 		if runFlag:
 			print('-->\t' + code)

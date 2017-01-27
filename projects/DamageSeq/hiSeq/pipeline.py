@@ -1,611 +1,982 @@
 import os
 import sys
-import subprocess
-from seqPipeline import SeqPipeline
-from glob import glob
-import bed
+from pipe import pipe
+import pipeTools
 import generalUtils
+import bed
+from glob import glob
+import argparse
 
-# Constants
-kHomeDir = os.path.join(os.path.expanduser("~"), "ogun")
-kChromHmmDir = os.path.join(kHomeDir, "chromHMM")
+# Required tools in path
+# bowtie
+# bedtools
+# samtools
+# subsample
 
-chromHMMfiles = generalUtils.sorted_nicely(glob(os.path.join(kHomeDir, 'chromHMM', '*_chromHMM')))
+SAMPLE_STAT_FILE = 'dataDir/samples_minReadCount.csv'
 
-treatments = {
-	'NCPD-A6N.1.fastq':  'NHF1_CPD_Control_A',
-	'NC-B17N.1.fastq': 'NHF1_CPD_Control_B',	
-	'NCPD0HA1N.1.fastq': 'NHF1_CPD_10J_0h_A',
-	'NC0HB13N.1.fastq': 'NHF1_CPD_10J_0h_B',
-	'NC1HB14N.1.fastq': 'NHF1_CPD_10J_1h_A',
-	'NC1HA2N.1.fastq': 'NHF1_CPD_10J_1h_B',	
-	'NC8HB15N.1.fastq': 'NHF1_CPD_10J_8h_A',
-	'NC8HA3N.1.fastq': 'NHF1_CPD_10J_8h_B',	
-	'NC1DB16N.1.fastq': 'NHF1_CPD_10J_24h_A',
-	'NC1DA4N.1.fastq': 'NHF1_CPD_10J_24h_B',	
-	'NCPD2DA5N.1.fastq': 'NHF1_CPD_10J_48h_A',
-	'NC2DB18N.1.fastq': 'NHF1_CPD_10J_48h_B',
-	'NCPD2DB42.1.fastq': 'NHF1_CPD_10J_48h_B2',
-	##
-	'N6-4-A33N.1.fastq': 'NHF1_6-4_Control_A',
-	'N6-4-C35N.1.fastq': 'NHF1_6-4_Control_B',
-	'N60HA7N.1.fastq': 'NHF1_6-4_20J_0h_A',	
-	'N6-0HB19N.1.fastq': 'NHF1_6-4_20J_0h_B',
-	'N620MA8N.1.fastq': 'NHF1_6-4_20J_20min_A',
-	'N6-20MB9N.1.fastq': 'NHF1_6-4_20J_20min_B',
-	'N62HA11N.1.fastq': 'NHF1_6-4_20J_2h_A',
-	'N6-1HB20N.1.fastq': 'NHF1_6-4_20J_2h_B',
-	'N61HA10N.1.fastq': 'NHF1_6-4_20J_1h_A',
-	'N6-2HB12N.1.fastq': 'NHF1_6-4_20J_1h_B',
-	'N64HC34N.1.fastq': 'NHF1_6-4_20J_4h_A',
-	'N6-4HB21N.1.fastq': 'NHF1_6-4_20J_4h_B',
-	##
-	'G-6-4A22.1.fastq': 'GM12787_6-4_20J_nakedDNA_A',
-	'G-6-4B24.1.fastq': 'GM12787_6-4_20J_nakedDNA_B',
-	'G6-4A23.1.fastq': 'GM12787_6-4_20J_cell_A',
-	'G6-4B25.1.fastq': 'GM12787_6-4_20J_cell_B',
-	##
-	'G-CPDA29.1.fastq': 'GM12787_CPD_20J_nakedDNA_A',
-	'G-CPDB31.1.fastq': 'GM12787_CPD_20J_nakedDNA_B',
-	'GCPDA36.1.fastq': 'GM12787_CPD_20J_cell_A',
-	'GCPDB32.1.fastq': 'GM12787_CPD_20J_cell_B',
-	##
-	'N6-4HC-29.1.fastq': 'NHF1_6-4_20J_4h_no_CPD_Photolyase',
-	'N6-4HCP31.1.fastq': 'NHF1_6-4_20J_4h_with_CPD_Photolyase',
-}
+parser = argparse.ArgumentParser(description='DamageSeq Pipeline')
+parser.add_argument('-i', required= False, help='input')
+parser.add_argument('-n', required= False, help='output')
+parser.add_argument('--mock', required= False, action='store_true', help='mock flag')
+parser.add_argument('--noPrint', required= False, action='store_true', help='prints no code when stated')
+args = parser.parse_args()
+inputFile = args.i
+inputIndex = args.n
+
+if inputFile == None and inputIndex == None:
+    raise ValueError("No input or index was given! Exiting ...")
+    sys.exit()
+elif inputFile != None:
+    fileBaseName = os.path.basename(inputFile)
+    samples = generalUtils.table2dictionary(generalUtils.file(SAMPLE_STAT_FILE), 'sample')
+    sampleDictionary = samples[fileBaseName][0]
+    input = generalUtils.file(inputFile)
+else:
+    indexes = generalUtils.table2dictionary(generalUtils.file(SAMPLE_STAT_FILE), 'no')
+    sampleDictionary = indexes[inputIndex][0]
+    input = generalUtils.file(os.path.realpath(os.path.join('dataDir', 'raw', sampleDictionary['sample'])))
 
 
-# Sample ID	Pool	Dose/damage			Time			Rep (A/B)
-# NCPD0hA1N	UVDT1	10J/CPD				0h				A
-# NCPD2dA5N	UVDT1	10J/CPD				48h(2days)		A
-# NCPD-A6N	UVDT1	0J(No UV)/CPD		-				A
-# N6-0hB19N	UVDT1	20J/6-4				0h				B
-# N6-20mB9N	UVDT1	20J/6-4				20min			B
-# N6-1hB20N	UVDT1	20J/6-4				1h				B
-# N6-2hB12N	UVDT1	20J/6-4				2h				B
-# N6-4hB21N	UVDT1	20J/6-4				4h				B
-# #########
-# NC0HB13N	UVDT2	10J/CPD				0h				B
-# NC1HB14N	UVDT2	10J/CPD				1h				B
-# NC8HB15N	UVDT2	10J/CPD				8h				B
-# NC1DB16N	UVDT2	10J/CPD				24h(1day)		B
-# NC2DB18N	UVDT2	10J/CPD				48h(2days)		B
-# NC-B17N	UVDT2	0J(No UV)/CPD		-				B
-# N6-4-C35N	UVDT2	0J(No UV)/6-4		-				C (B)
-# NC1HA2N	UVDT2	10J/CPD				1h				A
-# NC8HA3N	UVDT3	10J/CPD				8h				A
-# NC1DA4N	UVDT3	10J/CPD				24h(1day)		A
-# N60HA7N	UVDT3	20J/6-4				0h				A
-# N620MA8N	UVDT3	20J/6-4				20min			A
-# N61HA10N	UVDT3	20J/6-4				1h				A
-# N62HA11N	UVDT3	20J/6-4				2h				A
-# N64HC34N	UVDT3	20J/6-4				4h				C (A)
-# N6-4-A33N	UVDT3	0J(No UV)/6-4		-				A
-# G-6-4A22	HLUVB	20J/6-4				0h (naked DNA)	A
-# G6-4A23	HLUVB	20J/6-4				0h (cell)		A
-# G-6-4B24	HLUVB	20J/6-4				0h (naked DNA)	B
-# G6-4B25	HLUVB	20J/6-4				0h (cell)		B
-# G-CPDA29	HLUVB	20J/CPD				0h (naked DNA)	A
-# GCPDA36	HLUVB	20J/CPD				0h (cell)		A
-# G-CPDB31	HLUVB	20J/CPD				0h (naked DNA)	B
-# GCPDB32	HLUVB	20J/CPD				0h (cell)		B
+class myPipe(pipe):
+    def __init__(self, input):
+        pipe.__init__(self, input)
+        outputDirName = '0106'
+        self.totalMappedReads = None
+        self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', outputDirName))
+        os.system('mkdir -p ' + self.outputDir)
+        self.treatment = sampleDictionary['treatment_title']
+        self.minimumReadCount = round(int(sampleDictionary['minReadCount']) - 500000)
+        self.group = sampleDictionary['group']
+        self.cell = sampleDictionary['cell']
+        self.sampleMinPyrCount = sampleDictionary['minPyrHitNo']
+        self.product = sampleDictionary['product']
 
-# General utils
+        if self.product == 'CPD' or self.product == '_6-4':
+            self.motifRegex = '\'.{4}(T|C|t|c)(T|C|t|c).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
+        elif self.product == 'GG':
+            self.motifRegex = '\'.{4}(G|g)(G|g).{4}\'' # Get GG only at the positions 5 and 6.
+        else:
+            raise ValueError("Unknown product type. Exiting...")
 
-class DamageSeqPairedEndPipeline(SeqPipeline):
-	'''DamageSeq Paired End Pipeline class'''
 
-	def __init__(self, input):
-		SeqPipeline.__init__(self, input)
-		self.checkPairedEndInput()
-		self.treatment = treatments[os.path.basename(self.input)]
-		self.genomeSize = '~/ogun/seq/hg19/hg19.bed'
-		self.dnaseBed = '/nas02/home/a/d/adebali/ucsc/wgEncodeUwDnaseNHDFAd.fdr01peaks.hg19.bed'
+        ## Transcription factor binding sites
+        if self.cell == "GM12878":
+            self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.GM12878.sorted.1K.sorted.bed']
+        elif self.cell == "NHF1":
+            self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.BJ.sorted.1K.sorted.bed']
+        else:
+            raise ValueError("No such a cell is defined: " + self.cell)
 
-	# Methods
-	##########################################################
+        #if '-group' in sys.argv:
+        #    if self.group != int(sys.argv[sys.arg.index('-group') + 1]):
+        #        self.runMode = False
 
-	def cutadapt(self, runFlag=True):
-		input = self.latestOutput
-		output1 = self.in2out(self.input1, '1.fastq', 'cutadapt.1.fastq')
-		output2 = self.in2out(self.input2, '2.fastq', 'cutadapt.2.fastq')
-		log = self.out2log(output1)
-		adapter = 'GACTGGTTCCAATTGAAAGTGCTCTTCCGATCT'
+        self.dnaseBed = '/nas02/home/a/d/adebali/ucsc/wgEncodeUwDnaseNHDFAd.fdr01peaks.hg19.bed'
+        self.extra_name = 'ncl'
+        self.bowtie_reference = None
+        self.fasta_reference = None
+        self.chromosome_limits = None
 
-		singleCodeList = [
-			'cutadapt',
-			'--discard-trimmed', # Remove the reads containing the adapter sequence. If a read contains adapter, it is because of the artifact, no damage is expected on this read.
-			'-g', adapter, # The adapter is located at the 5' end
-			'-o', output1,
-			'-p', output2,
-			self.input1,
-			self.input2,
-			'>', log
-		]
-		self.run(singleCodeList, runFlag)
-		self.executedModules.append(self.cutadapt.__name__)
-		self.latestOutput = output1
-		self.latestOutput1 = output1
-		self.latestOutput2 = output2
-		return self
+        self.nucleosomeBed = None
+        # self.nucleosomeBedRep1Top = '/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep1.t1M.bed'
+        # self.nucleosomeBedRep1Top = '/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep1.all.bed'
+        self.nucleosomeBedRep1Top = None
 
-	def bowtie(self, runFlag=True):
-		input1 = self.latestOutput1
-		input2 = self.latestOutput2
-		output = self.in2out(self.latestOutput, '.fastq', '.bowtie_hg19.sam')
-		log = self.out2log(output)
-		singleCodeList = [
-			'bowtie',
-			'-t', '/proj/seq/data/bowtie/hg19/hg19', # hg19 Human Reference Genome, Feb. 2009, Genome Reference Consortium GRCh37
-			'-q', # FASTAQ input (default)
-			'--nomaqround', # Do NOT round MAC
-			'--phred33-quals', # Depends on the sequencing platform
-			'-S', # Output in SAM format
-			'-m', 4, # Do not report the reads that are mapped on to more than 4 genomic locations
-			'-X', 1000,
-			'--seed', 123, # Randomization parameter in bowtie,
-			'-p', 8,
-			'-1', input1,
-			'-2', input2,
-			output,
-			'>', log
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
+        self.nucleosomeBedList = None
 
-	def slopBed(self, runFlag=True):
-		input = self.latestOutput
-		slopB = 6
-		output = self.in2out(input, 'bed', 'slopB' + str(slopB) + '.bed')
-		genome = kHomeDir + '/seq/hg19/hg19.bed'
-		log = self.out2log(output)
-		singleCodeList = [
-			'bedtools',
-			'slop',
-			'-i', input,
-			'-g', genome, # Chomosomal lengths, needed in case region shift goes beyond the chromosomal limits.
-			'-b', slopB,
-			'-s', # Take strand into account
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
+        # self.nucleosomeBedRep1Top = '/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep1.bed'
+        self.nucleosomeTopBed = None
+        self.nucleosomeLowBed = None
+        self.void147bed = None
 
-	def bed2fasta(self, runFlag=False):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.bed.fa')
-		referenceFasta = '/proj/seq/data/hg19/sam_index/hg19.fasta'
-		singleCodeList = [
-			'bedtools',
-			'getfasta',
-			'-fi', referenceFasta,
-			'-bed', input,
-			'-fo', output,
-			'-s' # Force strandedness. If the feature occupies the antisense strand, the sequence will be reverse complemented
-		]
-		self.run(singleCodeList, runFlag)
-		self.fasta = output
-		return self
+        if self.cell == 'GM12878':
+            self.chmmCellLine = self.cell
+        elif self.cell == 'NHF1':
+            self.chmmCellLine = 'NHLF'
 
-	def fa2nucleotideAbundanceTable(self, runFlag=False):
-		input = self.fasta
-		output = self.in2out(input, '.fa', '.fa.nucAbu.csv')
-		nucleotideOrder = 'TCGA'
-		singleCodeList = [
-			'fa2nucleotideAbundanceTable.py',
-			'-i', input,
-			'-o', output,
-			'-n', nucleotideOrder,
-			'--percentage'
-		]
-		self.nucleotideAbundance = output
-		self.run(singleCodeList, runFlag)
-		return self
+        self.fifteenChromatinStates = os.path.join('/nas/longleaf/home/adebali/ogun/chromHMM/statebyline', self.chmmCellLine, 'states.bed')
+        #if runDir != False:
+        #    self.outputDirectory = os.path.join(os.path.dirname(self.input), runDir)
+        #    os.system('mkdir -p ' + self.outputDirectory)
+        input1 = self.input
+        input2 = generalUtils.in2out(self.input, '.1.fastq', '.2.fastq')
+        self.saveInput([input1, input2])
 
-	def plotNucleotideAbundance(self, runFlag=False):
-		input = self.nucleotideAbundance
-		nucleotideOrder = 'TCGA'
-		singleCodeList = [
-			'plotNucleotideAbundance.r',
-			input,
-			self.treatment
-		]
-		self.run(singleCodeList, runFlag)
-		return self
-
-	def fa2dimerAbundanceTable(self, runFlag=False):
-		input = self.fasta
-		output = self.in2out(input, '.fa', '.fa.dimerAbu.csv')
-		singleCodeList = [
-			'fa2kmerAbundanceTable.py',
-			'-i', input,
-			'-o', output,
-			'-k', 2,
-			'--percentage'
-		]
-		self.dinucleotideAbundance = output
-		self.run(singleCodeList, runFlag)
-		return self
-
-	def plotDinucleotideAbundance(self, runFlag=False):
-		input = self.dinucleotideAbundance
-		singleCodeList = [
-			'plotNucleotideFreqLine.r',
-			input,
-			self.treatment
-		]
-		self.run(singleCodeList, runFlag)
-		return self
+    def changeDefaultValues(self, key):
+        if key == "hg19":
+            self.referenceNickname = 'hg19'
+            output = pipeTools.listOperation(self.addExtraWord, self.output, '.hg19')
+            self.saveOutput(output)
+            self.bowtie_reference = '/proj/seq/data/HG19_UCSC/Sequence/BowtieIndex/genome'
+            self.fasta_reference = generalUtils.file('/nas/longleaf/home/adebali/ogun/seq/hg19/HG19_UCSC/genome.fa')
+            self.chromosome_limits = generalUtils.file('/nas/longleaf/home/adebali/ogun/seq/hg19/HG19_UCSC/genome.chrSizes.bed')
+            kHomeDir = os.path.join(os.path.expanduser("~"), "ogun")
+            kChromHmmDir = os.path.join(kHomeDir, "chromHMM")
+            if p.cell == "NHF1":
+                self.chromHMMfiles = generalUtils.sorted_nicely(glob(os.path.join(kHomeDir, 'chromHMM', 'w1000', '*_chromHMM')))
+                self.maxChromHMMhitNumber = 19166369
+            else:
+                self.chromHMMfiles = None
+                self.maxChromHMMhitNumber = None
+        elif key == "hg19_nucleosome":
+            self.referenceNickname = 'hg19nuc'
+            output = pipeTools.listOperation(self.addExtraWord, self.output, '.hg19nuc')
+            self.saveOutput(output)
+            self.bowtie_reference = '/nas02/home/a/d/adebali/ogun/ENCODE/hg19/nucleosome/hg19'
+            self.fasta_reference = '/nas02/home/a/d/adebali/ogun/ENCODE/hg19/nucleosome/hg19_2.fa'
+            self.chromosome_limits = '/nas02/home/a/d/adebali/ogun/ENCODE/hg19/nucleosome/hg19.chrSizes.bed'
+            self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep' + str(i + 1) + '.bed' for i in range(1, 9)]
+            self.void147bed = generalUtils.file('/proj/sancarlb/users/ogun/ENCODE/hg19/nucleosome/hg19.147.bed')
 
 
 
-	def sam2bam(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.sam', '.bam')
-		log = self.out2log(output)
-		singleCodeList = [
-			'samtools',
-			'view',
-			'-bf', '0x2', #	each segment properly aligned according to the aligner
-			#'-Sb'
-			'-o',
-			output,
-			input,
-			'>', log
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
-#-bf 0X2 bam bedpe
 
-	def bam2bed(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bam', '.bed')
-		log = self.out2log(output)
-		singleCodeList = [
-			'bedtools',
-			'bamtobed',
-			'-bedpe',
-			'-mate1',
-			'-i', input,
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
-
-	# def bed2sortedBed(self, runFlag=True):
-	# 	input = self.latestOutput
-	# 	output = self.in2out(input, '.bed', '.sorted.bed')
-	# 	log = self.out2log(output)
-	# 	singleCodeList = [
-	# 		'sortBed',
-	# 		'-i', input,
-	# 		'>', output
-	# 	]
-	# 	self.run(singleCodeList, runFlag)
-	# 	self.latestOutput = output
-	# 	self.sorted=True
-	# 	return self
-
-	def bed2nonRedundantBed(self, runFlag=True):
-		self.checkDependency_(['sorted'])
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.NR.bed')
-		singleCodeList = [
-			'bed2nonRedundantBed.py',
-			'-i', input,
-			'-o', output,
-			'-c', '1,2,3,4,5,6,7,9' # columns
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
-
-	def bed2uniquelySortedBed(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.uSorted.bed')
-		singleCodeList = [
-			'sort',
-			'-u',
-			'-k1,1',
-			'-k2,2n',
-			# '-k3,3n',
-			# '-k4,4',
-			# '-k5,5',
-			# '-k6,6',
-			#'-k9,9',
-			input,
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
-
-	def bed2sortedBed(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.srt.bed')
-		singleCodeList = [
-			'sort',
-			'-k1,1',
-			'-k2,2n',
-			input,
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
+        return self
+    
+    def cutadapt_fastq2fastq(self):
+        output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
+        self.saveOutput(output)
+        adapter = 'GACTGGTTCCAATTGAAAGTGCTCTTCCGATCT'
+        codeList = [
+            'cutadapt',
+            '--discard-trimmed', # Remove the reads containing the adapter sequence. If a read contains adapter, it is because of the artifact, no damage is expected on this read.
+            '-g', adapter, # The adapter is located at the 5' end
+            '-o', self.output[0],
+            '-p', self.output[1],
+            self.input[0],
+            self.input[1]
+        ]
+        self.execM(codeList)
+        return self
 
 
-	def bedpe2bed(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.sf.bed')
-		singleCodeList = [
-			'bedpe2bed.py',
-			input,
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
-
-	def bed2fixedRangeBed(self, runFlag=True):
-		input = self.latestOutput
-		side = 'left'
-		sideInput = side[0]
-		fixedRange = 10
-		output = self.in2out(input, '.bed', '.fr' + sideInput.upper() + str(fixedRange) + '.bed')
-		singleCodeList = [
-			'bed2fixedRangeBed.py',
-			'-i', input,
-			'-s', sideInput,
-			'-l', fixedRange,
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		# self.finalBed = output
-		return self
-
-	def bed2bedGraph(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.bdg')
-		singleCodeList = [
-			'bedtools',
-			'genomecov',
-			'-i', input,
-			'-g', self.genomeSize,
-			'>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
-
-	def bed2wig(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.wig')
-		singleCodeList = [
-			'igvtools',
-			'count',
-			input,
-			output,
-			self.genomeSize
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
-
-	def bed2bigBed(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bed', '.bb')
-		singleCodeList = [
-			'bedToBigBed',
-			input,
-			self.genomeSize,
-			output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
+    def bowtie_fastq2sam(self):
+        output = [self.output[0]]
+        self.saveOutput([self.addExtraWord(output[0], '.' + self.referenceNickname)])
+        codeList = [
+            'bowtie',
+            '-t', self.bowtie_reference,
+            '-q', # FASTAQ input (default)
+            '--nomaqround', # Do NOT round MAC
+            '--phred33-quals', # Depends on the sequencing platform
+            '-S', # Output in SAM format
+            '-m', 4, # Do not report the reads that are mapped on to more than 4 genomic locations
+            '-X', 1000,
+            '--seed', 123, # Randomization parameter in bowtie,
+            '-p', 4,
+            '-1', self.input[0],
+            '-2', self.input[1],
+            self.output
+        ]
+        self.execM(codeList)
+        return self
 
 
-	def bedGraph2bigWig(self, runFlag=True):
-		input = self.latestOutput
-		output = self.in2out(input, '.bdg', '.bw')
-		singleCodeList = [
-			'wigToBigWig',
-			'-clip',
-			input,
-			self.genomeSize,
-			output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
 
-	def addHeaderToBedGraph(self, runFlag=True):
-		input= self.latestOutput
-		output = self.in2out(input, '.bdg', '.head.bdg')
-		singleCodeList = [
-			'echo "track type=bedGraph name=' + self.treatment + '"', '>', output,
-			'&&',
-			'tail -n +2', input, '>>', output
-		]
-		self.run(singleCodeList, runFlag)
-		self.latestOutput = output
-		return self
+    def slopBed_bed2bed(self):
+        slopB = 6
+        self.addWordToOutput('b6')
+        codeList = [
+            'bedtools',
+            'slop',
+            '-i', self.input,
+            '-g', self.chromosome_limits, # Chomosomal lengths, needed in case region shift goes beyond the chromosomal limits.
+            '-b', slopB,
+            '-s', # Take strand into account
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
 
-	def coverageChromHMM(self, runFlag=False):
-		input = self.latestOutput
-		self.totalMappedReads = self.internalRun(bed.bed(input).getHitNum, [], runFlag)
-		outputs = []
-		os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM"))
-		for chromHMMfile in chromHMMfiles:
-			regionName = chromHMMfile.split('/')[-1].split('_NHFL_')[0]
-			os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM", self.treatment))
-			outputDir = os.path.join(os.path.dirname(input), "chromHMM", self.treatment)
-			output = os.path.join(outputDir, regionName + '.bed')
-			singleCodeList = [
-				'bedtools',
-				'coverage',
-				'-counts',
-				'-a', chromHMMfile, # Primary genomic locations
-				'-b', input, # Read file, to get the read counts overlapping with the primary genomic locations
-				'>', output
-			]
-			self.run(singleCodeList, runFlag)
-			outputs.append(output)
-		self.coverageChromHMMoutputs = outputs
-		return self
 
-	def normalizeCoverageChromHMM(self, runFlag=False):
-		# Normalization between Chromatin States
-		multiplicationFactor = float(10000000)/self.totalMappedReads if self.totalMappedReads else 1 # Normalizes counts by total mapped read number
-		inputs = self.coverageChromHMMoutputs
-		codeDict = {
-			"inputs": inputs,
-			"outputF": [".bed", ".n1K.bed"],
-			"codeList": [
-				'bedCount2normalizedCount.py',
-				'-i', '#IN',
-				'-c', 7,
-				'-o', '#OUT',
-				'-l', 1000,
-				'-m', multiplicationFactor
-			]
-		}
-		self.coverageChromHMMoutputsN1K = self.runM(codeDict, runFlag)
-		return self
+    def convertBedToFasta_bed2fa(self):
+        codeList = [
+            'bedtools',
+            'getfasta',
+            '-fi', self.fasta_reference,
+            '-bed', self.input,
+            '-fo', self.output,
+            '-s' # Force strandedness. If the feature occupies the antisense strand, the sequence will be reverse complemented
+        ]
+        self.execM(codeList)
+        return self
 
-	def appendNull(self, runFlag=False):
-		inputs = self.coverageChromHMMoutputsN1K
-		nullValue = "NA"
-		maxEntry = 115306
-		codeDict = {
-			"inputs": inputs,
-			"outputF": ['.bed', '.appNA.bed'],
-			"codeList": [
-				'bedCount2appendedVoid.py',
-				'-i', '#IN',
-				'-o', '#OUT',
-				'-n', maxEntry,
-				'-null', 'NaN'
-			]
-		}
-		self.chromHMMappendedByVoidOutputs = self.runM(codeDict, runFlag)
-		return self
+    def getPyrimidineDimers_fa2bed(self):
+        codeList = [
+            'fa2bedByChoosingReadMotifs.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-r', self.motifRegex 
+        ]
+        self.execM(codeList)
+        return self
 
-	def getCountColumn(self, runFlag=False):
-		inputs = self.chromHMMappendedByVoidOutputs
-		columnNo = 7
-		codeDict = {
-			"inputs": inputs,
-			"outputF": ['.bed', '.txt'],
-			"codeList": [
-				'cat', '#IN',
-				'|',
-				'cut', '-f', columnNo,
-				'>', '#OUT'
-			]
-		}
-		self.chromHMMcountLists = self.runM(codeDict, runFlag)
-		return self
+    def sampleFromBed_bed2bed(self):
+        codeList = [
+            'subsample',
+            '-n', self.sampleMinPyrCount,
+            '--seed', 123,
+            self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
 
-	def mergeChromHMM(self, runFlag=False):
-		inputs = self.chromHMMcountLists
-		output = os.path.join(os.path.dirname(self.latestOutput), self.treatment + "_mergedChromHMM.txt")
-		codeList = ['paste'] + inputs + ['>' + output]
-		self.run(codeList, runFlag)
-		self.mergedChromHMM = output
-		return self
+    def getNucleotideAbundanceTable_fa2csv(self):
+        nucleotideOrder = 'TCGA'
+        codeList = [
+            'fa2nucleotideAbundanceTable.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-n', nucleotideOrder,
+            '--percentage'
+        ]
+        self.execM(codeList)
+        return self
 
-	def plotChromHMM(self, runFlag=False):
-		input = self.mergedChromHMM
-		codeList = [
-			"plotChromHMM.r",
-			input,
-			self.treatment
-		]
-		self.run(codeList, runFlag)
-		return self
+    def plotNucleotideAbundance_csv2pdf(self):
+        codeList = [
+            'plotNucleotideAbundance.r',
+            self.input,
+            self.treatment
+        ]
+        self.execM(codeList)
+        return self
 
-	def dnaseClosest(self, runFlag=False):
-		input = self.latestOutput
-		output = self.in2out(input,'.bed','.dnaseClosest.bed')
-		self.dnaseClosestBed = output
-		codeList = [
-			'bedtools',
-			'closest',
-			'-a', self.dnaseBed,
-			'-b', input,
-			'-k', 1,
-			'>', output
-		]
-		self.run(codeList, runFlag)
-		return self
+    def getDimerAbundanceTable_fa2csv(self):
+        codeList = [
+            'fa2kmerAbundanceTable.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-k', 2,
+            '--percentage'
+        ]
+        self.execM(codeList)
+        return self
 
-	def retrieveOnlyTheClosest(self, runFlag=False):
-		input = self.dnaseClosestBed
-		output = self.in2out(input,'.bed','.k1.bed')
-		self.dnaseClosestBedK1 = output
-		codeList = [
-			'sort',
-			'-u',
-			'-k1,1',
-			'-k2,1n',
-			'-k3,3n',
-			input,
-			'>', output
-		]
-		self.run(codeList, runFlag)
-		return self
+    def plotDinucleotideAbundance_csv2pdf(self):
+        codeList = [
+            'plotNucleotideFreqLine.r',
+            self.input,
+            self.treatment
+        ]
+        self.execM(codeList)
+        return self
 
-	def bedClosest2distance(self, runFlag=False):
-		input = self.dnaseClosestBedK1
-		output = self.in2out(input,'.bed','.bed.distance.txt')
-		codeList = [
-			'bedClosest2distance.py',
-			'-i', input,
-			'-c1', 2,
-			'-c2', 12,
-			'-o', output
-		]
-		self.run(codeList, runFlag)
-		return self
+    def convertToBam_sam2bam(self):
+        codeList = [
+            'samtools',
+            'view',
+            '-bf', '0x2', #	each segment properly aligned according to the aligner
+            #'-Sb'
+            '-o',
+            self.output,
+            self.input
+        ]
+        self.execM(codeList)
+        return self
 
-#bsub -M 32 'grep -Pv "\t0" iterativeCov.4.bed | sort -u -k1,1 -k2,2 -k3,3 >escapingUniqueDamages.bed'
+    def convertToBed_bam2bedpe(self):
+        codeList = [
+            'bedtools',
+            'bamtobed',
+            '-bedpe',
+            '-mate1',
+            '-i', self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
 
-input = sys.argv[1]
-pipeline = DamageSeqPairedEndPipeline(input)
+    def removeRedundancy_bedpe2bedpe(self):
+        codeList = [
+            'bed2nonRedundantBed.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', '1,2,3,4,5,6,7,9' # columns
+        ]
+        self.execM(codeList)
+        return self
 
-pipeline\
-	.cutadapt(True)\
-	.bowtie(True)\
-	.sam2bam(True)\
-	.bam2bed(True)\
-	.bed2uniquelySortedBed(True)\
-	.bedpe2bed(True)\
-	.slopBed(True)\
-	.bed2fixedRangeBed(True)\
-	.bed2sortedBed(True)\
-		.bed2fasta(True)\
-			.fa2nucleotideAbundanceTable(True)\
-				.plotNucleotideAbundance(True)\
-			.fa2dimerAbundanceTable(True)\
-				.plotDinucleotideAbundance(True)\
-		.coverageChromHMM(True)\
-			.normalizeCoverageChromHMM(True)\
-			.appendNull(True)\
-			.getCountColumn(True)\
-			.mergeChromHMM(True)\
-			.plotChromHMM(True)\
-		.dnaseClosest(False)\
-		.retrieveOnlyTheClosest(False)\
-		.bedClosest2distance(False)\
-	.bed2bigBed(True)
-	# .bed2bedGraph(True)\
-	# .addHeaderToBedGraph(True)\
-	# .bedGraph2bigWig(True)
-	# .bed2wig(True)\
+    def uniqueSort_bedpe2bedpe(self):
+        codeList = [
+            'sort',
+            '-u',
+            '-k1,1',
+            '-k2,2n',
+            # '-k3,3n',
+            # '-k4,4',
+            # '-k5,5',
+            # '-k6,6',
+            #'-k9,9',
+            self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def sortBed_bed2bed(self):
+        codeList = [
+            'sort',
+            '-k1,1',
+            '-k2,2n',
+            self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+
+    def convertBedpeToSingleFrame_bedpe2bed(self):
+        codeList = [
+            'bedpe2bed.py',
+            self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def convertToFixedRange_bed2bed(self):
+        side = 'left'
+        sideInput = side[0]
+        fixedRange = 10
+        self.addWordToOutput(str(fixedRange))
+
+        codeList = [
+            'bed2fixedRangeBed.py',
+            '-i', self.input,
+            '-s', sideInput,
+            '-l', fixedRange,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def convertToBedGraph_bed2bdg(self):
+        codeList = [
+            'bedtools',
+            'genomecov',
+            '-i', self.input,
+            '-g', self.chromosome_limits,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def convertToWig_bed2wig(self):
+        codeList = [
+            'igvtools',
+            'count',
+            self.input,
+            self.output,
+            self.chromosome_limits
+        ]
+        self.execM(codeList)
+        return self
+
+    def convertToBigBed_bed2bb(self):
+        codeList = [
+            'bedToBigBed',
+            self.input,
+            self.chromosome_limits,
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def convertToBigWig_bdg2bw(self):
+        codeList = [
+            'wigToBigWig',
+            '-clip',
+            self.input,
+            self.chromosome_limits,
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def addHeader_bdg2bdg(self):
+        codeList = [
+            'echo "track type=bedGraph name=' + self.treatment + '"', '>', self.output,
+            '&&',
+            'tail -n +2', self.input, '>>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def coverageChromHMM_bed2bed(self):
+        input = self.input[0]
+        self.totalMappedReads = self.internalRun(bed.bed(input).getHitNum, [], self.runFlag, 'get hit number')
+        outputs = []
+        os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM"))
+        for chromHMMfile in self.chromHMMfiles:
+            regionName = chromHMMfile.split('/')[-1].split('_NHFL_')[0]
+            os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM", self.treatment))
+            outputDir = os.path.join(os.path.dirname(input), "chromHMM", self.treatment)
+            output = os.path.join(outputDir, regionName + '.bed')
+            codeList = [
+                'bedtools',
+                'coverage',
+                '-counts',
+                '-a', chromHMMfile, # Primary genomic locations
+                '-b', self.input, # Read file, to get the read counts overlapping with the primary genomic locations
+                '>', output
+            ]
+            self.execM(codeList)
+            outputs.append(output)
+        self.saveOutput(outputs)
+        return self
+
+    def normalizeCoverageChromHMM_bed2bed(self):
+        multiplicationFactor = float(10000000)/self.totalMappedReads if self.totalMappedReads else 1 # Normalizes counts by total mapped read number
+        self.addWordToOutput('n1K')
+        codeList = [
+            'bedCount2normalizedCount.py',
+            '-i', self.input,
+            '-c', 7,
+            '-o', self.output,
+            # '-l', 1000,
+            '-l', 1000,
+            '-m', multiplicationFactor
+        ]
+        self.execM(codeList)
+        return self
+
+    def appendNull_bed2bed(self):
+        nullValue = "NA"
+        maxEntry = self.maxChromHMMhitNumber
+        codeList = [
+            'bedCount2appendedVoid.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-n', maxEntry,
+            '-null', 'NaN'
+        ]
+        self.execM(codeList)
+        return self
+
+    def getCountColumn_bed2txt(self):
+        columnNo = 7
+        codeList = [
+            'cat', self.input,
+            '|',
+            'cut', '-f', columnNo,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def mergeChromHMM_txt2txt(self):
+        self.saveOutput([os.path.join(self.outputDir, self.treatment + "_mergedChromHMM.txt")])
+        codeList = ['paste'] + self.input + ['>' + self.output[0]]
+        self.execM(codeList)
+        return self
+
+    def plotChromHMM_txt2pdf(self):
+        codeList = [
+            "plotChromHMM.r",
+            self.input,
+            self.treatment
+        ]
+        self.execM(codeList)
+        return self
+
+    def dnaseClosest_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'closest',
+            '-a', self.dnaseBed,
+            '-b', self.input,
+            '-k', 1,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def retrieveOnlyTheClosest_bed2bed(self):
+        codeList = [
+            'sort',
+            '-u',
+            '-k1,1',
+            '-k2,1n',
+            '-k3,3n',
+            self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def getDistanceFromClosest_bed2txt(self):
+        codeList = [
+            'bedClosest2distance.py',
+            '-i', self.input,
+            '-c1', 2,
+            '-c2', 12,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def countNucleosomeDamages_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.nucleosomeBed,
+            '-b', self.input,
+            '-c',
+            '-f', float(6)/147,
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+
+    def countChmm_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.fifteenChromatinStates,
+            '-b', self.input,
+            '-c',
+            '-F', 0.5,
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+
+    def normalizeChmm_bed2bed(self):
+        input = self.input[0]
+        self.totalMappedReads = self.internalRun(bed.bed(input).getHitNum, [], self.runFlag and (not self.totalMappedReads), 'get hit number')
+        multiplicationFactor = float(1000000)/self.totalMappedReads if self.totalMappedReads else 1 # Normalizes counts by total mapped read number
+        codeList = [
+            'bedCount2normalizedCount.py',
+            '-i', self.input,
+            '-c', 5,
+            '-o', self.output,
+            # '-l', 1000,
+            '-l', 200,
+            '-m', multiplicationFactor
+        ]
+        self.execM(codeList)
+        return self
+
+
+    def removeSitesWoDamage_bed2bed(self):
+        def keepLine(line):
+            keepFlag = line.strip().split('\t')[-1] != '0'
+            return keepFlag
+        self.internalRun(generalUtils.lineBasedFiltering, [self.input[0], self.output[0], keepLine], self.runFlag, 'remove sites without damage')
+        self.internalRun(generalUtils.lineBasedFiltering, [self.input[1], self.output[1], keepLine], self.runFlag, 'remove sites without damage')
+        return self
+
+    def getClosestDamage_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'closest',
+            '-a', self.nucleosomeBed,
+            '-b', self.input,
+            '-k', 1,
+            '-D', 'a',
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def getClosestDamageOnAll_bed2bed(self):
+        self.input = self.input * (9-1)
+        output = pipeTools.listOperation(self.addExtraWord, self.output, 'rep')
+        self.saveOutput(output)
+        newOutputList = []
+        for i in range(1,9):
+            newOutputList += pipeTools.listOperation(self.addExtraWord, self.output, str(i + 1))
+        self.saveOutput(newOutputList)
+
+        newNucleosomeList =[]
+        for i in range(len(self.nucleosomeBedList)):
+            for j in range(2):
+                newNucleosomeList.append(self.nucleosomeBedList[i])
+
+        codeList = [
+            'bedtools',
+            'closest',
+            '-a', newNucleosomeList,
+            '-b', self.input,
+            '-k', 1,
+            '-D', 'a',
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def getClosestDamageTxn_bed2bed(self):
+        txnList =[]
+        for i in range(len(self.txnBedList)):
+            for j in range(2):
+                txnList.append(self.txnBedList[i])
+
+        codeList = [
+            'bedtools',
+            'closest',
+            '-a', txnList,
+            '-b', self.input,
+            '-k', 1,
+            '-D', 'a',
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def getClosestDamageLoop_bed2bed(self):
+        output = [self.addExtraWord(self.output[0], '_Plus'), self.addExtraWord(self.output[0], '_Minus')]
+        output = pipeTools.listOperation(self.addExtraWord, self.output, 'COPY')
+        self.saveOutput(output)
+
+        codeList = [
+            'bedtools',
+            'closest',
+            '-a', self.nucleosomeBedRep1Top,
+            '-b', self.input,
+            '-k', 1,
+            '-D', 'a',
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def getClosestDamageTopNucleosomes_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'closest',
+            '-a', self.nucleosomeTopBed,
+            '-b', self.input,
+            '-k', 1,
+            '-D', 'a',
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def getClosestDamageLowNucleosomes_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'closest',
+            '-a', self.nucleosomeLowBed,
+            '-b', self.input,
+            '-k', 1,
+            '-D', 'a',
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def getClosestDamageVoid_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'closest',
+            '-a', self.void147bed,
+            '-b', self.input,
+            '-k', 1,
+            '-D', 'a',
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+
+    def adjustExactLocation_bed2bed(self):
+        def adjustLocation(line):
+            # NC_000001.10	10077	10223	+	2	NC_000001.10	10079	10089	+	0
+            ll = line.strip().split('\t')
+            nucleosomeStart = int(ll[1])
+            nucleosomeEnd = int(ll[2])
+            nucleosomeStrand = ll[3]
+            damageStart = int(ll[6])
+            damageEnd = int(ll[7])
+            damageStrand = ll[8]
+            distance = int(ll[9])
+            damagePosition = (((damageEnd + damageStart) / 2 - nucleosomeStart))
+            keepFlag = distance == 0 and damagePosition >= 0 and damagePosition <= 146
+            if keepFlag:
+                newLine = line.strip() + '\t' + str(damagePosition)
+            else:
+                newLine = None
+            return newLine
+        for i in range(len(self.input)):
+            self.internalRun(generalUtils.lineBasedFileOperation, [self.input[i], self.output[i], adjustLocation, []], self.runFlag, 'adjustExactLocation_bed2bed')
+
+
+    def adjustExactTxnLocation_bed2bed(self):
+        def adjustLocation(line):
+            # NC_000001.10	10077	10223	+	2	NC_000001.10	10079	10089	+	0
+            #chrX	192763	193106	CTCF	193	GM12878,AG04449,AoAF,HBMEC,HCPEpiC,HEEpiC,HPAF	chrX	195157	195167	+	2052
+            ll = line.strip().split('\t')
+            txnStart = int(ll[1])
+            txnEnd = int(ll[2])
+            TF = ll[3]
+            TFscore = int(ll[4])
+            cells = ll[5]
+            damageStart = int(ll[7])
+            damageEnd = int(ll[8])
+            damageStrand = ll[9]
+            distance = int(ll[10])
+            damagePosition = (((damageEnd + damageStart) / 2 - txnStart))
+            keepFlag = distance == 0 and damagePosition >= 0 and damagePosition <= 1000
+            if keepFlag:
+                newLine = line.strip() + '\t' + str(damagePosition)
+            else:
+                newLine = None
+            return newLine
+        for i in range(len(self.input)):
+            self.internalRun(generalUtils.lineBasedFileOperation, [self.input[i], self.output[i], adjustLocation, []], self.runFlag, 'adjustTxnExactLocation_bed2bed')
+
+
+    def nucleosomeCountPlot_bed2txt(self):
+        def treatmentHeader(input):
+            if 'Plus' in input:
+                return '"' + self.treatment + '_+"'
+            elif 'Minus' in input:
+                return '"' + self.treatment + '_-"'
+            else:
+                raise ValueError('No "Plus" or "Minus" in Input')
+        def getDamageCount(input, runFlag):
+            if runFlag == False:
+                return 1
+            else:
+                bedObject = bed.bed(input)
+                return float(1000000) / bedObject.getHitNum()
+        # multiplicationFactor = float(1000000) / int(self.sampleMinPyrCount)
+        codeList = [
+            'rm', '-f', self.output,
+            '&&',
+            'cat', self.input,
+            '|',
+            'cut', '-f', 11,
+            # '>', self.output
+            '|',
+            './plotNucleosomeDamage.R',
+            self.output,
+            pipeTools.listOperation(getDamageCount, self.input, self.runFlag and self.runMode),
+            pipeTools.listOperation(treatmentHeader, self.input),
+            73
+        ]
+        self.execM(codeList)
+        return self 
+    def TxnCountPlot_bed2txt(self):
+        def treatmentHeader(input):
+            if 'Plus' in input:
+                return '"' + self.treatment + '_+"'
+            elif 'Minus' in input:
+                return '"' + self.treatment + '_-"'
+            else:
+                raise ValueError('No "Plus" or "Minus" in Input')
+        def getDamageCount(input, runFlag):
+            if runFlag == False:
+                return 1
+            else:
+                bedObject = bed.bed(input)
+                return float(1000000) / bedObject.getHitNum()
+        # multiplicationFactor = float(1000000) / int(self.sampleMinPyrCount)
+        codeList = [
+            'rm', '-f', self.output,
+            '&&',
+            'cat', self.input,
+            '|',
+            'cut', '-f', 12,
+            # '>', self.output
+            '|',
+            './plotNucleosomeDamage.R',
+            self.output,
+            pipeTools.listOperation(getDamageCount, self.input, self.runFlag and self.runMode),
+            pipeTools.listOperation(treatmentHeader, self.input),
+            500
+        ]
+        self.execM(codeList)
+        return self 
+    def separateStrands_bed2bed(self):
+
+        strand = ['+', '-']
+        output = [
+            self.addExtraWord(self.output[0], '_Plus'), 
+            self.addExtraWord(self.output[0], '_Minus')
+        ]
+        self.saveOutput(output)
+        codeList = [
+            'grep',
+            strand,
+            self.input[0],
+            '>',
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+
+
+
+
+    def intersectWithTFBS_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.txnBedList[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def intersectWithNucleosome_bed2txt(self):
+        print(self.nucleosomeBedList)
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.nucleosomeBedList[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def parseIntersectResults_txt2txt(self):
+        def parseIntersectOutput(line):
+            # chr1	236749	238749	RUNX3	258	GM12878	chr1	238050	238060	-
+            ll = line.split('\t')
+            chromosomeA = ll[0]
+            startA = int(ll[1])
+            endA = int(ll[2])
+            midA = (startA + endA) / 2
+            startB = int(ll[7])
+            endB = int(ll[8])
+            midB = (startB + endB) / 2            
+            damgePosition = midB - midA
+            return str(damgePosition)
+        for i in range(len(self.input)):
+            self.internalRun(generalUtils.lineBasedFileOperation, [self.input[i], self.output[i], parseIntersectOutput, []], self.runFlag, 'parseIntersectResults_txt2txt')
+    
+    def listOfNumbersToCounts_txt2txt(self):
+        codeList = [
+            'list2countTable.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+###########################################################
+#  Pipeline
+###########################################################
+p = myPipe(input)
+(p
+    .run(p.cutadapt_fastq2fastq, False)
+
+    .branch(False)
+        .changeDefaultValues("hg19")
+        .run(p.bowtie_fastq2sam, False)
+        .run(p.convertToBam_sam2bam, False)
+        .run(p.convertToBed_bam2bedpe, False)
+        .run(p.uniqueSort_bedpe2bedpe, False)
+        .run(p.convertBedpeToSingleFrame_bedpe2bed, False)
+        .run(p.slopBed_bed2bed, False)
+        .run(p.convertToFixedRange_bed2bed, False)
+        .run(p.sortBed_bed2bed, False)
+        .run(p.convertBedToFasta_bed2fa, False)
+            
+        .branch(False) # Plot nucleotide abundance
+            .run(p.getNucleotideAbundanceTable_fa2csv, True)
+            .run(p.plotNucleotideAbundance_csv2pdf, True)
+        .stop()
+
+        .branch(False) # Plot dinucleotide abundance
+            .run(p.getDimerAbundanceTable_fa2csv, True)
+            .run(p.plotDinucleotideAbundance_csv2pdf, True)
+        .stop()
+
+        .run(p.getPyrimidineDimers_fa2bed, False)
+        .run(p.sampleFromBed_bed2bed, False)
+        .run(p.sortBed_bed2bed, False)
+            
+        # .branch(False) # ChromHMM analysis for NHF1 cells
+        #     .run(p.coverageChromHMM_bed2bed, True)
+        #     .run(p.normalizeCoverageChromHMM_bed2bed, True)
+        #     .run(p.appendNull_bed2bed, True)
+        #     .run(p.getCountColumn_bed2txt, True)
+        #     .run(p.mergeChromHMM_txt2txt, True)
+        #     .run(p.plotChromHMM_txt2pdf, True)
+        # .stop()
+
+        .branch(False and p.cell == "NHF1") # CHMM
+            .run(p.countChmm_bed2bed, True)
+            .run(p.normalizeChmm_bed2bed, True)
+        .stop()
+
+        # .branch(False) # DNase analysis
+            # .run(p.dnaseClosest_bed2bed, False)
+            # .run(p.retrieveOnlyTheClosest_bed2bed, False)
+            # .run(p.getDistanceFromClosest_bed2txt, False)
+        # .stop()
+
+        .branch(True)
+            .run(p.separateStrands_bed2bed, False)
+            
+            # .branch(True and p.cell == "GM12878") # Txn analysis
+            #     .run(p.getClosestDamageTxn_bed2bed, False)
+            #     .run(p.adjustExactTxnLocation_bed2bed, False)
+            #     .run(p.TxnCountPlot_bed2txt, True)
+            # .stop()
+
+
+
+            .branch(False and p.cell == "GM12878") # TFBS analysis
+                .run(p.intersectWithTFBS_bed2txt, False)
+                .run(p.parseIntersectResults_txt2txt, False)
+                .run(p.listOfNumbersToCounts_txt2txt, False)
+            .stop()
+        .stop()
+    .stop()
+
+    .branch(True and p.cell == "GM12878") # GM12878 Nucleosome Analysis
+        .changeDefaultValues("hg19_nucleosome")
+        .run(p.bowtie_fastq2sam, False)
+        .run(p.convertToBam_sam2bam, False)
+        .run(p.convertToBed_bam2bedpe, False)
+        .run(p.uniqueSort_bedpe2bedpe, False)
+        .run(p.convertBedpeToSingleFrame_bedpe2bed, False)
+        .run(p.slopBed_bed2bed, False)
+        .run(p.convertToFixedRange_bed2bed, False)
+        .run(p.sortBed_bed2bed, False)
+        .run(p.convertBedToFasta_bed2fa, True)
+        .run(p.getPyrimidineDimers_fa2bed, True)
+        .run(p.sampleFromBed_bed2bed, True)
+        .run(p.sortBed_bed2bed, True)
+
+        .branch(True and p.cell == "GM12878")
+            .run(p.separateStrands_bed2bed, True)
+                
+
+            .branch(True and p.cell == "GM12878")
+                .run(p.intersectWithNucleosome_bed2txt, True)
+            .stop()
+
+            # .branch(True and p.cell == "GM12878")
+            #     .run(p.getClosestDamageOnAll_bed2bed, True)
+            #     .run(p.adjustExactLocation_bed2bed, True)
+            #     .run(p.nucleosomeCountPlot_bed2txt, True)
+            # .stop()
+
+            # .branch(False and p.cell == "GM12878")
+            #     .run(p.getClosestDamageVoid_bed2bed, False)
+            #     .run(p.adjustExactLocation_bed2bed, False)
+            #     .run(p.nucleosomeCountPlot_bed2txt, False)
+            # .stop()
+        .stop()
+    .stop()
+
+
+    # .run(p.convertToBigBed_bed2bb, False)
+)

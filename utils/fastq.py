@@ -38,3 +38,17 @@ class fastq:
 				theDict[seqLength] += 1
 
 		return theDict
+
+	def writeSingleLineFastq(self, outputFile):
+		out = open(outputFile, 'w')
+		count = 0
+		filein = open(self.file, 'r')
+		newLine = ''
+		for line in filein:
+			count += 1
+			newLine += line.strip() + '\t'				
+			if count%4 == 0:
+				if newLine != '':
+					out.write(newLine.strip() + '\n')
+				newLine = ''
+

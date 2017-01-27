@@ -43,4 +43,6 @@ with open(fastqFile) as input:
 			out.write(line3)
 			out.write(line4)
 			del(randomSequenceNumbers[0])
+			if len(randomSequenceNumbers) == 0:
+				break
 out.close()

@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import inspect
 
 def sorted_nicely(l):
 	""" Sorts the given iterable in the way that is expected.
@@ -122,6 +123,16 @@ def lineBasedFileOperation(input, output, function, arguments):
 			out.write(newLine.strip() + '\n')
 	out.close()
 
+def lineBasedFiltering(input, output, function):
+	filein = open(input, 'r')
+	out = open(output, 'w')
+	for line in filein:	
+		keepFlag = function(line)
+		if keepFlag:
+			out.write(line.strip() + '\n')
+	out.close()
+
+
 def dna2reverseComplement(seq):
 	seq_dict = {'A':'T', 'T':'A', 'G':'C', 'C':'G',
 				'a':'t', 't':'a', 'g':'c', 'c':'g',
@@ -148,3 +159,71 @@ def list2concatString(l, string):
 	for e in l:
 		newList.append(e + string)
 	return newList
+
+def table2dictionary(fileName, keyHeader, separator = ','):
+	theDictionary = {}
+	lines = open(fileName,'r').readlines()
+	rows = [row.strip() for row in lines if row]
+	headings = rows[0].split(separator)
+	if keyHeader not in headings:
+		raise ValueError('keyHeader is not in the table headers')
+	keyColumnnNo = headings.index(keyHeader)
+	for row in rows[1:]:
+		rowDict = {}
+		rowValues = row.split(separator)
+		key = rowValues[keyColumnnNo]
+		for header in headings:
+			columnNo = headings.index(header)
+			rowDict[header] = rowValues[columnNo]
+		if key in theDictionary.keys():
+			theDictionary[key].append(rowDict)
+		else:
+			theDictionary[key] = [rowDict]
+	return theDictionary
+
+def dictionary2header(dictionary):
+	for key in dictionary.keys():
+		return sorted(dictionary[key][0].keys())
+
+def dictionary2table(dictionary, separator = ','):
+	header = separator.join(dictionary2header(dictionary))
+	tableString = header + '\n'
+	for key in sorted(dictionary.keys()):
+		rowList = dictionary[key]
+		for rowDict in rowList:
+			print(rowDict)
+			for rowKey in sorted(rowDict.keys()):
+				tableString += str(rowDict[rowKey]) + separator
+			tableString = tableString[:-1] + '\n'
+	return tableString
+
+def funIn2out(functionName, input, extraWord = '', abbreviationLength = 3):
+	fl = functionName.split('_')
+	method = fl[0]
+	extensions = fl[1]
+	if extensions.count('2') != 1:
+		raise ValueError('2 must be used and it has to be used only once. Eg: functionName_fa2csv')
+	el = extensions.split('2')
+	extensionIn = el[0]
+	extensionOut = el[1]
+	string = ''
+	start = True
+	for letter in fl[0]:
+		if letter.isupper() or start == True:
+			wordStart = 1
+			string += letter
+		elif wordStart < abbreviationLength:
+			string += letter
+			wordStart += 1
+		start = False
+	string += extraWord
+	return in2out(input, '.' + extensionIn, '.' + string + '.' + extensionOut)
+
+def getFunctionName():
+	return inspect.stack()[1][3]
+
+def getParentFunctionName():
+	return inspect.stack()[2][3]
+
+def getParentFunctionLineNo():
+	return inspect.stack()[2]

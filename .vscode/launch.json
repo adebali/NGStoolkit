@@ -13,6 +13,33 @@
                 "WaitOnNormalExit",
                 "RedirectOutput"
             ]
+        },       
+        {
+            "name": "Python3",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": true,
+            "pythonPath": "/Library/Frameworks/Python.framework/Versions/3.5/bin/python3",
+            "program": "${file}",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ]
+        },        
+        {
+            "name": "Python Test",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": true,
+            "pythonPath": "${config.python.pythonPath}",
+            "program": "${file}",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ],
+            "args": ["--test"]
         },
         {
             "name": "Integrated Terminal/Console",

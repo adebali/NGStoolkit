@@ -1,3 +1,4 @@
+import os
 import unittest
 import generalUtils
 
@@ -43,7 +44,27 @@ class generalUtilsTests(Testcase):
 		self.assertEqual(generalUtils.subseq('ATGCGCA', 2, 5), 'TGCG')
 
 	def test_motifCount(self):
-		self. assertEqual(generalUtils.motifCount('AATTTAGCGTTAGCTGCTTTT', 'TT'), 6)
+		self.assertEqual(generalUtils.motifCount('AATTTAGCGTTAGCTGCTTTT', 'TT'), 6)
+
+	
+	def test_table2dictionary(self):
+		scriptDir = os.path.dirname(os.path.realpath(__file__))
+		kTestFilesDir = os.path.join(scriptDir, 'testFiles')
+		table1 = os.path.join(kTestFilesDir, 'table.csv')
+		dict1 = {'key1': [{'key':'key1','value': '1'}], 'key2': [{'key':'key2','value': '2'}]}
+		table2 = os.path.join(kTestFilesDir, 'table.2.csv')
+		dict2 = {'A': [{'key':'key1','value': '1', 'group': 'A'}, {'key':'key3','value': '3', 'group': 'A'}], 'B': [{'key':'key2','value': '2', 'group': 'B'},{'key':'key4','value': '4', 'group': 'B'}]}
+		self.assertEqual(generalUtils.table2dictionary(table1, 'key', ','), dict1)
+		self.assertEqual(generalUtils.table2dictionary(table2, 'group', ','), dict2)
+		self.assertEqual(generalUtils.dictionary2table(dict1), open(table1).read())
+
+	def test_funIn2out(self):		
+		self.assertEqual(generalUtils.funIn2out('getNucleotideAbundance_fa2csv', 'input.method1.fa'), 'input.method1.getNucAbu.csv')
+		self.assertEqual(generalUtils.funIn2out('getNucleotideAbundance_fa2csv', 'input.method1.fa', '', 1), 'input.method1.gNA.csv')
+		self.assertEqual(generalUtils.funIn2out('getNucleotideAbundance_fa2csv', 'input.method1.fa', '', 2), 'input.method1.geNuAb.csv')
+		self.assertEqual(generalUtils.funIn2out('getNucleotideAbundance_fa2csv', 'input.method1.fa', '', 4), 'input.method1.getNuclAbun.csv')
+		self.assertEqual(generalUtils.funIn2out('getNucleotideAbundance_fa2csv', 'input.method1.fa', 'Extra'), 'input.method1.getNucAbuExtra.csv')
+
 
 
 if __name__ == "__main__":

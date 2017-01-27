@@ -3,11 +3,11 @@
     "host": "killdevil.unc.edu",
     "username": "adebali",
     "port": 22,
-    "password": "d=Ekd6asoy",
+    "password": "d=Ekd7asoy",
     "protocol": "sftp",
     "uploadOnSave": true,
     "passive": false,
-    "debug": false,
+    "debug": true,
     "ignore": [
         "\\.vscode",
         "\\.git"

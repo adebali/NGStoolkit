@@ -1,6 +1,38 @@
 import os
 import sys
 import unittest
+import random
+
+class bedline:
+	def __init__(self, line, sep='\t'):
+		self.line = line.strip()
+		self.separator = sep
+	
+	def fields(self):
+		return self.line.split(self.separator)
+
+	def chromosome(self):
+		return self.fields()[0]
+
+	def start(self):
+		return int(self.fields()[1])
+
+	def end(self):
+		return int(self.fields()[2])
+
+	def midpoint(self, randomness=False):
+		if not randomness:
+			addition = 0
+		else:
+			addition = random.sample([0,1], 1)[0]
+		return int((self.start() + self.end() + addition) / 2)
+
+	def newline(self, start, end):
+		newList = self.fields()
+		newList[1] = str(start)
+		newList[2] = str(end)
+		return self.separator.join(newList)
+
 
 class bed:
 	def __init__(self, input):
@@ -32,12 +64,70 @@ class bed:
 		for line in filein:
 			hitNum += 1
 		return hitNum
+	
 
 	def fixRange(self, side, length):
 		filein = open(self.file, 'r')
 		for line in filein:
 			print(bedLine2fixedRangedLine(line, side, length))
 		return self
+
+	def lengthDistribution(self):
+		filein = open(self.file, 'r')
+		myDict = {}
+		for line in filein:
+			ll = line.split('\t')
+			start = int(ll[1])
+			end = int(ll[2])
+			length = end - start
+			if length in myDict.keys():
+				myDict[length] += 1
+			else:
+				myDict[length] = 1
+		sortedKeys = sorted(myDict.keys())
+		for i in range(min(sortedKeys), max(sortedKeys) + 1):
+			if not i in myDict.keys():
+				count = 0
+			else:
+				count = myDict[i]
+			print(str(i) + '\t' + str(count))
+
+	def printLengths(self):
+		filein = open(self.file, 'r')
+		for line in filein:
+			ll = line.split('\t')
+			start = int(ll[1])
+			end = int(ll[2])
+			length = end - start
+			print(length)
+
+	def makeWindowsPerLine(self, interval, windowSize):
+		start = interval[0]
+		end = interval[1]
+		length = end - start
+		windowNumber = length / windowSize
+		newIntervals = []
+		for i in range(windowNumber):
+			newIntervals.append([start + i * windowSize, start + i * windowSize + windowSize])
+		return newIntervals
+
+	def makeWindows(self, windowSize, noShortFlag=False):
+		filein = open(self.file, 'r')
+		for line in filein:
+			ll = line.strip().split('\t')
+			interval = [int(ll[1]), int(ll[2])]
+			newIntervals = self.makeWindowsPerLine(interval, windowSize)
+			for newInterval in newIntervals:
+				newLineList = list(ll)
+				newLineList[1] = str(newInterval[0])
+				newLineList[2] = str(newInterval[1])
+				printFlag = True
+				if noShortFlag:
+					newIntervalLength = newInterval[1] - newInterval[0]
+					if newIntervalLength < windowSize:
+						printFlag = False
+				if printFlag:
+					print('\t'.join(newLineList))
 
 class bedpe(bed):
 	def mergeFragments(self):
@@ -107,6 +197,7 @@ def bedLine2fixedRangedLine(bedLine, side, length, strandFlag=True):
 	ll[1] = str(newBeg)
 	ll[2] = str(newEnd)
 	return '\t'.join(ll)
+	
 
 
 class bedTests(unittest.TestCase):
@@ -145,6 +236,18 @@ class bedTests(unittest.TestCase):
 	def test_bedClass(self):
 		myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/bedExample.bed'))
 		myBed.fixRange('l', 10)
+
+	def test_bedline2(self):
+		bedLine = bedline('chr1\t100\t5100\tbedpe_example1\t30\t+\n')
+		self.assertEqual(bedLine.fields(), ['chr1','100','5100','bedpe_example1','30','+'])
+		self.assertEqual(bedLine.chromosome(), 'chr1')
+		self.assertEqual(bedLine.start(), 100)
+		self.assertEqual(bedLine.end(), 5100)
+		self.assertEqual(bedLine.midpoint(True), 2600)
+		self.assertEqual(bedLine.newline(10,20), 'chr1\t10\t20\tbedpe_example1\t30\t+')
+		bedLine = bedline('chr1\t100\t5103\tbedpe_example1\t30\t+\n')
+		self.assertEqual(bedLine.midpoint(), 2601)
+		
 
 if __name__ == "__main__":
 	unittest.main()

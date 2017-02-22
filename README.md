@@ -7,9 +7,9 @@ This repository is developed for project-specific NGS analysis.
   * ...
 
 ## Setup
-  ```bash
+  ```
   cd ~
-  git clone https://github.com/adebali/sancarLabUtils.git
+  git clone git@bitbucket.org:adebali/sancarlabutils.git
   cd sancarLabUtils
   ./setup.sh
   ```

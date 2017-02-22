@@ -8,14 +8,17 @@ def fileList2csv(fileList, output):
     myDict = {}
     for file in fileList:
         # print(file)
-        sampleName = os.path.basename(file).split('.')[0] + '.1.fastq'
+        sampleName = os.path.basename(file).split('.')[0] + '.fastq'
         treatment = sampleDict[sampleName][0]['treatment_title']
-        values = open(file).read().splitlines() 
-        print(sampleName + ' ' + treatment)        
+        lines = open(file).read().splitlines() 
+        print(file)
+        print(sampleName + ' ' + treatment)
         if 'Plus' in file:
-            myDict[treatment + '_Pls'] = values
+            myDict[treatment + '_Pls' + '_Pos'] = lines[0].split('\t')
+            myDict[treatment + '_Pls' + '_Neg'] = lines[1].split('\t')
         elif 'Minus' in file:
-            myDict[treatment + '_Min'] = values
+            myDict[treatment + '_Min' + '_Pos'] = lines[0].split('\t')
+            myDict[treatment + '_Min' + '_Neg'] = lines[1].split('\t')
 
     # with open('dataDir/mergedNucleosomeData_rep' + str(i) + '.csv', 'wb') as csv_file:
     with open(output, 'wb') as csv_file:
@@ -25,19 +28,10 @@ def fileList2csv(fileList, output):
 
 
 # fileList = glob('dataDir/0106/*1.cu.bo.hg19.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.saFrBe.soBe.seSt_*.inWiTFBS.inToPo.txt')
-key = 'TFBS'
-key = 'DNa'
-key = 'CTCF'
-key = 'BoTFBSUp'
-key = 'BoTFBS'
-key = 'STAT3'
-key = 'NuPeaks'
 
+keys = ['TSS', 'TES']
 cell = 'NHF1'
-
-referenceGenome = 'hg19'
-referenceGenome = 'hg19nuc'
-
-fileList = glob('dataDir/0106/*1.cu.bo.' + referenceGenome + '.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_*.inWi' + key + '.inToPo.txt')
-fileList2csv(fileList, 'dataDir/merged' + key + '_' + cell + '.csv')
+for key in keys:
+    fileList = glob('dataDir/0131/*.cu.bo.hg19.coToBa.coToBe.unSo.seSt_*.co' + key + '.biCoToPo.txt')
+    fileList2csv(fileList, 'dataDir/merged' + key + '_' + cell + '.csv')
 

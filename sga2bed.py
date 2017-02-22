@@ -5,14 +5,14 @@ import argparse
 import generalUtils
 
 parser = argparse.ArgumentParser(description='converts sga to bed')
-parser.add_argument('-i', required= True, help='input')
-parser.add_argument('-o', required= True, help='output')
+parser.add_argument('-i', nargs='?', type=argparse.FileType('r'), default=sys.stdin, help='input')
+parser.add_argument('-o', nargs='?', type=argparse.FileType('w'), default=sys.stdout, help='output')
 parser.add_argument('-g', required=  True, help='genome chromosome limits')
 parser.add_argument('-b', required=  True, help='slop b: window size from both sides')
 
 args = parser.parse_args()
-sgaFile = args.i
-outBedFile = args.o
+infile = args.i
+out = args.o
 chromosomeSizesFile = args.g
 window = int(args.b)
 
@@ -31,9 +31,8 @@ def point2interval(chromosome, point, window, chromosomeSizes):
 	else:
 		return [start, end]
 
-
 def sgaLine2bedLine(line, window, chromosomeSizes):
-	ll = line.split('\t')
+	ll = line.strip().split('\t')
 	point = int(ll[2])
 	interval = point2interval(ll[0], point, window, chromosomeSizes)
 	if interval == None:
@@ -45,5 +44,13 @@ def sgaLine2bedLine(line, window, chromosomeSizes):
 
 chromosomeSizes = getChromosomeSizesDict(chromosomeSizesFile)
 #print(chromosomeSizes)
-generalUtils.lineBasedFileOperation(sgaFile, outBedFile, sgaLine2bedLine, [window, chromosomeSizes])
+
+
+for line in infile:
+	newLine = sgaLine2bedLine(line, window, chromosomeSizes)
+	if newLine:
+		out.write(newLine + '\n')
+
+
+# generalUtils.lineBasedFileOperation(sgaFile, outBedFile, sgaLine2bedLine, [window, chromosomeSizes])
 

@@ -1,5 +1,7 @@
 import unittest
 import os
+import slurm
+import datetime
 
 def replaceLast(source_string, replace_what, replace_with):
     head, sep, tail = source_string.rpartition(replace_what)
@@ -55,7 +57,7 @@ def list2allStringList(theList):
         newList.append(str(e))
     return newList
 
-def run(codeList, runFlag=True, runMode=True, printFlag=True):
+def run(codeList, runFlag, runMode, printFlag, jobIndex):
     code = list2gappedString(codeList)
     # code = code.replace('"', '\\"')
     # code = code.replace('(', '\\(')
@@ -63,7 +65,7 @@ def run(codeList, runFlag=True, runMode=True, printFlag=True):
     allStringList = list2allStringList(codeList)
     if runFlag:
         if printFlag:
-            print('-->\t' + code)
+            print(str(jobIndex) + ' -->\t' + code)
         if runMode:
             failedHere = os.system(code)
             if failedHere:
@@ -72,8 +74,29 @@ def run(codeList, runFlag=True, runMode=True, printFlag=True):
         # 	print("gave up running the code, because the command is not given in the default 'RUN' mode.")
     else:
         if printFlag:
-            print('X\t' + code)
+            print(str(jobIndex) + ' X\t' + code)
 
+def runWm(codeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex):
+    code = list2gappedString(codeList)
+    allStringList = list2allStringList(codeList)
+    if runFlag:
+        if printFlag:
+            print(str(jobIndex) + ' -->\t' + code)
+        if runMode:
+            slurmObject = slurm.Slurm(code)
+            slurmObject.addJobIndex(jobIndex)
+            slurmObject.assignParams(wmParams)
+            slurmObject.setDependencies(dependencies)
+            return slurmObject.run()
+            if failedHere:
+                raise ValueError('we cannot execute the code: ' + code)
+        # else:
+        # 	print("gave up running the code, because the command is not given in the default 'RUN' mode.")
+    else:
+        if printFlag:
+            print(str(jobIndex) + ' X\t' + code)
+    return None
+    # return dependencies
 
 def codeList2multiCodeList(codeList):
     def getParallelJobNumber(codeList):
@@ -94,10 +117,22 @@ def codeList2multiCodeList(codeList):
                 parallelJobLists[i].append(e[i])
     return parallelJobLists
 
-def execM(multiCodeList, runFlag=True, runMode=True, printFlag=True):
+def execM(multiCodeList, runFlag, runMode, printFlag, jobIndex):
+    jobIndex -= 1
     parallelJobLists = codeList2multiCodeList(multiCodeList)
     for codeList in parallelJobLists:
-        run(codeList, runFlag, runMode, printFlag)
+        jobIndex += 1
+        run(codeList, runFlag, runMode, printFlag, jobIndex)
+    return len(parallelJobLists)
+
+def execMwm(multiCodeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex):
+    jobIndex -= 1    
+    parallelJobLists = codeList2multiCodeList(multiCodeList)
+    jobIdList = []
+    for codeList in parallelJobLists:
+        jobIndex += 1        
+        jobIdList.append(runWm(codeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex))
+    return jobIdList
 
 if __name__ == "__main__":
     import unittest

@@ -19,8 +19,7 @@ def group2mergedChmm(groups):
             sample = sampleDict['sample']
             treatment = sampleDict['treatment_title']
             headers.append(treatment)
-            filesToBeMerged.append(os.path.realpath(os.path.join('dataDir/0106', sample.replace('.fastq', '') + '.cu.bo.hg19.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.coCh.bed')))
-            # filesToBeMerged.append(os.path.realpath(os.path.join('dataDir/0106', sample.replace('.fastq', '') + '.cu.bo.hg19.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.saFrBe.soBe.coCh.bed')))
+            filesToBeMerged.append(os.path.realpath(os.path.join('dataDir/0131', sample.replace('.fastq', '') + '.cu.bo.hg19.coToBa.coToBe.unSo.coCh.bed')))
     code = 'mergeFileColumns.py -input ' + ' '.join(filesToBeMerged) + ' -o ' + os.path.join('dataDir', groupName + '.chmm.txt') + ' -same 1 2 3 4 5 -merge 6'
     # print(code)
     os.system(code)
@@ -32,8 +31,8 @@ def group2mergedChmm(groups):
 groupDict = generalUtils.table2dictionary(generalUtils.file('dataDir/samples.csv'), 'group')
 # print(groupDict.keys())
 # print(sorted(groupDict[group], key=lambda k: k['no']))
-group2mergedChmm([1, 8])
-group2mergedChmm([2, 8])
+group2mergedChmm([1])
+group2mergedChmm([2])
 
 # for group in groupDict.keys():
     # group2mergedChmm(group)

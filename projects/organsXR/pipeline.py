@@ -24,6 +24,7 @@ args = parser.parse_args()
 inputFile = args.i
 inputIndex = args.n
 
+
 if inputFile == None and inputIndex == None:
     raise ValueError("No input or index was given! Exiting ...")
     sys.exit()
@@ -42,36 +43,24 @@ class myPipe(pipe):
     def __init__(self, input):
         pipe.__init__(self, input)
         self.execM = self.execMwm
-        outputDirName = '0131'
+        outputDirName = '0220'
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', outputDirName))
         os.system('mkdir -p ' + self.outputDir)
         self.treatment = sampleDictionary['treatment_title']
         self.group = sampleDictionary['group']
-        self.cell = sampleDictionary['cell']
         self.saveInput([self.input])
-        self.bowtie_reference = '/proj/seq/data/HG19_UCSC/Sequence/BowtieIndex/genome'
-        self.referenceNickname = 'hg19'
-        self.fasta_reference = generalUtils.file('/nas/longleaf/home/adebali/ogun/seq/hg19/HG19_UCSC/genome.fa')
-        self.chromosome_limits = generalUtils.file('/nas/longleaf/home/adebali/ogun/seq/hg19/HG19_UCSC/genome.chrSizes.bed')
-        self.dnaseBedList = ['/proj/sancarlb/users/ogun/ENCODE/dnase/BJ.bed']
+        self.bowtie_reference = '/proj/seq/data/MM10_UCSC/Sequence/BowtieIndex/genome'
+        self.fasta_reference = generalUtils.file('/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa')
+        self.chromosome_limits = generalUtils.file('/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai')
         self.defaultWmParams = {
-            '--mem': 32000,
-            '-n': 1,
-            '-t': '24:00:00',
-            '--job-name': 'XR-seq',
-            '-o': 'log_' + self.treatment + '.txt',
-            '-e': 'err_' + self.treatment + '.txt',
+            '--mem=': 32000,
+            '-n ': 1,
+            '-t ': '24:00:00',
+            '--job-name=': 'XR-seq',
+            '-o ': 'log_' + self.treatment + '.txt',
+            '-e ': 'err_' + self.treatment + '.txt',
         }
         self.wmParams = self.defaultWmParams
-        self.fifteenChromatinStates = '/proj/sancarlb/users/ogun/ENCODE/chromatinStates/wgEncodeBroadHmm/wgEncodeBroadHmmNhlfHMM.bed'
-
-        self.TSSbedFile = '/proj/sancarlb/users/ogun/seq/hg19/annotations/expression/hg19_expression_noHeader_sgt300_noNeighIn6000_min10000_TSS_win100.bed'
-        self.TESbedFile = '/proj/sancarlb/users/ogun/seq/hg19/annotations/expression/hg19_expression_noHeader_sgt300_noNeighIn6000_min10000_TES_win100.bed'
-
-    def ls_fastq2txt(self):
-        codeList = ['ls && sleep 1m']
-        self.execMwm(codeList)
-        return self
 
     def cutadapt_fastq2fastq(self):
         output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
@@ -88,8 +77,9 @@ class myPipe(pipe):
 
 
     def bowtie_fastq2sam(self):
+        noCpus = 1
+        self.mutateWmParams({'-n ': str(noCpus)})
         output = [self.output[0]]
-        self.saveOutput([self.addExtraWord(output[0], '.' + self.referenceNickname)])
         codeList = [
             'bowtie',
             '-t', self.bowtie_reference,
@@ -100,6 +90,7 @@ class myPipe(pipe):
             '-n', 2, # No more than 2 mismatches
             '-e', 70, # The sum of the Phred quality values at all mismatched positions (not just in the seed) may not exceed E 
             '-m 4', # Do not report the reads that are mapped on to more than 4 genomic locations
+            '-p', noCpus,
             '--seed 123', # Randomization parameter in bowtie,
             self.input,
             self.output
@@ -135,6 +126,7 @@ class myPipe(pipe):
             '-u',
             '-k1,1',
             '-k2,2n',
+            '-k3,3n',
             self.input,
             '>', self.output
         ]
@@ -154,7 +146,7 @@ class myPipe(pipe):
         return self
 
     def getNucleotideAbundanceTable_fa2csv(self):
-        nucleotideOrder = 'TCGA'
+        nucleotideOrder = 'GCTA'
         codeList = [
             'fa2nucleotideAbundanceTable.py',
             '-i', self.input,
@@ -183,105 +175,21 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def intersectWithDNase_bed2txt(self):
+    def get26mer_bed2bed(self):
         codeList = [
-            'bedtools',
-            'intersect',
-            '-wa',
-            '-wb',
-            '-F', 0.5,
-            '-a', self.dnaseBedList[0],
-            '-b', self.input,
-            '>', self.output
-        ]
-        self.frame = [-1000,1000]
-        self.execM(codeList)
-        return self
-
-    def intersectToPositions_txt2txt(self):
-        codeList = [
-            'cat', self.input,
-            '|',
-            'bedIntersect2parsedPosition.py',
-            '|',
-            'list2countTable.py',
-            '|',
-            'countTable2filledGaps.py',
-            '-s', self.frame[0],
-            '-e', self.frame[1],
-            '|',
-            'cut -f2'
-            '>', self.output
-        ]
-        self.execM(codeList)
-        return self
-
-    def separateStrands_bed2bed(self):
-        strand = ['+', '-']
-        output = [
-            self.addExtraWord(self.output[0], '_Plus'), 
-            self.addExtraWord(self.output[0], '_Minus')
-        ]
-        self.saveOutput(output)
-        codeList = [
-            'grep',
-            strand,
-            self.input[0],
-            '>',
-            self.output
-        ]
-        self.execM(codeList)
-        return self
-
-    def countChmm_bed2bed(self):
-        codeList = [
-            'bedtools',
-            'intersect',
-            '-a', self.fifteenChromatinStates,
-            '-b', self.input,
-            '-c',
-            '-F', 0.49,
-            '|',
-            'cut',
-            '-f', '1-4,9-10',
-            '>', self.output 
-        ]
-        self.execM(codeList)
-        return self
-
-    def countTSS_bed2bed(self):
-        codeList = [
-            'bedtools',
-            'intersect',
-            '-a', self.TSSbedFile,
-            '-b', self.input,
-            '-c',
-            '-F', 0.5,
-            '>', self.output 
-        ]
-        self.execM(codeList)
-        return self
-
-    def countTES_bed2bed(self):
-        codeList = [
-            'bedtools',
-            'intersect',
-            '-a', self.TESbedFile,
-            '-b', self.input,
-            '-c',
-            '-F', 0.5,
-            '>', self.output 
-        ]
-        self.execM(codeList)
-        return self
-
-    def binnedCountsToPositions_bed2txt(self):
-        codeList = [
-            'bedBinned2totalCounts.py',
+            'bed2getCertainIntervalLengths.py',
             '-i', self.input,
             '-o', self.output,
-            '-n', 200,
-            '-reverseStrand', '"-"'
+            '-l', 27
+        ]
+        self.execM(codeList)
+        return self
+
+    def plotLengthDistribution_csv2pdf(self):
+        codeList = [
+            'plotLengthDistribution.R',
+            self.input,
+            self.treatment
         ]
         self.execM(codeList)
         return self
@@ -299,35 +207,13 @@ p = myPipe(input)
     
     .branch()
         .run(p.lengthDistribution_bed2csv, False)
+        .run(p.plotLengthDistribution_csv2pdf, False)
     .stop()
 
     .branch()
+        .run(p.get26mer_bed2bed, False)
         .run(p.convertBedToFasta_bed2fa, False)
         .run(p.getNucleotideAbundanceTable_fa2csv, False)
-        .run(p.plotNucleotideAbundance_csv2pdf, False)
-    .stop()
-
-    .branch(False) # CHMM
-        .run(p.countChmm_bed2bed, False)
-    .stop()
-
-    .branch(True)
-        .run(p.separateStrands_bed2bed, False)
-
-        .branch(False) # DNase
-            .run(p.intersectWithDNase_bed2txt, False)
-            .run(p.intersectToPositions_txt2txt, False)
-        .stop()
-
-        .branch(True) # TSS
-            .run(p.countTSS_bed2bed, True)
-            .run(p.binnedCountsToPositions_bed2txt, True)
-        .stop()
-
-        .branch(True) # TES
-            .run(p.countTES_bed2bed, True)
-            .run(p.binnedCountsToPositions_bed2txt, True)
-        .stop()
-
+        .run(p.plotNucleotideAbundance_csv2pdf, True)
     .stop()
 )

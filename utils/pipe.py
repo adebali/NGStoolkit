@@ -27,9 +27,13 @@ class pipe(object):
         self.justStopped = False
         self.branchRunFlag = True
         self.branchRunFlagLevels = kMaximumIndentation * [True]
+        self.branchDependencyLevels = kMaximumIndentation * [None]
         self.i = 0
+        self.jobIndex = 0
         self.runMode = True
         self.printFlag = True
+        self.wmParams = {}
+        self.defaultWmParams = {}
         if '--mock' in sys.argv:
             self.runMode = False
         if '--noPrint' in sys.argv:
@@ -144,7 +148,18 @@ class pipe(object):
             return newList
 
     def execM(self, codeList):
-        pipeTools.execM(codeList, self.runFlag, self.runMode, self.printFlag)
+        jobNumber = pipeTools.execM(codeList, self.runFlag, self.runMode, self.printFlag, self.jobIndex)
+        self.jobIndex += jobNumber
+
+    def execMwm(self, codeList):
+        dependencyIndex = self.currentBranch
+        jobIds = pipeTools.execMwm(codeList, self.runFlag, self.runMode, self.printFlag, self.wmParams, self.branchDependencyLevels[dependencyIndex], self.jobIndex)
+        self.jobIndex += len(jobIds)        
+        # print(self.branchDependencyLevels)
+        self.branchDependencyLevels[self.currentBranch] = jobIds
+        self.branchDependencyLevels[self.currentBranch + 1] = jobIds
+        self.wmParams = self.defaultWmParams
+        
 
     def internalRun(self, function, arguments, runFlag=True, operationName=False):
         if operationName:
@@ -160,6 +175,10 @@ class pipe(object):
             if self.printFlag:
                 print('iX\t' + functionName)
             return False
+
+    def mutateWmParams(self, dictionary):
+        for key in dictionary.keys():
+            self.wmParams[key] = dictionary[key]
 
     def exit(self):
         voidClass = void()

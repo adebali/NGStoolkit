@@ -50,7 +50,7 @@ barplot(dat,
         col=colors,
         cex.names=1);
 
-legend(positionLength + 5, 0.75,
+legend(positionLength + 10, 0.75,
        rev(row.names(dat)), 
        cex=1, 
        fill=rev(colors), 

@@ -13,7 +13,7 @@ import argparse
 # samtools
 # subsample
 
-SAMPLE_STAT_FILE = 'dataDir/samples_minReadCount.csv'
+SAMPLE_STAT_FILE = 'dataDir/samples.csv'
 
 parser = argparse.ArgumentParser(description='DamageSeq Pipeline')
 parser.add_argument('-i', required= False, help='input')
@@ -46,25 +46,43 @@ class myPipe(pipe):
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', outputDirName))
         os.system('mkdir -p ' + self.outputDir)
         self.treatment = sampleDictionary['treatment_title']
-        self.minimumReadCount = round(int(sampleDictionary['minReadCount']) - 500000)
+        # self.minimumReadCount = round(int(sampleDictionary['minReadCount']) - 500000)
         self.group = sampleDictionary['group']
         self.cell = sampleDictionary['cell']
-        self.sampleMinPyrCount = sampleDictionary['minPyrHitNo']
+        # self.sampleMinPyrCount = sampleDictionary['minPyrHitNo']
+        self.sampleMinPyrCount = None
         self.product = sampleDictionary['product']
+        if int(self.group) == 1:
+            self.sampleMinPyrCount = 7700464
+        if int(self.group) == 2:
+            self.sampleMinPyrCount = 1833986
 
-        if self.product == 'CPD' or self.product == '_6-4':
-            self.motifRegex = '\'.{4}(T|C|t|c)(T|C|t|c).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
+        # if self.product == 'CPD' or self.product == '_6-4':
+        #     self.motifRegex = '\'.{4}(T|C|t|c)(T|C|t|c).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
+        # elif self.product == 'GG':
+        #     self.motifRegex = '\'.{4}(G|g)(G|g).{4}\'' # Get GG only at the positions 5 and 6.
+        # else:
+        #     raise ValueError("Unknown product type. Exiting...")
+
+        if self.product == 'CPD':
+            self.motifRegex = '\'.{4}(TT|tt|CT|ct|cT|Ct).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
+        elif self.product == '_6-4':
+            self.motifRegex = '\'.{4}(TT|tt|TC|tc|Tc|tC).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
         elif self.product == 'GG':
             self.motifRegex = '\'.{4}(G|g)(G|g).{4}\'' # Get GG only at the positions 5 and 6.
+        elif self.product == 'NA':
+            self.motifRegex = '\'.{10}\'' # Get GG only at the positions 5 and 6.
         else:
             raise ValueError("Unknown product type. Exiting...")
 
-
         ## Transcription factor binding sites
         if self.cell == "GM12878":
-            self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.GM12878.sorted.1K.sorted.bed']
+            # self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.GM12878.sorted.1K.sorted.bed']
+            self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.GM12878.sorted.1K.sorted.top100K.bed']
+            self.dnaseBedList = ['/proj/sancarlb/users/ogun/ENCODE/dnase/GM12878.bed']
         elif self.cell == "NHF1":
             self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.BJ.sorted.1K.sorted.bed']
+            self.dnaseBedList = ['/proj/sancarlb/users/ogun/ENCODE/dnase/BJ.bed']
         else:
             raise ValueError("No such a cell is defined: " + self.cell)
 
@@ -90,12 +108,16 @@ class myPipe(pipe):
         self.nucleosomeLowBed = None
         self.void147bed = None
 
+        self.TSSbedFile = '/proj/sancarlb/users/ogun/seq/hg19/annotations/expression/hg19_expression_noHeader_sgt300_noNeighIn6000_min10000_TSS_win100.bed'
+        self.TESbedFile = '/proj/sancarlb/users/ogun/seq/hg19/annotations/expression/hg19_expression_noHeader_sgt300_noNeighIn6000_min10000_TES_win100.bed'
+
         if self.cell == 'GM12878':
             self.chmmCellLine = self.cell
+            self.fifteenChromatinStates = '/proj/sancarlb/users/ogun/ENCODE/chromatinStates/wgEncodeBroadHmm/wgEncodeBroadHmmGm12878HMM.bed'
         elif self.cell == 'NHF1':
             self.chmmCellLine = 'NHLF'
-
-        self.fifteenChromatinStates = os.path.join('/nas/longleaf/home/adebali/ogun/chromHMM/statebyline', self.chmmCellLine, 'states.bed')
+            self.fifteenChromatinStates = '/proj/sancarlb/users/ogun/ENCODE/chromatinStates/wgEncodeBroadHmm/wgEncodeBroadHmmNhlfHMM.bed'
+        # self.fifteenChromatinStates = os.path.join('/nas/longleaf/home/adebali/ogun/chromHMM/statebyline', self.chmmCellLine, 'states.bed')
         #if runDir != False:
         #    self.outputDirectory = os.path.join(os.path.dirname(self.input), runDir)
         #    os.system('mkdir -p ' + self.outputDirectory)
@@ -116,9 +138,22 @@ class myPipe(pipe):
             if p.cell == "NHF1":
                 self.chromHMMfiles = generalUtils.sorted_nicely(glob(os.path.join(kHomeDir, 'chromHMM', 'w1000', '*_chromHMM')))
                 self.maxChromHMMhitNumber = 19166369
-            else:
+                self.nucleosomeBedList = None
+                self.CTCF = None
+                self.allBoundTFBSlist = None
+                self.stat3 = None
+            elif p.cell == "GM12878":
                 self.chromHMMfiles = None
                 self.maxChromHMMhitNumber = None
+                # self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/nucleosomeFromSheera.bed']
+                self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/nucleosome/GSM920558_hg19_wgEncodeSydhNsomeGm12878Sig.100K.1Kfl.bed']
+                self.CTCF = ["/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.CTCF.GM12878.bed.fa.motif.sorted.slop20.bed"]
+                self.allBoundTFBSlist = [
+                    "/nas/longleaf/home/adebali/ogun/ENCODE/Txn/motifIntersectedChip-seq.hittingMotifs.motifIntervals.bed",
+                    "/nas/longleaf/home/adebali/ogun/ENCODE/Txn/motifIntersectedChip-seq.hittingMotifs.motifIntervals.upstream.bed",
+                    "/nas/longleaf/home/adebali/ogun/ENCODE/Txn/motifIntersectedChip-seq.hittingMotifs.motifIntervals.downstream.bed",
+                ]
+                self.STAT3 = ["/nas/longleaf/home/adebali/ogun/ENCODE/Txn/STAT3_ENCFF001VFM.bed"]
         elif key == "hg19_nucleosome":
             self.referenceNickname = 'hg19nuc'
             output = pipeTools.listOperation(self.addExtraWord, self.output, '.hg19nuc')
@@ -126,12 +161,11 @@ class myPipe(pipe):
             self.bowtie_reference = '/nas02/home/a/d/adebali/ogun/ENCODE/hg19/nucleosome/hg19'
             self.fasta_reference = '/nas02/home/a/d/adebali/ogun/ENCODE/hg19/nucleosome/hg19_2.fa'
             self.chromosome_limits = '/nas02/home/a/d/adebali/ogun/ENCODE/hg19/nucleosome/hg19.chrSizes.bed'
-            self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep' + str(i + 1) + '.bed' for i in range(1, 9)]
+            # self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep' + str(i + 1) + '.bed' for i in range(1, 9)]
+            # self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/top100K/Nucleosome_Gm12878_rep' + str(i + 1) + '.bed' for i in range(1, 9)]
+            self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep1.sga.bed.1K.intersect.selected.146.bed']
+            self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep1.sga.500flanking.bed']
             self.void147bed = generalUtils.file('/proj/sancarlb/users/ogun/ENCODE/hg19/nucleosome/hg19.147.bed')
-
-
-
-
         return self
     
     def cutadapt_fastq2fastq(self):
@@ -271,7 +305,7 @@ class myPipe(pipe):
             '-bf', '0x2', #	each segment properly aligned according to the aligner
             #'-Sb'
             '-o',
-            self.output,
+            self.output,    
             self.input
         ]
         self.execM(codeList)
@@ -536,6 +570,35 @@ class myPipe(pipe):
             'bedtools',
             'intersect',
             '-a', self.fifteenChromatinStates,
+            '-b', self.input,
+            '-c',
+            '-F', 0.49,
+            '|',
+            'cut',
+            '-f', '1-4,9-10',
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+
+    def countTSS_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.TSSbedFile,
+            '-b', self.input,
+            '-c',
+            '-F', 0.5,
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+
+    def countTES_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.TESbedFile,
             '-b', self.input,
             '-c',
             '-F', 0.5,
@@ -810,10 +873,6 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-
-
-
-
     def intersectWithTFBS_bed2txt(self):
         codeList = [
             'bedtools',
@@ -825,11 +884,26 @@ class myPipe(pipe):
             '-b', self.input,
             '>', self.output
         ]
+        self.frame = [-1000,1000]
+        self.execM(codeList)
+        return self
+    def intersectWithDNase_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.dnaseBedList[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = [-1000,1000]
         self.execM(codeList)
         return self
 
     def intersectWithNucleosome_bed2txt(self):
-        print(self.nucleosomeBedList)
+        self.addWordToOutput('_1K_flanking')
         codeList = [
             'bedtools',
             'intersect',
@@ -840,6 +914,7 @@ class myPipe(pipe):
             '-b', self.input,
             '>', self.output
         ]
+        self.frame = [-573,573]
         self.execM(codeList)
         return self
 
@@ -858,7 +933,126 @@ class myPipe(pipe):
             return str(damgePosition)
         for i in range(len(self.input)):
             self.internalRun(generalUtils.lineBasedFileOperation, [self.input[i], self.output[i], parseIntersectOutput, []], self.runFlag, 'parseIntersectResults_txt2txt')
-    
+
+    def intersectWithCTCF_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.CTCF[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = [-26,26]
+        self.execM(codeList)
+        return self
+
+    def intersectWithBoundTFBS_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.allBoundTFBSlist[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = [0,22]
+        self.execM(codeList)
+        return self
+
+    def intersectWithBoundTFBS_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.allBoundTFBSlist[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = [-11,11]
+        self.execM(codeList)
+        return self
+
+    def intersectWithBoundTFBSUpstream_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.allBoundTFBSlist[1],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = [-20,20]
+        self.execM(codeList)
+        return self
+
+    def intersectWithBoundTFBSDownstream_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.allBoundTFBSlist[2],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = [-20,20]
+        self.execM(codeList)
+        return self
+
+    def intersectWithSTAT3_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', self.STAT3[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = [-1000,1000]
+        self.execM(codeList)
+        return self
+
+    def binnedCountsToPositions_bed2txt(self):
+        codeList = [
+            'bedBinned2totalCounts.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-n', 200,
+            '-reverseStrand', '"-"'
+        ]
+        self.execM(codeList)
+        return self
+
+    def intersectToPositions_txt2txt(self):
+        codeList = [
+            'cat', self.input,
+            '|',
+            'bedIntersect2parsedPosition.py',
+            '|',
+            'list2countTable.py',
+            '|',
+            'countTable2filledGaps.py',
+            '-s', self.frame[0],
+            '-e', self.frame[1],
+            '|',
+            'cut -f2'
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
     def listOfNumbersToCounts_txt2txt(self):
         codeList = [
             'list2countTable.py',
@@ -888,19 +1082,18 @@ p = myPipe(input)
         .run(p.convertBedToFasta_bed2fa, False)
             
         .branch(False) # Plot nucleotide abundance
-            .run(p.getNucleotideAbundanceTable_fa2csv, True)
-            .run(p.plotNucleotideAbundance_csv2pdf, True)
+            .run(p.getNucleotideAbundanceTable_fa2csv, False)
+            .run(p.plotNucleotideAbundance_csv2pdf, False)
         .stop()
 
         .branch(False) # Plot dinucleotide abundance
-            .run(p.getDimerAbundanceTable_fa2csv, True)
-            .run(p.plotDinucleotideAbundance_csv2pdf, True)
+            .run(p.getDimerAbundanceTable_fa2csv, False)
+            .run(p.plotDinucleotideAbundance_csv2pdf, False)
         .stop()
 
         .run(p.getPyrimidineDimers_fa2bed, False)
-        .run(p.sampleFromBed_bed2bed, False)
         .run(p.sortBed_bed2bed, False)
-            
+        
         # .branch(False) # ChromHMM analysis for NHF1 cells
         #     .run(p.coverageChromHMM_bed2bed, True)
         #     .run(p.normalizeCoverageChromHMM_bed2bed, True)
@@ -910,10 +1103,16 @@ p = myPipe(input)
         #     .run(p.plotChromHMM_txt2pdf, True)
         # .stop()
 
-        .branch(False and p.cell == "NHF1") # CHMM
-            .run(p.countChmm_bed2bed, True)
-            .run(p.normalizeChmm_bed2bed, True)
+        # .branch(False and p.cell == "NHF1") # CHMM
+        #     .run(p.countChmm_bed2bed, False)
+        #     .run(p.normalizeChmm_bed2bed, False)
+        # .stop()
+
+        .branch(False) # CHMM
+            .run(p.countChmm_bed2bed, False)
+            # .run(p.normalizeChmm_bed2bed, True)
         .stop()
+
 
         # .branch(False) # DNase analysis
             # .run(p.dnaseClosest_bed2bed, False)
@@ -923,20 +1122,57 @@ p = myPipe(input)
 
         .branch(True)
             .run(p.separateStrands_bed2bed, False)
-            
-            # .branch(True and p.cell == "GM12878") # Txn analysis
-            #     .run(p.getClosestDamageTxn_bed2bed, False)
-            #     .run(p.adjustExactTxnLocation_bed2bed, False)
-            #     .run(p.TxnCountPlot_bed2txt, True)
+
+            .branch(False) # TSS
+                .run(p.countTSS_bed2bed, False)
+                .run(p.binnedCountsToPositions_bed2txt, False)
+            .stop()
+
+            .branch(False) # TES
+                .run(p.countTES_bed2bed, False)
+                .run(p.binnedCountsToPositions_bed2txt, False)
+            .stop()
+
+
+            .branch(False) # TFBS analysis
+                .run(p.intersectWithTFBS_bed2txt, False)
+                .run(p.intersectToPositions_txt2txt, False)
+            .stop()
+
+            .branch(False) # DNase analysis
+                .run(p.intersectWithDNase_bed2txt, True)
+                .run(p.intersectToPositions_txt2txt, True)
+            .stop()
+
+            # .branch(False and p.cell == "GM12878")
+            #     .run(p.intersectWithNucleosome_bed2txt, False)
+            #     .run(p.intersectToPositions_txt2txt, False)
             # .stop()
 
+            # .branch(False and p.cell == "GM12878")
+            #     .run(p.intersectWithCTCF_bed2txt, True)
+            #     .run(p.intersectToPositions_txt2txt, True)
+            # .stop()
 
+            # .branch(False and p.cell == "GM12878")
+            #     .run(p.intersectWithBoundTFBS_bed2txt, False)
+            #     .run(p.intersectToPositions_txt2txt, False)
+            # .stop()
+            
+            # .branch(False and p.cell == "GM12878")
+            #     .run(p.intersectWithBoundTFBSUpstream_bed2txt, False)
+            #     .run(p.intersectToPositions_txt2txt, False)
+            # .stop()
 
-            .branch(False and p.cell == "GM12878") # TFBS analysis
-                .run(p.intersectWithTFBS_bed2txt, False)
-                .run(p.parseIntersectResults_txt2txt, False)
-                .run(p.listOfNumbersToCounts_txt2txt, False)
-            .stop()
+            # .branch(False and p.cell == "GM12878")
+            #     .run(p.intersectWithBoundTFBSDownstream_bed2txt, False)
+            #     .run(p.intersectToPositions_txt2txt, False)
+            # .stop()
+
+            # .branch(True and p.cell == "GM12878")
+            #     .run(p.intersectWithSTAT3_bed2txt, True)
+            #     .run(p.intersectToPositions_txt2txt, True)
+            # .stop()
         .stop()
     .stop()
 
@@ -950,18 +1186,18 @@ p = myPipe(input)
         .run(p.slopBed_bed2bed, False)
         .run(p.convertToFixedRange_bed2bed, False)
         .run(p.sortBed_bed2bed, False)
-        .run(p.convertBedToFasta_bed2fa, True)
-        .run(p.getPyrimidineDimers_fa2bed, True)
-        .run(p.sampleFromBed_bed2bed, True)
-        .run(p.sortBed_bed2bed, True)
+        .run(p.convertBedToFasta_bed2fa, False)
+        .run(p.getPyrimidineDimers_fa2bed, False)
+        .run(p.sortBed_bed2bed, False)
 
         .branch(True and p.cell == "GM12878")
-            .run(p.separateStrands_bed2bed, True)
+            .run(p.separateStrands_bed2bed, False)
                 
-
             .branch(True and p.cell == "GM12878")
-                .run(p.intersectWithNucleosome_bed2txt, True)
+                .run(p.intersectWithNucleosome_bed2txt, False)
+                .run(p.intersectToPositions_txt2txt, True)
             .stop()
+
 
             # .branch(True and p.cell == "GM12878")
             #     .run(p.getClosestDamageOnAll_bed2bed, True)

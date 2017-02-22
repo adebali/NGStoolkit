@@ -97,7 +97,18 @@ class fastaTests(unittest.TestCase):
 			results_4b.append(e)
 		self.assertEqual(results_4, results_4b)
 
+	def test_FastaStream2(self):
+		expectedObjects_1 = [['header1', 'ATGCGtA'], ['header2', 'GXGTTGA']]
+		fastaStream_1 = fasta1.stream2(4)
+		results_1 = []
+		for e in fastaStream_1:
+			results_1.append([e.getHeader(), e.getSequence()])
+		self.assertEqual(results_1, expectedObjects_1)
+		
+
+
 
 if __name__ == "__main__":
-	fasta5.singleEntry2chromSize()
+	# fasta5.singleEntry2chromSize()
+	# fasta1.getSequenceLengthDistribution()
 	unittest.main()

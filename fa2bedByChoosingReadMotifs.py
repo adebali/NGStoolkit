@@ -5,7 +5,7 @@ import argparse
 import re
 import sys
 
-parser = argparse.ArgumentParser(description='converts fasta to bed by applying a criterion')
+parser = argparse.ArgumentParser(description='converts fasta to bed by choosing a motif of interest')
 parser.add_argument('-i', required= False, help='input')
 parser.add_argument('-o', required= False, help='output')
 parser.add_argument('-r', required= True, help='regex motif that is expected')
@@ -30,7 +30,7 @@ def fastaHeader2bedLine(header):
     return chr + '\t' + str(start) + '\t' + str(end) + '\t' + strand
 
 out = open(output, 'w')
-seqDicts = fastaObject.stream()
+seqDicts = fastaObject.stream(100*4096)
 for seqDict in seqDicts:
     header = seqDict['h']
     sequence = seqDict['s']

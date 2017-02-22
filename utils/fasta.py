@@ -3,6 +3,7 @@ import re
 import sys
 import itertools
 import random
+from sequence import Sequence
 
 def nucleotideAbundanceDict2percentageDict(theDict):
 	newDict = {}
@@ -27,6 +28,34 @@ class fasta:
 			del lines[0]
 			sequence = ''.join(lines)
 			seqObject = {'h': header, 's': sequence}
+			return seqObject
+
+		filein = open(self.file, 'r')
+		delimiter = '\n>'
+		buf = ''
+		justStarted = True
+		while True:
+			newbuf = filein.read(bufsize)
+			if not newbuf:
+				yield chunk2seqDict(buf)
+				return
+			buf += newbuf
+			sequenceChunks = buf.split(delimiter)
+			for chunk in sequenceChunks[0:-1]:
+				if justStarted and chunk.startswith('>'):
+					chunk = chunk[1:]
+					justStarted = False
+				yield chunk2seqDict(chunk)
+			buf = sequenceChunks[-1]
+
+	def stream2(self, bufsize=4096):
+		def chunk2seqDict(chunk):
+			lines = chunk.split('\n')
+			header = lines[0]
+			del lines[0]
+			sequence = ''.join(lines)
+			seqObject = Sequence(sequence)
+			seqObject.assignHeader(header)
 			return seqObject
 
 		filein = open(self.file, 'r')
@@ -327,3 +356,15 @@ class fasta:
 		'''prints header and the sequence length in tab-separated format'''
 		for seqObject in self.stream(4096*64*64):
 			print(seqObject['h'] + '\t' + str(len(seqObject['s'])))
+
+	def getSequenceLengthDistribution(self):
+		'''prints sequence length distribution'''
+		myDict = {}
+		for seqObject in self.stream2(4096*64*64):
+			length = seqObject.getLength()
+			if length in myDict.keys():
+				myDict[length] += 1
+			else:
+				myDict[length] = 1
+		for key in sorted(myDict.keys()):
+			print(str(key) + '\t' + str(myDict[key]))

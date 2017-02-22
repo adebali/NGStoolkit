@@ -4,8 +4,9 @@ from glob import glob
 
 gunzipFiles = []
 # gunzipFiles += sorted(glob('/proj/sancarlb/HTSF/161010_UNC17-D00216_0412_BCA3T0ANXX/*.fastq.gz'))
-gunzipFiles += sorted(glob('/proj/sancarlb/HTSF/161102_UNC32-K00270_0028_AHFTWJBBXX/*.fastq.gz'))
-outDir = '/proj/sancarlb/users/ogun/DamageSeq/hiSeq/'
+# gunzipFiles += sorted(glob('/proj/sancarlb/HTSF/161102_UNC32-K00270_0028_AHFTWJBBXX/*.fastq.gz'))
+gunzipFiles += sorted(glob('/proj/sancarlb/HTSF/170216_UNC13-SN749_0611_AHGW5HBCXY/*.fastq.gz'))
+outDir = '/proj/sancarlb/users/ogun/DamageSeq/hiSeq/raw/'
 fastqFiles =[]
 
 def run(code):
@@ -25,8 +26,10 @@ for gunzipFile in gunzipFiles:
     fields = fastqBasename.split('_')
     name = fields[0]
     index = fields[1]
-    Lnumber = fields[2]
-    R1R2 = fields[3]
+    # Lnumber = fields[2]
+    Lnumber = fields[3]
+    # R1R2 = fields[3]
+    R1R2 = fields[4]
 
     if R1R2 == 'R1':
         output = outDir + name + '.1.fastq'

@@ -7,11 +7,10 @@ sampleDict = generalUtils.table2dictionary(generalUtils.file('dataDir/samples.cs
 def fileList2csv(fileList, output):
     myDict = {}
     for file in fileList:
-        # print(file)
-        sampleName = os.path.basename(file).split('.')[0] + '.1.fastq'
+        print(file)
+        sampleName = os.path.basename(file).split('.')[0] + '.fastq'
         treatment = sampleDict[sampleName][0]['treatment_title']
         values = open(file).read().splitlines() 
-        print(sampleName + ' ' + treatment)        
         if 'Plus' in file:
             myDict[treatment + '_Pls'] = values
         elif 'Minus' in file:
@@ -21,23 +20,14 @@ def fileList2csv(fileList, output):
     with open(output, 'wb') as csv_file:
         writer = csv.writer(csv_file)
         for key, values in myDict.items():
+            print(key)
             writer.writerow([key] + values)
-
+    print(myDict['XR-seq_CPD_4h_A_Pls'])
 
 # fileList = glob('dataDir/0106/*1.cu.bo.hg19.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.saFrBe.soBe.seSt_*.inWiTFBS.inToPo.txt')
 key = 'TFBS'
 key = 'DNa'
-key = 'CTCF'
-key = 'BoTFBSUp'
-key = 'BoTFBS'
-key = 'STAT3'
-key = 'NuPeaks'
-
 cell = 'NHF1'
-
-referenceGenome = 'hg19'
-referenceGenome = 'hg19nuc'
-
-fileList = glob('dataDir/0106/*1.cu.bo.' + referenceGenome + '.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_*.inWi' + key + '.inToPo.txt')
+fileList = glob('dataDir/0131/*cu.bo.hg19.coToBa.coToBe.unSo.seSt_*.inWi' + key + '.inToPo.txt')
 fileList2csv(fileList, 'dataDir/merged' + key + '_' + cell + '.csv')
 

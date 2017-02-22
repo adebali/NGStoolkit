@@ -3,7 +3,7 @@
     "host": "killdevil.unc.edu",
     "username": "adebali",
     "port": 22,
-    "password": "d=Ekd7asoy",
+    "password": "d=Ekd8asoy",
     "protocol": "sftp",
     "uploadOnSave": true,
     "passive": false,

@@ -3,22 +3,38 @@ import sys
 import unittest
 import random
 
+
 class bedline:
 	def __init__(self, line, sep='\t'):
 		self.line = line.strip()
 		self.separator = sep
 	
+	def getLine(self):
+		return self.line
+
 	def fields(self):
 		return self.line.split(self.separator)
 
-	def chromosome(self):
-		return self.fields()[0]
+	def chromosome(self, chromosomeCol = 1):
+		return self.fields()[chromosomeCol - 1]
 
-	def start(self):
-		return int(self.fields()[1])
+	def start(self, startCol = 2):
+		return int(self.fields()[startCol - 1])
 
-	def end(self):
-		return int(self.fields()[2])
+	def length(self):
+		return self.end() - self.start()
+
+	def end(self, endCol = 3):
+		return int(self.fields()[endCol - 1])
+
+	def name(self, nameCol = 4):
+		return self.fields()[nameCol - 1]
+
+	def score(self, scoreCol = 5):
+		return int(self.fields()[scoreCol - 1])
+
+	def strand(self, strandCol = 6):
+		return self.fields()[strandCol - 1]
 
 	def midpoint(self, randomness=False):
 		if not randomness:
@@ -50,7 +66,7 @@ class bed:
 		return totalLength
 
 	def getColumnNumber(self):
-		firstLine = open(self.file, 'r').readline()
+		firstLine = open(self.file, 'r').readline().strip()
 		return len(firstLine.split('\t'))
 
 	def getAverageLength(self):
@@ -128,6 +144,42 @@ class bed:
 						printFlag = False
 				if printFlag:
 					print('\t'.join(newLineList))
+
+	def read(self):
+		filein = open(self.file, 'r')
+		for line in filein:
+			yield(bedline(line))
+
+	def removeNeighbors(self, distance):
+		def areNeighbors(previousLine, line, distance):
+			bedLine = bedline(line)
+			previousBedLine = bedline(previousLine)
+			if bedLine.chromosome() != previousBedLine.chromosome():
+				return False
+			start = bedLine.start()
+			previousEnd = previousBedLine.end()
+			if abs(start - previousEnd) < distance:
+				return True
+			else:
+				return False
+		previousLine = "NA\t" + str(-2*distance) + "\t" + str(-1*distance)
+		filein = open(self.file, 'r')
+		start = True
+		dontPrintNextline = False
+		for line in filein:
+			linesAreNeighbors = areNeighbors(previousLine, line, distance)
+			if linesAreNeighbors == False:
+				if not start:
+					if not previousLineWasNeigbor:
+						print(previousLine.strip())
+				dontPrintNextline = False
+				previousLineWasNeigbor = False
+			else:
+				previousLineWasNeigbor = True
+			previousLine = line
+			start = False
+		if linesAreNeighbors == False:
+			print(line.strip())
 
 class bedpe(bed):
 	def mergeFragments(self):
@@ -236,6 +288,9 @@ class bedTests(unittest.TestCase):
 	def test_bedClass(self):
 		myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/bedExample.bed'))
 		myBed.fixRange('l', 10)
+
+		myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/genes.bed'))
+		myBed.removeNeighbors(20)
 
 	def test_bedline2(self):
 		bedLine = bedline('chr1\t100\t5100\tbedpe_example1\t30\t+\n')

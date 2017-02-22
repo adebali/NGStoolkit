@@ -10,5 +10,5 @@ args = parser.parse_args()
 
 bedFile = args.i
 
-# bed.bed(bedFile).lengthDistribution()
-bed.bed(bedFile).printLengths()
+bed.bed(bedFile).lengthDistribution()
+# bed.bed(bedFile).printLengths()

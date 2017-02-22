@@ -6,6 +6,12 @@ This repository is developed for project-specific NGS analysis.
   * bowtie
   * ...
 
+## Setup
+  ```bash
+  cd ~
+  git clone https://github.com/adebali/sancarLabUtils.git
+  ./setup.sh
+  ```
 ## Examples
 
 ## Running the tests
@@ -31,3 +37,4 @@ cd /proj/sancarlb/users/ogun/scripts/projects/DamageSeq/miseq
 loopThroughFiles.py -code "bsub python pipeline.py #IN" -files "dataDir/160831_UNC23_0048_000000000-ARR90/*.fastq"
 
 ```
+

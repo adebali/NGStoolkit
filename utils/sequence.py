@@ -31,12 +31,15 @@ kDNAmotifDictionary = {
 	}
 
 class Sequence:
-	def __init__(self, input):
+	def __init__(self, input, up=True):
 		self.sequence = input
+		if up:
+			self.sequence = self.sequence.upper()
 		self.header = None
 
 	def subseq(self, start, end):
-		return DNA(self.sequence[start - 1 : end])
+		# Zero-based subsequence function
+		return DNA(self.sequence[start : end])
 
 	def motifCount(self, motif):
 		count = start = 0
@@ -127,7 +130,7 @@ class tests(unittest.TestCase):
 
 	def test_subseq(self):
 		sequence = DNA('AATTTAGCGTTAGCTGCTTTT')	
-		self.assertEqual(sequence.subseq(2, 5).getSequence(), 'ATTT')
+		self.assertEqual(sequence.subseq(2, 5).getSequence(), 'TTT')
 
 	def test_motifCount(self):
 		sequence = DNA('AATTTAGCGTTAGCTGCTTTT')	
@@ -147,6 +150,10 @@ class tests(unittest.TestCase):
 		consensusString = 'NBNBATTTCCSGGAARTSNNN'
 		con = consensus(consensusString)
 		self.assertEqual(con.getPatternAsString(), '.(C|G|T).(C|G|T)(A)(T)(T)(T)(C)(C)(C|G)(G)(G)(A)(A)(A|G)(T)(C|G)...')
+
+	def test_DNA(self):
+		dna = DNA("ATGC")
+		self.assertEqual(dna.reverseComplement().getSequence(), "GCAT")
 
 if __name__ == "__main__":
 	unittest.main()

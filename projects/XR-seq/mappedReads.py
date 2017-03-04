@@ -21,14 +21,12 @@ def globFile(file):
     else:
         return None
         
-reference = "hg19"
-reference = "hg19nuc"
 
 SAMPLE_STAT_FILE = 'dataDir/samples.csv'
 samples = generalUtils.table2dictionary(generalUtils.file(SAMPLE_STAT_FILE), 'sample')
 for sample in samples.keys():
-    files = sorted([globFile('dataDir/0106/' + sample.split('.')[0] + '.1.cu.bo.' + reference + '.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_Minus.bed'), \
-    globFile('dataDir/0106/' + sample.split('.')[0] + '.1.cu.bo.' + reference + '.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_Plus.bed')])
+    files = sorted([globFile('dataDir/0131/' + sample.split('.')[0] + '.cu.bo.hg19.coToBa.coToBe.unSo.seSt_Minus.bed'), \
+    globFile('dataDir/0131/' + sample.split('.')[0] + '.cu.bo.hg19.coToBa.coToBe.unSo.seSt_Plus.bed')])
     for file in files:
         if file:
             print(minOrPls(samples[sample][0]['treatment_title'], file) + '\t' + str(bed.bed(file).getHitNum()))

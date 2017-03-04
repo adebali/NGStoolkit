@@ -1,10 +1,13 @@
 library("ggplot2")
+library("plotly")
 source("/Users/ogunadebali/SancarLab/scripts/tcsv.R")
 source("/Users/ogunadebali/SancarLab/scripts/multiplot.R")
 
 
 #input = paste("/Users/ogunadebali/SancarLab/DamageSeq/hiSeq/mergedTxn.csv", sep="")
 input = paste("/Users/ogunadebali/SancarLab/DamageSeq/hiSeq/mergedTFBS.csv", sep="")
+input = paste("/Users/ogunadebali/SancarLab/DamageSeq/hiSeq/mergedTFBS_GM12878.csv", sep="")
+
 nucInput <- "/Users/ogunadebali/SancarLab/DamageSeq/hiSeq/Dinucleotides/wgEncodeRegTfbsClusteredWithCellsV3.GM12878.sorted.1K.sorted.fa.freq.csv"
 freq <- read.tcsv(nucInput, header = T, sep="\t")
 freq$positions <- c(-999:999)
@@ -53,9 +56,9 @@ df$GM12878_6.4_20J_cell_B_Min_reversed <- rev(df$GM12878_6.4_20J_cell_B_Min);
 
 # Naked
 df$GM12878_6.4_20J_nakedDNA_A_Pls <- (df$GM12878_6.4_20J_nakedDNA_A_Pls / sum(df$GM12878_6.4_20J_nakedDNA_A_Pls)) * 1000000
-df$GM12878_6.4_20J_nakedDNA_B_Pls <- (df$GM12878_6.4_20J_nakedDNA_B_Pls / sum(df$GM12878_6.4_20J_nakedDNA_B_Pls)) * 1000000
+df$GM12878_6.4_20J_nakedDNA_B_Pls <- (df$GM12878_6.4_20J_nakedDNA_C_Pls / sum(df$GM12878_6.4_20J_nakedDNA_C_Pls)) * 1000000
 df$GM12878_6.4_20J_nakedDNA_A_Min <- (df$GM12878_6.4_20J_nakedDNA_A_Min / sum(df$GM12878_6.4_20J_nakedDNA_A_Min)) * 1000000
-df$GM12878_6.4_20J_nakedDNA_B_Min <- (df$GM12878_6.4_20J_nakedDNA_B_Min / sum(df$GM12878_6.4_20J_nakedDNA_B_Min)) * 1000000
+df$GM12878_6.4_20J_nakedDNA_B_Min <- (df$GM12878_6.4_20J_nakedDNA_C_Min / sum(df$GM12878_6.4_20J_nakedDNA_C_Min)) * 1000000
 df$GM12878_6.4_20J_nakedDNA_A_Min_reversed <- rev(df$GM12878_6.4_20J_nakedDNA_A_Min);
 df$GM12878_6.4_20J_nakedDNA_B_Min_reversed <- rev(df$GM12878_6.4_20J_nakedDNA_B_Min);
 ##
@@ -70,9 +73,9 @@ df$GM12878_CPD_20J_cell_A_Min_reversed <- rev(df$GM12878_CPD_20J_cell_A_Min);
 df$GM12878_CPD_20J_cell_B_Min_reversed <- rev(df$GM12878_CPD_20J_cell_B_Min);
 # Naked
 df$GM12878_CPD_20J_nakedDNA_A_Pls <- (df$GM12878_CPD_20J_nakedDNA_A_Pls / sum(df$GM12878_CPD_20J_nakedDNA_A_Pls)) * 1000000
-df$GM12878_CPD_20J_nakedDNA_B_Pls <- (df$GM12878_CPD_20J_nakedDNA_B_Pls / sum(df$GM12878_CPD_20J_nakedDNA_B_Pls)) * 1000000
+df$GM12878_CPD_20J_nakedDNA_B_Pls <- (df$GM12878_CPD_20J_nakedDNA_C_Pls / sum(df$GM12878_CPD_20J_nakedDNA_C_Pls)) * 1000000
 df$GM12878_CPD_20J_nakedDNA_A_Min <- (df$GM12878_CPD_20J_nakedDNA_A_Min / sum(df$GM12878_CPD_20J_nakedDNA_A_Min)) * 1000000
-df$GM12878_CPD_20J_nakedDNA_B_Min <- (df$GM12878_CPD_20J_nakedDNA_B_Min / sum(df$GM12878_CPD_20J_nakedDNA_B_Min)) * 1000000
+df$GM12878_CPD_20J_nakedDNA_B_Min <- (df$GM12878_CPD_20J_nakedDNA_C_Min / sum(df$GM12878_CPD_20J_nakedDNA_C_Min)) * 1000000
 df$GM12878_CPD_20J_nakedDNA_A_Min_reversed <- rev(df$GM12878_CPD_20J_nakedDNA_A_Min);
 df$GM12878_CPD_20J_nakedDNA_B_Min_reversed <- rev(df$GM12878_CPD_20J_nakedDNA_B_Min);
 
@@ -117,25 +120,28 @@ headers = c("CPD_A", "CPD_B", "6-4_A", "6-4_B", "Cisplatin_A", "Cisplatin_B" )
 
 linePlot <- function(i, ymin=0.9, ymax=1.3) {
   p <- ggplot(df) + 
-    geom_line(aes(x=positions, y= df[sets[i*4 + 1]]/df[sets[i*4 + 2]]), colour= "brown", size=0.2) +
-    geom_line(aes(x=positions, y=df[sets[i*4 + 3]]/df[sets[i*4 + 4]]), colour= "green", size=0.2) +
+    geom_smooth(aes(x=positions, y= df[sets[i*4 + 1]]/df[sets[i*4 + 2]]), colour= "brown", size=0.2) +
+    geom_smooth(aes(x=positions, y=df[sets[i*4 + 3]]/df[sets[i*4 + 4]]), colour= "green", size=0.2) +
     ylim(ymin, ymax) +
     ylab("Cell / Naked Damage") +
     xlab("Position Relative to TBS Center") + 
     labs(title = headers[i+1]) +
     theme(plot.title = element_text(hjust = 0.5))
-  return(p)
+  # return(p)
+  ggplotly(p)
 }
 
-pdf(paste("~/SancarLab/DamageSeq/hiSeq/TFBS_CPD.pdf", sep=""))
+linePlot(5)
+
+#pdf(paste("~/SancarLab/DamageSeq/hiSeq/TFBS_CPD.pdf", sep=""))
 multiplot(linePlot(0,  0.85, 1.1), linePlot(1, 0.85, 1.1), cols = 1)
-dev.off()
-pdf(paste("~/SancarLab/DamageSeq/hiSeq/TFBS_64.pdf", sep=""))
+#dev.off()
+#pdf(paste("~/SancarLab/DamageSeq/hiSeq/TFBS_64.pdf", sep=""))
 multiplot(linePlot(2, 0.85, 1.1), linePlot(3, 0.85, 1.1), cols = 1)
-dev.off()
-pdf(paste("~/SancarLab/DamageSeq/hiSeq/TFBS_Cisplatin.pdf", sep=""))
+#dev.off()
+#pdf(paste("~/SancarLab/DamageSeq/hiSeq/TFBS_Cisplatin.pdf", sep=""))
 multiplot(linePlot(4, 0.85, 1.1), linePlot(5, 0.85, 1.1), cols = 1)
-dev.off()
+#dev.off()
 
 linePlotUV <- function(i) {
   p <- ggplot(df) + 

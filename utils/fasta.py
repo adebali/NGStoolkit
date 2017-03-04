@@ -335,6 +335,29 @@ class fasta:
 			out.write("\n")
 		return 1
 
+	def writeKmerAbundanceMeltedData(self, kmerAbundanceDict, output, dictionary = {}, percentage=False, append=False):
+		introducedList = []
+		dictionaryKeys = sorted(dictionary.keys())
+		for key in sorted(dictionaryKeys):
+			introducedList.append(dictionary[key])
+		headerList = ['position', 'sequence', 'value'] + dictionaryKeys
+		if append:
+			writeMode = 'a'
+		else:
+			writeMode = 'w'
+		if percentage:
+			kmerAbundanceDict = self.getKmerPercentages(kmerAbundanceDict)
+		separator = '\t'
+		myDict = {}
+		out = open(output, writeMode)
+		out.write(separator.join(headerList) + '\n')
+		for position in kmerAbundanceDict.keys():
+			for kmer in kmerAbundanceDict[position].keys():
+				value = kmerAbundanceDict[position][kmer]
+				ll = [str(position), kmer, str(value)] + introducedList
+				out.write(separator.join(ll) + '\n')
+		return 1
+
 	def writeNucleotideAbundanceTable(self, nucleotideAbundanceDict, output, nucleotideOrder='ATGC', percentage=False):
 		if percentage:
 			nucleotideAbundanceDict = self.getNucleotidePercentages(nucleotideAbundanceDict)

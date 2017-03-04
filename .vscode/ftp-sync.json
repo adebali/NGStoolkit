@@ -1,11 +1,11 @@
 {
     "remotePath": "/proj/sancarlb/users/ogun/scripts",
-    "host": "killdevil.unc.edu",
+    "host": "longleaf.unc.edu",
     "username": "adebali",
     "port": 22,
     "password": "d=Ekd8asoy",
     "protocol": "sftp",
-    "uploadOnSave": true,
+    "uploadOnSave": false,
     "passive": false,
     "debug": true,
     "ignore": [

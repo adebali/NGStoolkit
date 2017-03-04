@@ -57,24 +57,42 @@ def list2allStringList(theList):
         newList.append(str(e))
     return newList
 
-def run(codeList, runFlag, runMode, printFlag, jobIndex):
+# def run(codeList, runFlag, runMode, printFlag, jobIndex, outputCheckMode):
+def run(codeList, pipelineObject):
+    def TrueFalse2binary(trueOrFalse):
+        if trueOrFalse:
+            return 1
+        else:
+            return 0
     code = list2gappedString(codeList)
     # code = code.replace('"', '\\"')
     # code = code.replace('(', '\\(')
     # code = code.replace(')', '\\)')
     allStringList = list2allStringList(codeList)
-    if runFlag:
-        if printFlag:
-            print(str(jobIndex) + ' -->\t' + code)
-        if runMode:
+    if pipelineObject.runFlag:
+        if pipelineObject.printFlag:
+            i = 0
+            if pipelineObject.outputCheckMode:
+                for output in pipelineObject.output:
+                    i += 1
+                    print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + output + ' ' + str(TrueFalse2binary(os.path.isfile(output))))
+            else:
+                print(str(pipelineObject.jobIndex) + ' -->\t' + code)
+        if pipelineObject.runMode:
             failedHere = os.system(code)
             if failedHere:
                 raise ValueError('we cannot execute the code: ' + code)
         # else:
         # 	print("gave up running the code, because the command is not given in the default 'RUN' mode.")
     else:
-        if printFlag:
-            print(str(jobIndex) + ' X\t' + code)
+        if pipelineObject.printFlag:
+            if pipelineObject.outputCheckMode:
+                i = 0
+                for output in pipelineObject.output:
+                    i += 1
+                    print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + output + ' ' + str(TrueFalse2binary(os.path.isfile(output))))
+            else:
+                print(str(pipelineObject.jobIndex) + ' X\t' + code)
 
 def runWm(codeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex):
     code = list2gappedString(codeList)
@@ -117,12 +135,14 @@ def codeList2multiCodeList(codeList):
                 parallelJobLists[i].append(e[i])
     return parallelJobLists
 
-def execM(multiCodeList, runFlag, runMode, printFlag, jobIndex):
-    jobIndex -= 1
+# def execM(multiCodeList, runFlag, runMode, printFlag, jobIndex, outputCheckMode):
+def execM(multiCodeList, pipelineObject):
+    pipelineObject.jobIndex -= 1
     parallelJobLists = codeList2multiCodeList(multiCodeList)
     for codeList in parallelJobLists:
-        jobIndex += 1
-        run(codeList, runFlag, runMode, printFlag, jobIndex)
+        pipelineObject.jobIndex += 1
+        # run(codeList, runFlag, runMode, printFlag, jobIndex, outputCheckMode)
+        run(codeList, pipelineObject)
     return len(parallelJobLists)
 
 def execMwm(multiCodeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex):

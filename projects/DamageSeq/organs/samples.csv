@@ -1,0 +1,13 @@
+no,group,sample,treatment,treatment_title,rep
+1,1,KIDNEY.1.fastq,kidney input,kidney_input_A,A
+2,1,KIDNEY_CIS.1.fastq,kidney,kidney_A,A
+3,1,LIVER.1.fastq,liver input,liver_input_A,A
+4,1,LIVER_CIS.1.fastq,liver,liver_A,A
+5,2,KIDNEY_V2_0.1.fastq,kidney input,kidney_input_B,B
+6,2,KIDNEY_V2_CIS.1.fastq,kidney,kidney_B,B
+7,2,LIVER_V2_0.1.fastq,liver input,liver_input_B,B
+8,2,LIVER_V2_CIS.1.fastq,liver,liver_B,B
+9,2,LUNG_V2_0.1.fastq,lung input,lung_input_B,B
+10,2,LUNG_V2_CIS.1.fastq,lung,lung_B,B
+11,2,SPLEEN_V2_0.1.fastq,spleen input,spleen_input_B,B
+12,2,SPLEEN_V2_CIS.1.fastq,spleen,spleen_B,B

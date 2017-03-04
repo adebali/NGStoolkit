@@ -34,10 +34,14 @@ class pipe(object):
         self.printFlag = True
         self.wmParams = {}
         self.defaultWmParams = {}
+        self.outputCheckMode = False
         if '--mock' in sys.argv:
             self.runMode = False
         if '--noPrint' in sys.argv:
             self.printFlag = False
+        if '--outputCheck' in sys.argv:
+            self.runMode = False
+            self.outputCheckMode = True
 
 
     def run(self, function, runFlag=True):
@@ -148,7 +152,8 @@ class pipe(object):
             return newList
 
     def execM(self, codeList):
-        jobNumber = pipeTools.execM(codeList, self.runFlag, self.runMode, self.printFlag, self.jobIndex)
+        # jobNumber = pipeTools.execM(codeList, self.runFlag, self.runMode, self.printFlag, self.jobIndex, self.outputCheckMode)
+        jobNumber = pipeTools.execM(codeList, self)
         self.jobIndex += jobNumber
 
     def execMwm(self, codeList):

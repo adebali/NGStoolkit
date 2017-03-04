@@ -17,17 +17,25 @@ out = args.o
 keysAreIntegers = not args.noInteger
 
 def list2countTable(theList, keysAreIntegers = True):
-    table = sorted(Counter(theList).items())
+    table = {}
+    for e in theList:
+        table[e] = table.get(e, 0) + 1 
+    # table = sorted(Counter(theList).items())
     return table
 
+
+i = 0
 theList = []
 for line in filein:
+    i += 1
+    if i % 1000000 == 0:
+        print(i)
     if keysAreIntegers:
         e = int(line.strip())
     else:
         e = line.strip()
     theList.append(e)
 table = list2countTable(theList)
-for e in table:
-    out.write(str(e[0]) + '\t' + str(e[1]) + '\n')
+for key in sorted(table.keys()):
+    out.write(str(key) + '\t' + str(table[key]) + '\n')
 

@@ -19,6 +19,7 @@ parser = argparse.ArgumentParser(description='DamageSeq Pipeline')
 parser.add_argument('-i', required= False, help='input')
 parser.add_argument('-n', required= False, help='output')
 parser.add_argument('--mock', required= False, action='store_true', help='mock flag')
+parser.add_argument('--outputCheck', required= False, action='store_true', help='checkOutput flag')
 parser.add_argument('--noPrint', required= False, action='store_true', help='prints no code when stated')
 args = parser.parse_args()
 inputFile = args.i
@@ -52,6 +53,8 @@ class myPipe(pipe):
         # self.sampleMinPyrCount = sampleDictionary['minPyrHitNo']
         self.sampleMinPyrCount = None
         self.product = sampleDictionary['product']
+        self.replicate = sampleDictionary['rep']
+        self.treatment = sampleDictionary['treatment']
         if int(self.group) == 1:
             self.sampleMinPyrCount = 7700464
         if int(self.group) == 2:
@@ -66,8 +69,9 @@ class myPipe(pipe):
 
         if self.product == 'CPD':
             self.motifRegex = '\'.{4}(TT|tt|CT|ct|cT|Ct).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
+            # self.motifRegex = '\'.{4}(TT|tt|Tt|tT).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
         elif self.product == '_6-4':
-            self.motifRegex = '\'.{4}(TT|tt|TC|tc|Tc|tC).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
+            self.motifRegex = '\'.{4}(TT|tt|Tt|tT|TC|tc|Tc|tC).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
         elif self.product == 'GG':
             self.motifRegex = '\'.{4}(G|g)(G|g).{4}\'' # Get GG only at the positions 5 and 6.
         elif self.product == 'NA':
@@ -128,7 +132,8 @@ class myPipe(pipe):
     def changeDefaultValues(self, key):
         if key == "hg19":
             self.referenceNickname = 'hg19'
-            output = pipeTools.listOperation(self.addExtraWord, self.output, '.hg19')
+            output = pipeTools.listOperation(self.addExtraWord, 
+            self.output, '.hg19')
             self.saveOutput(output)
             self.bowtie_reference = '/proj/seq/data/HG19_UCSC/Sequence/BowtieIndex/genome'
             self.fasta_reference = generalUtils.file('/nas/longleaf/home/adebali/ogun/seq/hg19/HG19_UCSC/genome.fa')
@@ -139,9 +144,9 @@ class myPipe(pipe):
                 self.chromHMMfiles = generalUtils.sorted_nicely(glob(os.path.join(kHomeDir, 'chromHMM', 'w1000', '*_chromHMM')))
                 self.maxChromHMMhitNumber = 19166369
                 self.nucleosomeBedList = None
-                self.CTCF = None
-                self.allBoundTFBSlist = None
-                self.stat3 = None
+                self.CTCF = [None]
+                self.allBoundTFBSlist = [None] * 10
+                self.STAT3 = [None] * 10
             elif p.cell == "GM12878":
                 self.chromHMMfiles = None
                 self.maxChromHMMhitNumber = None
@@ -165,6 +170,7 @@ class myPipe(pipe):
             # self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/top100K/Nucleosome_Gm12878_rep' + str(i + 1) + '.bed' for i in range(1, 9)]
             self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep1.sga.bed.1K.intersect.selected.146.bed']
             self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep1.sga.500flanking.bed']
+            # self.nucleosomeBedList = ['/proj/sancarlb/users/ogun/ENCODE/Nucleosome_Gm12878_rep1.adjustedByStrand.bed']
             self.void147bed = generalUtils.file('/proj/sancarlb/users/ogun/ENCODE/hg19/nucleosome/hg19.147.bed')
         return self
     
@@ -232,6 +238,17 @@ class myPipe(pipe):
             '-bed', self.input,
             '-fo', self.output,
             '-s' # Force strandedness. If the feature occupies the antisense strand, the sequence will be reverse complemented
+        ]
+        self.execM(codeList)
+        return self
+
+    def sort_bam2bam(self):
+        codeList = [
+            'samtools sort',
+            # '-T', '/tmp/' + self.input[0].split('/')[-1] + '.temp',
+            # '-o', self.output,
+            self.input,
+            '>', self.output
         ]
         self.execM(codeList)
         return self
@@ -339,7 +356,7 @@ class myPipe(pipe):
             '-u',
             '-k1,1',
             '-k2,2n',
-            # '-k3,3n',
+            '-k3,3n',
             # '-k4,4',
             # '-k5,5',
             # '-k6,6',
@@ -914,7 +931,7 @@ class myPipe(pipe):
             '-b', self.input,
             '>', self.output
         ]
-        self.frame = [-573,573]
+        self.frame = [-500,500]
         self.execM(codeList)
         return self
 
@@ -1035,6 +1052,24 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def parsePositions_txt2txt(self):
+        codeList = [
+            'bedIntersect2parsedPosition.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def countPositions_txt2txt(self):
+        codeList = [
+            'list2countTable.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
     def intersectToPositions_txt2txt(self):
         codeList = [
             'cat', self.input,
@@ -1042,6 +1077,20 @@ class myPipe(pipe):
             'bedIntersect2parsedPosition.py',
             '|',
             'list2countTable.py',
+            '|',
+            'countTable2filledGaps.py',
+            '-s', self.frame[0],
+            '-e', self.frame[1],
+            '|',
+            'cut -f2'
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def fillGaps_txt2txt(self):
+        codeList = [
+            'cat', self.input,
             '|',
             'countTable2filledGaps.py',
             '-s', self.frame[0],
@@ -1062,6 +1111,66 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def dinucleotideFreqeuncies_fa2txt(self):
+        codeList = [
+            'fa2kmerAbundanceMeltedData.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-k', 2,
+            '-c', 'product,' + self.product + ' replicate,' + self.replicate + ' treatment,' + self.treatment,
+            '--percentage'
+        ]
+        self.execM(codeList)
+        return self
+
+    def makeIndex_bam2bai(self):
+        def replaceF(string, old, new):
+            return string.replace(old, new)
+        self.output = pipeTools.listOperation(replaceF, self.output, '.maIn.bai', '.bam.bai')
+        self.saveOutput(self.output)
+        codeList = [
+            'samtools',
+            'index',
+            self.input,
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def toBam_bed2bam(self):
+        codeList = [
+            'bedToBam',
+            '-i', self.input,
+            '-g', self.chromosome_limits,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def toBigBed_bed2bb(self):
+        def getStrand(fileName):
+            if 'Plus' in fileName:
+                return 'Plus'
+            if 'Minus' in fileName:
+                return 'Minus'
+            else:
+                return None
+        def rename(filename):
+            strand = getStrand(filename)
+            newName = "_".join([self.cell, self.product, self.treatment, self.replicate, strand]) + '.bb'
+            return newName
+        newOutput = pipeTools.listOperation(rename, self.output)
+        self.saveOutput(newOutput)
+        codeList = [
+            'bedToBigBed',
+            self.input,
+            self.chromosome_limits,
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+
 ###########################################################
 #  Pipeline
 ###########################################################
@@ -1069,30 +1178,40 @@ p = myPipe(input)
 (p
     .run(p.cutadapt_fastq2fastq, False)
 
-    .branch(False)
+    .branch(True)
         .changeDefaultValues("hg19")
         .run(p.bowtie_fastq2sam, False)
         .run(p.convertToBam_sam2bam, False)
-        .run(p.convertToBed_bam2bedpe, False)
-        .run(p.uniqueSort_bedpe2bedpe, False)
-        .run(p.convertBedpeToSingleFrame_bedpe2bed, False)
-        .run(p.slopBed_bed2bed, False)
-        .run(p.convertToFixedRange_bed2bed, False)
-        .run(p.sortBed_bed2bed, False)
-        .run(p.convertBedToFasta_bed2fa, False)
+        
+        # .branch(False)
+        #     .run(p.sort_bam2bam, True)
+        #     .run(p.makeIndex_bam2bai, True)
+        # .stop()
+        
+        .run(p.convertToBed_bam2bedpe, True)
+        .run(p.uniqueSort_bedpe2bedpe, True)
+        .run(p.convertBedpeToSingleFrame_bedpe2bed, True)
+        .run(p.slopBed_bed2bed, True)
+        .run(p.convertToFixedRange_bed2bed, True)
+        .run(p.sortBed_bed2bed, True)
+        .run(p.convertBedToFasta_bed2fa, True)
             
         .branch(False) # Plot nucleotide abundance
-            .run(p.getNucleotideAbundanceTable_fa2csv, False)
-            .run(p.plotNucleotideAbundance_csv2pdf, False)
+            .run(p.getNucleotideAbundanceTable_fa2csv, True)
+            .run(p.plotNucleotideAbundance_csv2pdf, True)
         .stop()
 
         .branch(False) # Plot dinucleotide abundance
-            .run(p.getDimerAbundanceTable_fa2csv, False)
-            .run(p.plotDinucleotideAbundance_csv2pdf, False)
+            .run(p.getDimerAbundanceTable_fa2csv, True)
+            .run(p.plotDinucleotideAbundance_csv2pdf, True)
         .stop()
 
-        .run(p.getPyrimidineDimers_fa2bed, False)
-        .run(p.sortBed_bed2bed, False)
+        .branch(True)
+            .run(p.dinucleotideFreqeuncies_fa2txt, True)
+        .stop()
+
+        .run(p.getPyrimidineDimers_fa2bed, True)
+        .run(p.sortBed_bed2bed, True)
         
         # .branch(False) # ChromHMM analysis for NHF1 cells
         #     .run(p.coverageChromHMM_bed2bed, True)
@@ -1108,8 +1227,8 @@ p = myPipe(input)
         #     .run(p.normalizeChmm_bed2bed, False)
         # .stop()
 
-        .branch(False) # CHMM
-            .run(p.countChmm_bed2bed, False)
+        .branch(True) # CHMM
+            .run(p.countChmm_bed2bed, True)
             # .run(p.normalizeChmm_bed2bed, True)
         .stop()
 
@@ -1121,25 +1240,34 @@ p = myPipe(input)
         # .stop()
 
         .branch(True)
-            .run(p.separateStrands_bed2bed, False)
-
-            .branch(False) # TSS
-                .run(p.countTSS_bed2bed, False)
-                .run(p.binnedCountsToPositions_bed2txt, False)
+            .run(p.separateStrands_bed2bed, True)
+            
+            .branch(False)
+                .run(p.toBam_bed2bam, False)
+                .run(p.makeIndex_bam2bai, False)
             .stop()
 
-            .branch(False) # TES
-                .run(p.countTES_bed2bed, False)
-                .run(p.binnedCountsToPositions_bed2txt, False)
+            .branch(True)
+                .run(p.toBigBed_bed2bb, True)
+            .stop()
+
+            .branch(True) # TSS
+                .run(p.countTSS_bed2bed, True)
+                .run(p.binnedCountsToPositions_bed2txt, True)
+            .stop()
+
+            .branch(True) # TES
+                .run(p.countTES_bed2bed, True)
+                .run(p.binnedCountsToPositions_bed2txt, True)
             .stop()
 
 
-            .branch(False) # TFBS analysis
-                .run(p.intersectWithTFBS_bed2txt, False)
-                .run(p.intersectToPositions_txt2txt, False)
+            .branch(True) # TFBS analysis
+                .run(p.intersectWithTFBS_bed2txt, True)
+                .run(p.intersectToPositions_txt2txt, True)
             .stop()
 
-            .branch(False) # DNase analysis
+            .branch(True) # DNase analysis
                 .run(p.intersectWithDNase_bed2txt, True)
                 .run(p.intersectToPositions_txt2txt, True)
             .stop()
@@ -1149,34 +1277,34 @@ p = myPipe(input)
             #     .run(p.intersectToPositions_txt2txt, False)
             # .stop()
 
-            # .branch(False and p.cell == "GM12878")
-            #     .run(p.intersectWithCTCF_bed2txt, True)
-            #     .run(p.intersectToPositions_txt2txt, True)
-            # .stop()
+            .branch(True and p.cell == "GM12878")
+                .run(p.intersectWithCTCF_bed2txt, True)
+                .run(p.intersectToPositions_txt2txt, True)
+            .stop()
 
-            # .branch(False and p.cell == "GM12878")
-            #     .run(p.intersectWithBoundTFBS_bed2txt, False)
-            #     .run(p.intersectToPositions_txt2txt, False)
-            # .stop()
+            .branch(True and p.cell == "GM12878")
+                .run(p.intersectWithBoundTFBS_bed2txt, False)
+                .run(p.intersectToPositions_txt2txt, False)
+            .stop()
             
-            # .branch(False and p.cell == "GM12878")
-            #     .run(p.intersectWithBoundTFBSUpstream_bed2txt, False)
-            #     .run(p.intersectToPositions_txt2txt, False)
-            # .stop()
+            .branch(True and p.cell == "GM12878")
+                .run(p.intersectWithBoundTFBSUpstream_bed2txt, False)
+                .run(p.intersectToPositions_txt2txt, False)
+            .stop()
 
-            # .branch(False and p.cell == "GM12878")
-            #     .run(p.intersectWithBoundTFBSDownstream_bed2txt, False)
-            #     .run(p.intersectToPositions_txt2txt, False)
-            # .stop()
+            .branch(True and p.cell == "GM12878")
+                .run(p.intersectWithBoundTFBSDownstream_bed2txt, False)
+                .run(p.intersectToPositions_txt2txt, False)
+            .stop()
 
-            # .branch(True and p.cell == "GM12878")
-            #     .run(p.intersectWithSTAT3_bed2txt, True)
-            #     .run(p.intersectToPositions_txt2txt, True)
-            # .stop()
+            .branch(True and p.cell == "GM12878")
+                .run(p.intersectWithSTAT3_bed2txt, False)
+                .run(p.intersectToPositions_txt2txt, False)
+            .stop()
         .stop()
     .stop()
 
-    .branch(True and p.cell == "GM12878") # GM12878 Nucleosome Analysis
+    .branch(False and p.cell == "GM12878") # GM12878 Nucleosome Analysis
         .changeDefaultValues("hg19_nucleosome")
         .run(p.bowtie_fastq2sam, False)
         .run(p.convertToBam_sam2bam, False)
@@ -1194,24 +1322,14 @@ p = myPipe(input)
             .run(p.separateStrands_bed2bed, False)
                 
             .branch(True and p.cell == "GM12878")
-                .run(p.intersectWithNucleosome_bed2txt, False)
-                .run(p.intersectToPositions_txt2txt, True)
+                .run(p.intersectWithNucleosome_bed2txt, True)
+                .run(p.parsePositions_txt2txt, True)
+                .run(p.countPositions_txt2txt, True)
+                .run(p.fillGaps_txt2txt, True)
             .stop()
-
-
-            # .branch(True and p.cell == "GM12878")
-            #     .run(p.getClosestDamageOnAll_bed2bed, True)
-            #     .run(p.adjustExactLocation_bed2bed, True)
-            #     .run(p.nucleosomeCountPlot_bed2txt, True)
-            # .stop()
-
-            # .branch(False and p.cell == "GM12878")
-            #     .run(p.getClosestDamageVoid_bed2bed, False)
-            #     .run(p.adjustExactLocation_bed2bed, False)
-            #     .run(p.nucleosomeCountPlot_bed2txt, False)
-            # .stop()
         .stop()
     .stop()
+
 
 
     # .run(p.convertToBigBed_bed2bb, False)

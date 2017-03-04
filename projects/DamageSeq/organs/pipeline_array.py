@@ -14,7 +14,7 @@ args = parser.parse_args()
 
 reportFlag = args.report
 
-SAMPLE_STAT_FILE = 'dataDir/samples.csv'
+SAMPLE_STAT_FILE = './samples.csv'
 
 def group2sample(group):
     if group == '0':
@@ -39,8 +39,7 @@ if args.e:
 
 parameters = {
     "--job-name=": "Damage_Seq_Pipeline",
-    "-n ": 1,
-    # "-n ": 4,
+    "-n ": 8,
     # "--mem=": 128000,
     "--mem=": 32000,
     "--time=": "2-00:00:00",

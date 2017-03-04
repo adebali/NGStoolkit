@@ -320,12 +320,12 @@ p = myPipe(input)
         .stop()
 
         .branch(True) # TSS
-            .run(p.countTSS_bed2bed, True)
+            .run(p.countTSS_bed2bed, False)
             .run(p.binnedCountsToPositions_bed2txt, True)
         .stop()
 
         .branch(True) # TES
-            .run(p.countTES_bed2bed, True)
+            .run(p.countTES_bed2bed, False)
             .run(p.binnedCountsToPositions_bed2txt, True)
         .stop()
 

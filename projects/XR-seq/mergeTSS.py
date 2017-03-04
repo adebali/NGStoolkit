@@ -7,7 +7,6 @@ sampleDict = generalUtils.table2dictionary(generalUtils.file('dataDir/samples.cs
 def fileList2csv(fileList, output):
     myDict = {}
     for file in fileList:
-        # print(file)
         sampleName = os.path.basename(file).split('.')[0] + '.fastq'
         treatment = sampleDict[sampleName][0]['treatment_title']
         lines = open(file).read().splitlines() 

@@ -29,11 +29,9 @@ def group2mergedChmm(groups):
     headerOut.write('\t'.join(headers))
     headerOut.close()
 
-groupDict = generalUtils.table2dictionary(generalUtils.file('dataDir/samples.csv'), 'group')
-# print(groupDict.keys())
-# print(sorted(groupDict[group], key=lambda k: k['no']))
-group2mergedChmm([1, 8])
-group2mergedChmm([2, 8])
+#groupDict = generalUtils.table2dictionary(generalUtils.file('dataDir/samples.csv'), 'group')
 
-# for group in groupDict.keys():
-    # group2mergedChmm(group)
+group2mergedChmm([1, 2, 4, 5, 8])
+# group2mergedChmm([1, 8])
+# group2mergedChmm([2, 8])
+# group2mergedChmm([4, 5])

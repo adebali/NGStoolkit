@@ -25,19 +25,15 @@ def fileList2csv(fileList, output):
 
 
 # fileList = glob('dataDir/0106/*1.cu.bo.hg19.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.saFrBe.soBe.seSt_*.inWiTFBS.inToPo.txt')
-key = 'TFBS'
-key = 'DNa'
-key = 'CTCF'
-key = 'BoTFBSUp'
-key = 'BoTFBS'
-key = 'STAT3'
-key = 'NuPeaks'
+keys = ['TFBS', 'DNa', 'CTCF', 'BoTFBSUp', 'BoTFBS', 'STAT3', 'NuPeaks']
 
 cell = 'NHF1'
+cell = 'GM12878'
 
 referenceGenome = 'hg19'
-referenceGenome = 'hg19nuc'
+# referenceGenome = 'hg19nuc'
 
-fileList = glob('dataDir/0106/*1.cu.bo.' + referenceGenome + '.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_*.inWi' + key + '.inToPo.txt')
-fileList2csv(fileList, 'dataDir/merged' + key + '_' + cell + '.csv')
+for key in keys:
+    fileList = glob('dataDir/0106/*1.cu.bo.' + referenceGenome + '.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_*.inWi' + key + '.inToPo.txt')
+    fileList2csv(fileList, 'dataDir/merged' + key + '_' + cell + '.csv')
 

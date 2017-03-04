@@ -13,7 +13,7 @@ import argparse
 # samtools
 # subsample
 
-SAMPLE_STAT_FILE = 'dataDir/samples.csv'
+SAMPLE_STAT_FILE = 'samples.csv'
 
 parser = argparse.ArgumentParser(description='DamageSeq Pipeline')
 parser.add_argument('-i', required= False, help='input')
@@ -39,6 +39,7 @@ else:
     input = generalUtils.file(os.path.realpath(os.path.join('dataDir', 'raw', sampleDictionary['sample'])))
 
 
+
 class myPipe(pipe):
     def __init__(self, input):
         pipe.__init__(self, input)
@@ -47,7 +48,7 @@ class myPipe(pipe):
         os.system('mkdir -p ' + self.outputDir)
         self.treatment = sampleDictionary['treatment_title']
         self.motifRegex = '\'.{4}(G|g)(G|g).{4}\'' # Get GG only at the positions 5 and 6.
-        self.referenceNickname = 'hg19'
+        self.referenceNickname = 'mm10'
         self.bowtie_reference = '/proj/seq/data/MM10_UCSC/Sequence/BowtieIndex/genome'
         self.fasta_reference = generalUtils.file('/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa')
         self.chromosome_limits = generalUtils.file('/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai')
@@ -87,7 +88,7 @@ class myPipe(pipe):
             '-m', 4, # Do not report the reads that are mapped on to more than 4 genomic locations
             '-X', 1000,
             '--seed', 123, # Randomization parameter in bowtie,
-            '-p', 4,
+            '-p', 8,
             '-1', self.input[0],
             '-2', self.input[1],
             self.output
@@ -228,7 +229,7 @@ class myPipe(pipe):
             '-u',
             '-k1,1',
             '-k2,2n',
-            # '-k3,3n',
+            '-k3,3n',
             # '-k4,4',
             # '-k5,5',
             # '-k6,6',
@@ -768,7 +769,7 @@ class myPipe(pipe):
 ###########################################################
 p = myPipe(input)
 (p
-    .run(p.cutadapt_fastq2fastq, False)
+    .run(p.cutadapt_fastq2fastq, True)
     .run(p.bowtie_fastq2sam, True)
     .run(p.convertToBam_sam2bam, True)
     .run(p.convertToBed_bam2bedpe, True)

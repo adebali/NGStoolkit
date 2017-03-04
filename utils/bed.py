@@ -2,7 +2,8 @@ import os
 import sys
 import unittest
 import random
-
+import pybedtools
+from pfm import Pfm
 
 class bedline:
 	def __init__(self, line, sep='\t'):
@@ -36,6 +37,14 @@ class bedline:
 	def strand(self, strandCol = 6):
 		return self.fields()[strandCol - 1]
 
+	def reverseStrand(self, strand):
+		if strand == "+":
+			return "-"
+		elif strand == "-":
+			return "+"
+		else:
+			raise ValueError("Unexpected strand information.")
+
 	def midpoint(self, randomness=False):
 		if not randomness:
 			addition = 0
@@ -43,12 +52,47 @@ class bedline:
 			addition = random.sample([0,1], 1)[0]
 		return int((self.start() + self.end() + addition) / 2)
 
-	def newline(self, start, end):
+	def newline(self, start, end, otherFields = {}):
 		newList = self.fields()
 		newList[1] = str(start)
 		newList[2] = str(end)
+		if otherFields != {}:
+			for columnNo in otherFields.keys():
+				newList[columnNo - 1] = otherFields[columnNo]
 		return self.separator.join(newList)
 
+	def getFasta(self, fastaInput):
+		b = pybedtools.BedTool(self.getLine(), from_string=True)
+		s = b.sequence(fi=fastaInput, s=True)
+		return(open(s.seqfn).read())
+
+	def singleFastaToSequence(self, fastaString):
+		lines = fastaString.strip().split("\n")
+		return("".join(lines[1:]))
+
+	def getSequence(self, fastaInput):
+		return self.singleFastaToSequence(self.getFasta(fastaInput)).upper()
+
+	def getNewLinesWithPfm(self, fastaInput, matrixString, strandCol = 6):
+		currentStrand = self.strand(strandCol)
+		if currentStrand == ".":
+			currentStrand = "+"
+		newBedLine = bedline(self.newline(self.start(), self.end(), {strandCol: currentStrand}))
+		sequence = newBedLine.getSequence(fastaInput)
+		pfm = Pfm()
+		pfm.takeStringInput(matrixString)
+		hits = pfm.getHits(sequence)
+		
+		newLines = []
+		if hits[0] != []:
+			strand = currentStrand
+			for i in hits[0]:
+				newLines.append(newBedLine.newline(self.start() + i, self.start() + i + pfm.length, {strandCol: strand}))
+		if hits[1] != []:
+			strand = newBedLine.reverseStrand(currentStrand)
+			for i in hits[1]:
+				newLines.append(newBedLine.newline(self.start() + i, self.start() + i + pfm.length, {strandCol: strand}))
+		return newLines
 
 class bed:
 	def __init__(self, input):
@@ -285,12 +329,12 @@ class bedTests(unittest.TestCase):
 		expectedResult4 = 'chr1\t100\t110\tHISEQ:355:C9U5RANXX:4:1310:14307:58329\t255\t-'
 		self.assertEqual(bedLine2fixedRangedLine(bedLine3, 'r', 10), expectedResult4)
 
-	def test_bedClass(self):
-		myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/bedExample.bed'))
-		myBed.fixRange('l', 10)
+	# def test_bedClass(self):
+	# 	myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/bedExample.bed'))
+	# 	myBed.fixRange('l', 10)
 
-		myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/genes.bed'))
-		myBed.removeNeighbors(20)
+	# 	myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/genes.bed'))
+	# 	myBed.removeNeighbors(20)
 
 	def test_bedline2(self):
 		bedLine = bedline('chr1\t100\t5100\tbedpe_example1\t30\t+\n')
@@ -300,9 +344,45 @@ class bedTests(unittest.TestCase):
 		self.assertEqual(bedLine.end(), 5100)
 		self.assertEqual(bedLine.midpoint(True), 2600)
 		self.assertEqual(bedLine.newline(10,20), 'chr1\t10\t20\tbedpe_example1\t30\t+')
+		self.assertEqual(bedLine.newline(10,20, {6: "-"}), 'chr1\t10\t20\tbedpe_example1\t30\t-')
 		bedLine = bedline('chr1\t100\t5103\tbedpe_example1\t30\t+\n')
 		self.assertEqual(bedLine.midpoint(), 2601)
+		bedLine = bedline('chr1\t2\t5\tbedpe_example1\t30\t+\n')
+		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AAG')
+		bedLine = bedline('chr1\t2\t5\tbedpe_example1\t30\t-\n')
+		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'CTT')
+		bedLine = bedline('chr1\t0\t5\tbedpe_example1\t30\t+\n')
+		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AAAAG')
+		bedLine = bedline('chr1\t1\t5\tbedpe_example1\t30\t+\n')
+		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AAAG')
+		matrixString = '''
+			A [1 8 4]
+			T [9 8 6]
+			G [0 2 0]
+			C [0 0 0]'''
 		
+		bedLine = bedline('chr1\t2\t20\tbedpe_example1\t30\t+\n')
+		newLines = bedLine.getNewLinesWithPfm('utils/testFiles/bed.fa', matrixString)
+		self.assertEqual(newLines, [
+			'chr1\t11\t14\tbedpe_example1\t30\t+',
+			'chr1\t7\t10\tbedpe_example1\t30\t-',
+			'chr1\t8\t11\tbedpe_example1\t30\t-',
+			])
+		bedLine = bedline(newLines[0])
+		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'TTT')
+		
+		matrixString = '''
+			A [9 1 4 1 9 9 9]
+			T [1 1 6 8 0 0 0]
+			G [0 9 0 9 0 0 0]
+			C [0 0 9 0 0 0 0]'''
+		bedLine = bedline('chr1\t2\t20\tbedpe_example1\t30\t+\n')
+		newLines = bedLine.getNewLinesWithPfm('utils/testFiles/bed.fa', matrixString)
+		self.assertEqual(newLines, [
+			'chr1\t3\t10\tbedpe_example1\t30\t+'
+			])
+		bedLine = bedline(newLines[0])
+		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AGCTAAA')
 
 if __name__ == "__main__":
 	unittest.main()

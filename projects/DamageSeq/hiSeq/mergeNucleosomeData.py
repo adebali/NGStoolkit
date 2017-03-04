@@ -26,9 +26,11 @@ def fileList2csv(fileList, output):
 for i in range(1,2):
     # fileList = glob('dataDir/0106/*cu.bow.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.saFrBe.soBe.seSt_*.geClDaOnAlrep' + str(i) + '.adExLo.nuCoPl.txt')
     # fileList = glob('dataDir/0106/*.1.cu.bo.hg19nuc.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.saFrBe.soBe.seSt_*.inWiNu.inToPo.txt')
-    fileList = glob('dataDir/0106/*.1.cu.bo.hg19nuc.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_*.inWiNuPeaks.inToPo.txt')
+    fileList = glob('dataDir/0106/*.1.cu.bo.hg19nuc.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_*.inWiNu_1K_flanking.paPo.coPo.fiGa.txt')
+    # fileList = glob('dataDir/0106/*.1.cu.bo.hg19nuc.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_*.inWiNuPeaks.inToPo.txt')
     # fileList = glob('dataDir/0106/*.1.cu.bo.hg19.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_*.inWiNuAdar.inToPo.txt')
     # fileList2csv(fileList, 'dataDir/mergedNucleosomeData_rep.intersect_rep3.csv')
+    # fileList2csv(fileList, 'dataDir/mergedNucleosomeData_1K_adjusted.csv')
     fileList2csv(fileList, 'dataDir/mergedNucleosomeData_1K.csv')
     # fileList2csv(fileList, 'dataDir/mergedNucleosomeData_rep.intersect_adar.csv')
 

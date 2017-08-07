@@ -169,16 +169,17 @@ def table2dictionary(fileName, keyHeader, separator = ','):
 		raise ValueError('keyHeader is not in the table headers')
 	keyColumnnNo = headings.index(keyHeader)
 	for row in rows[1:]:
-		rowDict = {}
-		rowValues = row.split(separator)
-		key = rowValues[keyColumnnNo]
-		for header in headings:
-			columnNo = headings.index(header)
-			rowDict[header] = rowValues[columnNo]
-		if key in theDictionary.keys():
-			theDictionary[key].append(rowDict)
-		else:
-			theDictionary[key] = [rowDict]
+		if row:
+			rowDict = {}
+			rowValues = row.split(separator)
+			key = rowValues[keyColumnnNo]
+			for header in headings:
+				columnNo = headings.index(header)
+				rowDict[header] = rowValues[columnNo]
+			if key in theDictionary.keys():
+				theDictionary[key].append(rowDict)
+			else:
+				theDictionary[key] = [rowDict]
 	return theDictionary
 
 def dictionary2header(dictionary):

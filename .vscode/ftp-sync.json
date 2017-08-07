@@ -3,9 +3,9 @@
     "host": "longleaf.unc.edu",
     "username": "adebali",
     "port": 22,
-    "password": "d=Ekd8asoy",
+    "password": "d=Ekd9asoy",
     "protocol": "sftp",
-    "uploadOnSave": false,
+    "uploadOnSave": true,
     "passive": false,
     "debug": true,
     "ignore": [

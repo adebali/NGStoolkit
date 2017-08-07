@@ -29,6 +29,20 @@ class Slurm:
             dictionary['-e '] = dictionary['-e '] + '.' + str(self.jobIndex)
         self.script += dictionary2slurmLines(dictionary)
     
+    def assignDefaultParameters(self):
+        d = {
+            "--mem=": 32000,
+            "-t ": "2-00:00:00",
+            "--mail-type=": "END,FAIL",
+            "-e ": "error.err",
+            "-o ": "log.out"
+        }
+        self.assignParams(d)
+
+    def qrun(self):
+        self.assignDefaultParameters()
+        self.run()
+
     def setDependencies(self, dependencies):
         if dependencies:
             if dependencies[0] != None:

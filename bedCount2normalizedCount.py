@@ -9,6 +9,7 @@ parser.add_argument('-i', required= True, help='<Required> input')
 parser.add_argument('-c', required= True, help='<Required> countTab')
 parser.add_argument('-o', required=  True, help='<Required> output')
 parser.add_argument('-l', required=  False, help='per sequence length, default = 1000')
+parser.add_argument('--bypassLength', required= False, action= "store_true", default= False, help='per sequence length, default = 1000')
 parser.add_argument('-m', required=  False, help='multiplyFactor, default = 1')
 
 args = parser.parse_args()
@@ -38,8 +39,12 @@ for line in filein:
     end = int(ll[endTab - 1])
     count = int(ll[countTabNumber - 1])
 
-    regionLength = end - beg
+    if args.bypassLength:
+        regionLength = perSequenceLength
+    else:
+        regionLength = end - beg
     newCount = (float(count) / regionLength) * float(perSequenceLength) * multiplyFactor
+    
 
     newLine = ''
     for i in range(len(ll)):

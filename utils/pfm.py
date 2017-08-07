@@ -90,10 +90,13 @@ class Pfm:
             newList.append(newHit)
         return newList
 
-    def getHitsFromSequence(self, seq):
+    def getHitsFromSequence(self, seq, exactMatch = False):
         identicalMatches = self.getIndex(seq)
         if identicalMatches == []:
-            return self.getBestHits(seq)
+            if exactMatch == False:
+                return self.getBestHits(seq)
+            else:
+                return identicalMatches
         else:
             return identicalMatches
 

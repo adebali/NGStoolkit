@@ -24,7 +24,7 @@ def globFile(file):
 reference = "hg19"
 reference = "hg19nuc"
 
-SAMPLE_STAT_FILE = 'dataDir/samples.csv'
+SAMPLE_STAT_FILE = 'samples.csv'
 samples = generalUtils.table2dictionary(generalUtils.file(SAMPLE_STAT_FILE), 'sample')
 for sample in samples.keys():
     files = sorted([globFile('dataDir/0106/' + sample.split('.')[0] + '.1.cu.bo.' + reference + '.coToBa.coToBe.unSo.coBeToSiFr.slBeb6.coToFiRa10.soBe.coBeToFa.gePyDi.soBe.seSt_Minus.bed'), \

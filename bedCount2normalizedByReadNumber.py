@@ -7,7 +7,7 @@ import argparse
 parser = argparse.ArgumentParser(description='normalize bed counts by read number')
 parser.add_argument('-i', required= True, help='<Required> input')
 parser.add_argument('-c', required= True, help='<Required> countTab')
-parser.add_argument('-readNum', required= True, help='<Required> total mepped read number of the run')
+parser.add_argument('-readNum', required= True, help='<Required> total mapped read number of the run')
 parser.add_argument('-perNumReads', required=  False, help='per number reads value, default = 1000000')
 parser.add_argument('-o', required=  True, help='<Required> output')
 

@@ -42,6 +42,34 @@
             "args": ["--test"]
         },
         {
+            "name": "pipeline",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": true,
+            "pythonPath": "${config.python.pythonPath}",
+            "program": "${file}",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ],
+            "args": ["run", "-n", "1", "--mock"]
+        },
+        {
+            "name": "reduce",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": true,
+            "pythonPath": "${config.python.pythonPath}",
+            "program": "${file}",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ],
+            "args": ["-i", "deneme.csv", "-o", "out.csv"]
+        },
+        {
             "name": "Integrated Terminal/Console",
             "type": "python",
             "request": "launch",

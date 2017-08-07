@@ -1,6 +1,7 @@
 import pipeTools 
 import sys
 import os
+import argument
 kMaximumIndentation = 10
 
 
@@ -16,8 +17,9 @@ class void():
 
 class pipe(object):
 
-    def __init__(self, input):
+    def __init__(self, input, args = argument.args()):
         self.input = input
+        self.args = args
         self.latestInput = input
         self.inputLevels = kMaximumIndentation * [None]
         self.outputLevels = kMaximumIndentation * [None]
@@ -35,16 +37,24 @@ class pipe(object):
         self.wmParams = {}
         self.defaultWmParams = {}
         self.outputCheckMode = False
-        if '--mock' in sys.argv:
+        self.outputCheckModeCount = False
+        if '--mock' in sys.argv or self.args.get("mock"):
             self.runMode = False
-        if '--noPrint' in sys.argv:
+        if '--noPrint' in sys.argv or self.args.get("noPrint"):
             self.printFlag = False
-        if '--outputCheck' in sys.argv:
+        if '--outputCheck' in sys.argv or self.args.get("outputCheck"):
             self.runMode = False
             self.outputCheckMode = True
+            if '--count' in sys.argv or args.get("count"):
+                self.outputCheckModeCount = True
 
+    def list2attributes(self, l):
+        newList = []
+        for e in l:
+            newList.append(self.__getattribute__(e))
+        return newList
 
-    def run(self, function, runFlag=True):
+    def run(self, function, runFlag=True, *nargs):
         self.prepare_(function.__name__)
         if runFlag == "Skip":
             return self
@@ -63,8 +73,32 @@ class pipe(object):
         else:
             stopPlotString = ''
         self.i += 1
-        function()
+        function(*nargs)
         self.finalize_()
+        return self
+
+    def cat(self, function, runFlag=True, *nargs):
+        if runFlag and self.args.get("subprogram") == "cat":
+            function(*nargs)
+        return self
+    
+    def runSingle(self, function, runFlag=True):
+        self.output = self.input
+        if runFlag == True and self.branchRunFlag == True:
+            runFlag = True
+        else:
+            runFlag = False
+        self.runFlag = runFlag
+        if self.justBranched == True:
+            branchPlotString = self.currentBranch * '   ' + '-|* '
+        else:
+            branchPlotString = self.currentBranch * '   ' + ' |* '
+        if self.justStopped == True:
+            stopPlotString = '\n\n'
+        else:
+            stopPlotString = ''
+        self.i += 1
+        function()
         return self
 
     def branch(self, branchRunFlag=True):
@@ -88,6 +122,7 @@ class pipe(object):
     def saveInput(self, nextInput):
         self.inputLevels[self.currentBranch] = nextInput
         self.latestInput = nextInput
+        self.input = nextInput
 
     def saveOutput(self, output):
         self.outputLevels[self.currentBranch] = output
@@ -102,6 +137,14 @@ class pipe(object):
         newList = []
         for o in self.outputLevels[self.currentBranch]:
             newList.append(self.addExtraWord(o, word))
+        self.outputLevels[self.currentBranch] = newList
+        self.output = self.outputLevels[self.currentBranch]
+
+    def addWordsToOutput(self, words):
+        newList = []
+        for word in words:
+            for output in self.output:
+                newList.append(self.addExtraWord(output,str(word)))
         self.outputLevels[self.currentBranch] = newList
         self.output = self.outputLevels[self.currentBranch]
 
@@ -166,7 +209,7 @@ class pipe(object):
         self.wmParams = self.defaultWmParams
         
 
-    def internalRun(self, function, arguments, runFlag=True, operationName=False):
+    def internalRun(self, function, arguments, runFlag=True, operationName=False, force=False):
         if operationName:
             functionName = operationName
         else:
@@ -174,12 +217,12 @@ class pipe(object):
         if runFlag:
             if self.printFlag:
                 print('i->\t' + functionName)
-            if self.runMode:
+            if self.runMode or force:
                 return function(*arguments)
         else:
             if self.printFlag:
                 print('iX\t' + functionName)
-            return False
+            return 1
 
     def mutateWmParams(self, dictionary):
         for key in dictionary.keys():

@@ -27,7 +27,7 @@ def fastaHeader2bedLine(header):
     start = int(header.split(':')[1].split('(')[0].split('-')[0])
     end = int(header.split(':')[1].split('(')[0].split('-')[1])
     strand = header.split(':')[1].split('(')[1][0]
-    return chr + '\t' + str(start) + '\t' + str(end) + '\t' + strand
+    return chr + '\t' + str(start) + '\t' + str(end) + '\t.\t.\t' + strand
 
 out = open(output, 'w')
 seqDicts = fastaObject.stream(100*4096)

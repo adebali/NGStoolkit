@@ -2,6 +2,61 @@ import unittest
 import os
 import slurm
 import datetime
+import subprocess
+
+def assignProperty(theClass, dictionary):
+    for key in dictionary.keys():
+        setattr(theClass, key, dictionary[key])
+    return theClass
+
+def is_binary(filename):
+    """Return true if the given filename is binary.
+    @raise EnvironmentError: if the file does not exist or cannot be accessed.
+    @attention: found @ http://bytes.com/topic/python/answers/21222-determine-file-type-binary-text on 6/08/2010
+    @author: Trent Mick <TrentM@ActiveState.com>
+    @author: Jorge Orpinel <jorge@orpinel.com>"""
+    fin = open(filename, 'rb')
+    try:
+        CHUNKSIZE = 1024
+        while 1:
+            chunk = fin.read(CHUNKSIZE)
+            if '\0' in chunk: # found null byte
+                return True
+            if len(chunk) < CHUNKSIZE:
+                break # done
+    finally:
+        fin.close()
+    return False
+
+def getExtension(fileName):
+    return fileName.strip().split('.')[-1]
+
+
+def countHits(fileName):
+    extension = getExtension(fileName)
+    ignore = False
+    if extension == 'bed' or extension == 'bedpe' or extension == 'sam' or extension == 'csv' or extension == 'txt':
+        pattern = "^"
+    elif extension == 'fastq':
+        pattern = "^+"
+    elif extension == "fa":
+        pattern = "^>"
+    else:
+        ignore = True
+
+    if not ignore:
+        count = subprocess.check_output('grep -c "' + pattern + '" ' + fileName, shell=True)
+    else:
+        count = "NA"
+    return count
+
+def countLines(fileName):
+    """Return cout lines of a file if the file does exist (if not returns 0) and is not binary (if so reutrns -1)."""
+    if not os.path.isfile(fileName):
+        return 0
+    if is_binary(fileName):
+        return -1
+    return int(subprocess.check_output('wc -l ' + fileName, shell=True).split(" ")[0])
 
 def replaceLast(source_string, replace_what, replace_with):
     head, sep, tail = source_string.rpartition(replace_what)
@@ -11,7 +66,7 @@ def in2out(input, oldExtension, newExtension):
     if input.endswith(oldExtension):
         output = replaceLast(input, oldExtension, newExtension)
     else:
-        output = input + oldExtension
+        output = input + '.' + getExtension(newExtension)
     return output
 
 def listOperation(function, theList, *args):
@@ -90,7 +145,10 @@ def run(codeList, pipelineObject):
                 i = 0
                 for output in pipelineObject.output:
                     i += 1
-                    print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + output + ' ' + str(TrueFalse2binary(os.path.isfile(output))))
+                    # if not pipelineObject.outputCheckModeCount:
+                    #     print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + output + ' ' + str(TrueFalse2binary(os.path.isfile(output))))
+                    # else:
+                    print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + output + ' ' + str(countLines(output)))                        
             else:
                 print(str(pipelineObject.jobIndex) + ' X\t' + code)
 

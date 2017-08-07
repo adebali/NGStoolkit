@@ -41,14 +41,75 @@ class fastq:
 
 	def writeSingleLineFastq(self, outputFile):
 		out = open(outputFile, 'w')
-		count = 0
-		filein = open(self.file, 'r')
-		newLine = ''
-		for line in filein:
-			count += 1
-			newLine += line.strip() + '\t'				
-			if count%4 == 0:
-				if newLine != '':
-					out.write(newLine.strip() + '\n')
-				newLine = ''
+		for seqObject in self.stream():
+			out.write(seqObject.getSingleLine())
+		out.close()
+		# count = 0
+		# filein = open(self.file, 'r')
+		# newLine = ''
+		# for line in filein:
+		# 	count += 1
+		# 	newLine += line.strip() + '\t'				
+		# 	if count%4 == 0:
+		# 		if newLine != '':
+		# 			out.write(newLine.strip() + '\n')
+		# 		newLine = ''
 
+	def stream(self, bufsize=40960):
+		def chunk2object(chunk):
+			lines = chunk.split('\n')
+			seqObject = fastqSeq()
+			seqObject.assignFourLines(lines)
+			return seqObject
+
+		filein = open(self.file, 'r')
+		delimiter = '\n@'
+		buf = ''
+		justStarted = True
+		while True:
+			newbuf = filein.read(bufsize)
+			if not newbuf:
+				yield chunk2object(buf)
+				return
+			buf += newbuf
+			sequenceChunks = buf.split(delimiter)
+			for chunk in sequenceChunks[0:-1]:
+				if justStarted and chunk.startswith('@'):
+					chunk = chunk[1:]
+					justStarted = False
+				yield chunk2object(chunk)
+			buf = sequenceChunks[-1]
+
+class fastqSeq:
+	def __init__(self, sequence = ''):
+		self.sequence = sequence
+
+	def assignSequence(self, sequence):
+		self.sequence = sequence
+
+	def assignHeader(self, header):
+		self.header = header
+
+	def assignQuality(self, quality):
+		self.quality = quality
+
+	def assignDescription(self, description):
+		self.description = description
+
+	def assignFourLines(self, lines):
+		'''lines is a list of fastq lines'''
+		header = lines[0]
+		sequence = lines[1]
+		description = lines[2]
+		quality = lines[3]
+		self.assignSequence(sequence)
+		self.assignHeader(header)
+		self.assignDescription(description)
+		self.assignQuality(quality)
+
+	def getAsString(self):
+		return('\n'.join(['@' + self.header, self.sequence, self.description, self.quality]) + '\n')
+
+	def getSingleLine(self):
+		return('\t'.join(['@' + self.header, self.sequence, self.description, self.quality]) + '\n')
+		

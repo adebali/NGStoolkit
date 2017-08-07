@@ -6,7 +6,7 @@ import generalUtils
 import argparse
 import random
 
-parser = argparse.ArgumentParser(description='convert Fastq to tab separated single line per sequence Fastq file | or reverse process')
+parser = argparse.ArgumentParser(description='convert Fastq to tab separated single line per sequence Fastq file | or reverse the process')
 parser.add_argument('-i', required= True, help='input')
 parser.add_argument('-o', required= True, help='output')
 parser.add_argument('--reverse', required= False, action='store_true', help='output')

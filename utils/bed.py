@@ -9,33 +9,36 @@ class bedline:
 	def __init__(self, line, sep='\t'):
 		self.line = line.strip()
 		self.separator = sep
-	
+
 	def getLine(self):
 		return self.line
 
 	def fields(self):
 		return self.line.split(self.separator)
 
+	def getField(self, columNo):
+		return self.fields()[columNo - 1]
+
 	def chromosome(self, chromosomeCol = 1):
-		return self.fields()[chromosomeCol - 1]
+		return self.getField(chromosomeCol)
 
 	def start(self, startCol = 2):
-		return int(self.fields()[startCol - 1])
+		return int(self.getField(startCol))
 
 	def length(self):
-		return self.end() - self.start()
+		return self.end() - self.start() 
 
 	def end(self, endCol = 3):
-		return int(self.fields()[endCol - 1])
+		return int(self.getField(endCol))
 
 	def name(self, nameCol = 4):
-		return self.fields()[nameCol - 1]
+		return self.getField(nameCol)
 
 	def score(self, scoreCol = 5):
-		return int(self.fields()[scoreCol - 1])
+		return int(self.getField(scoreCol))
 
 	def strand(self, strandCol = 6):
-		return self.fields()[strandCol - 1]
+		return self.getField(strandCol)
 
 	def reverseStrand(self, strand):
 		if strand == "+":
@@ -52,6 +55,18 @@ class bedline:
 			addition = random.sample([0,1], 1)[0]
 		return int((self.start() + self.end() + addition) / 2)
 
+	def centerAndExtent(self, flankingLength):
+		'''gets the center point and extent the interval to both directions for each is flankingLength'''
+		center = self.midpoint()
+		strand = self.strand()
+		start = center - flankingLength
+		end = center + flankingLength
+		if strand == "+":
+			end += 1
+		elif strand == "-":
+			start -= 1
+		return self.newline(start, end)
+
 	def newline(self, start, end, otherFields = {}):
 		newList = self.fields()
 		newList[1] = str(start)
@@ -61,9 +76,9 @@ class bedline:
 				newList[columnNo - 1] = otherFields[columnNo]
 		return self.separator.join(newList)
 
-	def getFasta(self, fastaInput):
+	def getFasta(self, fastaInput, s=True, name=False):
 		b = pybedtools.BedTool(self.getLine(), from_string=True)
-		s = b.sequence(fi=fastaInput, s=True)
+		s = b.sequence(fi=fastaInput, s=s, name=name)
 		return(open(s.seqfn).read())
 
 	def singleFastaToSequence(self, fastaString):
@@ -73,14 +88,18 @@ class bedline:
 	def getSequence(self, fastaInput):
 		return self.singleFastaToSequence(self.getFasta(fastaInput)).upper()
 
-	def getNewLinesWithPfm(self, fastaInput, matrixString, strandCol = 6):
+	def getNewLinesWithPfm(self, fastaInput, matrix, asString = False, strandCol = 6):
 		currentStrand = self.strand(strandCol)
 		if currentStrand == ".":
 			currentStrand = "+"
 		newBedLine = bedline(self.newline(self.start(), self.end(), {strandCol: currentStrand}))
 		sequence = newBedLine.getSequence(fastaInput)
-		pfm = Pfm()
-		pfm.takeStringInput(matrixString)
+
+		if asString:
+			pfm = Pfm()
+			pfm.takeStringInput(matrix)
+		else:
+			pfm = Pfm(matrix)
 		hits = pfm.getHits(sequence)
 		
 		newLines = []
@@ -112,6 +131,11 @@ class bed:
 	def getColumnNumber(self):
 		firstLine = open(self.file, 'r').readline().strip()
 		return len(firstLine.split('\t'))
+
+	def getFirstLineLength(self):
+		with open(self.file, 'r') as f:
+			firstBedLine = bedline(f.readline().strip())
+			return firstBedLine.length()
 
 	def getAverageLength(self):
 		totalLength = self.getTotalRegionLength()
@@ -225,6 +249,12 @@ class bed:
 		if linesAreNeighbors == False:
 			print(line.strip())
 
+	def sumCount(self, columnNo = 7):
+		totalCount = 0
+		for bedline in self.read():
+			totalCount += int(bedline.getField(columnNo))
+		return totalCount
+
 class bedpe(bed):
 	def mergeFragments(self):
 		filein = open(self.file, 'r')
@@ -234,7 +264,9 @@ class bedpe(bed):
 
 
 def bedpeLine2bedLine(bedpeLine):
-	# Converts paired bed line to single fragment by getting the maximum range between to genomic locations.
+	'''Converts paired bed line to single fragment by getting the maximum range between to genomic locations.'''
+	if bedpeLine.strip() == '':
+		return ''
 	ll = bedpeLine.strip().split('\t')
 	chr1 = ll[0]
 	beg1 = int(ll[1])
@@ -347,6 +379,11 @@ class bedTests(unittest.TestCase):
 		self.assertEqual(bedLine.newline(10,20, {6: "-"}), 'chr1\t10\t20\tbedpe_example1\t30\t-')
 		bedLine = bedline('chr1\t100\t5103\tbedpe_example1\t30\t+\n')
 		self.assertEqual(bedLine.midpoint(), 2601)
+		bedLine = bedline('chr1\t20\t30\tbedpe_example1\t30\t+\n')
+		self.assertEqual(bedLine.centerAndExtent(20), 'chr1\t5\t46\tbedpe_example1\t30\t+')
+		bedLine = bedline('chr1\t20\t30\tbedpe_example1\t30\t-\n')
+		self.assertEqual(bedLine.centerAndExtent(20), 'chr1\t4\t45\tbedpe_example1\t30\t-')
+
 		bedLine = bedline('chr1\t2\t5\tbedpe_example1\t30\t+\n')
 		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AAG')
 		bedLine = bedline('chr1\t2\t5\tbedpe_example1\t30\t-\n')
@@ -362,7 +399,7 @@ class bedTests(unittest.TestCase):
 			C [0 0 0]'''
 		
 		bedLine = bedline('chr1\t2\t20\tbedpe_example1\t30\t+\n')
-		newLines = bedLine.getNewLinesWithPfm('utils/testFiles/bed.fa', matrixString)
+		newLines = bedLine.getNewLinesWithPfm('utils/testFiles/bed.fa', matrixString, True)
 		self.assertEqual(newLines, [
 			'chr1\t11\t14\tbedpe_example1\t30\t+',
 			'chr1\t7\t10\tbedpe_example1\t30\t-',
@@ -377,7 +414,7 @@ class bedTests(unittest.TestCase):
 			G [0 9 0 9 0 0 0]
 			C [0 0 9 0 0 0 0]'''
 		bedLine = bedline('chr1\t2\t20\tbedpe_example1\t30\t+\n')
-		newLines = bedLine.getNewLinesWithPfm('utils/testFiles/bed.fa', matrixString)
+		newLines = bedLine.getNewLinesWithPfm('utils/testFiles/bed.fa', matrixString, True)
 		self.assertEqual(newLines, [
 			'chr1\t3\t10\tbedpe_example1\t30\t+'
 			])

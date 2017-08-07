@@ -1,0 +1,13 @@
+no,group,sample,ZT,organ,treatment_title,replicate
+1,1,WTZT0KIDNEY2_trimed.fastq,0,kidney,kidney_ZT0,A
+2,1,WTZT4KIDNEY2_trimed.fastq,4,kidney,kidney_ZT4,A
+3,1,WTZT8KIDNEY2_trimed.fastq,8,kidney,kidney_ZT8,A
+4,1,WTZT12KIDNEY2_trimed.fastq,12,kidney,kidney_ZT12,A
+5,1,WTZT16KIDNEY2_trimed.fastq,16,kidney,kidney_ZT16,A
+6,1,WTZT20KIDNEY2_trimed.fastq,20,kidney,kidney_ZT20,A
+7,1,WTZT0LIVER2_trimed.fastq,0,liver,liver_ZT0,A
+8,1,WTZT4LIVER2_trimed.fastq,4,liver,liver_ZT4,A
+9,1,WTZT8LIVER2_trimed.fastq,8,liver,liver_ZT8,A
+10,1,WTZT12LIVER2_trimed.fastq,12,liver,liver_ZT12,A
+11,1,WTZT16LIVER2_trimed.fastq,16,liver,liver_ZT16,A
+12,1,WTZT20LIVER2_trimed.fastq,20,liver,liver_ZT20,A

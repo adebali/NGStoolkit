@@ -19,7 +19,7 @@ def getExtension(fileName):
 def countHits(fileName):
     extension = getExtension(fileName)
     ignore = False
-    if extension == 'bed' or extension == 'bedpe' or extension == 'sam':
+    if extension == 'bed' or extension == 'bedpe' or extension == 'sam' or extension == 'csv' or extension == 'txt':
         pattern = "^"
     elif extension == 'fastq':
         pattern = "^+"

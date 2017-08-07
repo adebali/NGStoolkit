@@ -38,7 +38,7 @@ if args.e:
     samples = list(set(samples) - set(exclude))
 
 parameters = {
-    "--job-name=": "Damage_Seq_Pipeline",
+    "--job-name=": "DS_Organ_Pipeline",
     "-n ": 8,
     # "--mem=": 128000,
     "--mem=": 32000,
@@ -51,7 +51,7 @@ parameters = {
 }
 print(samples)
 if not reportFlag:
-    job = slurm.Slurm('python pipeline.py -n $SLURM_ARRAY_TASK_ID')
+    job = slurm.Slurm('python pipeline.py run -n $SLURM_ARRAY_TASK_ID')
     job.assignParams(parameters)
     job.printScript()
     job.run()

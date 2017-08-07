@@ -21,7 +21,7 @@ mergingColumns = args.merge
 
 code = ['paste <(cat ' + os.path.realpath(inputs[0]) + ' | cut -f ' + ','.join(identicalColumns) + ') ']
 for input in inputs:
-    code .append('<(cat ' + os.path.realpath(input) + ' | cut -f ' + ','.join(mergingColumns) + ') ')
+    code.append('<(cat ' + os.path.realpath(input) + ' | cut -f ' + ','.join(mergingColumns) + ') ')
 code.append(' > ' + os.path.realpath(output))
 out = open('temp.sh','w')
 out.write(' '.join(code))

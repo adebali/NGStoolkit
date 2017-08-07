@@ -13,7 +13,7 @@ import argparse
 # samtools
 # subsample
 
-SAMPLE_STAT_FILE = 'dataDir/samples.csv'
+SAMPLE_STAT_FILE = 'samples.csv'
 
 parser = argparse.ArgumentParser(description='XR-seq Pipeline')
 parser.add_argument('-i', required= False, help='input')
@@ -41,13 +41,16 @@ else:
 class myPipe(pipe):
     def __init__(self, input):
         pipe.__init__(self, input)
-        self.execM = self.execMwm
+        # self.execM = self.execMwm
         outputDirName = '0131'
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', outputDirName))
         os.system('mkdir -p ' + self.outputDir)
-        self.treatment = sampleDictionary['treatment_title']
+        self.treatment_title = sampleDictionary['treatment_title']
+        self.treatment = sampleDictionary['treatment']
         self.group = sampleDictionary['group']
         self.cell = sampleDictionary['cell']
+        self.product = sampleDictionary['product']
+        self.replicate = sampleDictionary['replicate']
         self.saveInput([self.input])
         self.bowtie_reference = '/proj/seq/data/HG19_UCSC/Sequence/BowtieIndex/genome'
         self.referenceNickname = 'hg19'
@@ -59,8 +62,8 @@ class myPipe(pipe):
             '-n': 1,
             '-t': '24:00:00',
             '--job-name': 'XR-seq',
-            '-o': 'log_' + self.treatment + '.txt',
-            '-e': 'err_' + self.treatment + '.txt',
+            '-o': 'log_' + self.treatment_title + '.txt',
+            '-e': 'err_' + self.treatment_title + '.txt',
         }
         self.wmParams = self.defaultWmParams
         self.fifteenChromatinStates = '/proj/sancarlb/users/ogun/ENCODE/chromatinStates/wgEncodeBroadHmm/wgEncodeBroadHmmNhlfHMM.bed'
@@ -138,6 +141,7 @@ class myPipe(pipe):
             self.input,
             '>', self.output
         ]
+        self.finalBed = self.output[0]
         self.execM(codeList)
         return self
 
@@ -169,7 +173,7 @@ class myPipe(pipe):
         codeList = [
             'plotNucleotideAbundance.r',
             self.input,
-            self.treatment
+            self.treatment_title
         ]
         self.execM(codeList)
         return self
@@ -285,7 +289,47 @@ class myPipe(pipe):
         ]
         self.execM(codeList)
         return self
+    
+    def parsePositions_txt2txt(self):
+        codeList = [
+            'bedIntersect2parsedPosition.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
 
+    def countPositions_txt2txt(self):
+        codeList = [
+            'list2countTable.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def fillGapsWithPositions_txt2txt(self):
+        codeList = [
+            'cat', self.input,
+            '|',
+            'countTable2filledGaps.py',
+            '-s', self.frame[0],
+            '-e', self.frame[1],
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def addAllMeta_txt2txt(self):
+        totalMappedReads = self.internalRun(bed.bed(self.finalBed).getHitNum, [], self.runFlag, 'get hit number')
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', ' '.join([self.treatment_title, self.cell, self.product, self.treatment, self.replicate, str(totalMappedReads)])
+        ]
+        self.execM(codeList)
+        return self
 ###########################################################
 #  Pipeline
 ###########################################################
@@ -307,6 +351,15 @@ p = myPipe(input)
         .run(p.plotNucleotideAbundance_csv2pdf, False)
     .stop()
 
+
+    .branch(True) # DNase analysis
+        .run(p.intersectWithDNase_bed2txt, False)
+        .run(p.parsePositions_txt2txt, False)
+        .run(p.countPositions_txt2txt, False)
+        .run(p.fillGapsWithPositions_txt2txt, False)
+        .run(p.addAllMeta_txt2txt, True)
+    .stop()
+
     .branch(False) # CHMM
         .run(p.countChmm_bed2bed, False)
     .stop()
@@ -314,17 +367,18 @@ p = myPipe(input)
     .branch(True)
         .run(p.separateStrands_bed2bed, False)
 
-        .branch(False) # DNase
-            .run(p.intersectWithDNase_bed2txt, False)
-            .run(p.intersectToPositions_txt2txt, False)
-        .stop()
+        # .branch(False) # DNase
+        #     .run(p.intersectWithDNase_bed2txt, False)
+        #     .run(p.intersectToPositions_txt2txt, False)
+        # .stop()
 
-        .branch(True) # TSS
+
+        .branch(False) # TSS
             .run(p.countTSS_bed2bed, False)
             .run(p.binnedCountsToPositions_bed2txt, True)
         .stop()
 
-        .branch(True) # TES
+        .branch(False) # TES
             .run(p.countTES_bed2bed, False)
             .run(p.binnedCountsToPositions_bed2txt, True)
         .stop()

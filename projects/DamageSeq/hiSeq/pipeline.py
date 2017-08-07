@@ -13,13 +13,14 @@ import argparse
 # samtools
 # subsample
 
-SAMPLE_STAT_FILE = 'dataDir/samples.csv'
+SAMPLE_STAT_FILE = 'samples.csv'
 
 parser = argparse.ArgumentParser(description='DamageSeq Pipeline')
 parser.add_argument('-i', required= False, help='input')
 parser.add_argument('-n', required= False, help='output')
 parser.add_argument('--mock', required= False, action='store_true', help='mock flag')
 parser.add_argument('--outputCheck', required= False, action='store_true', help='checkOutput flag')
+parser.add_argument('--count', required= False, action='store_true', help='should be used with checkOutput flag if counts are to be reported')
 parser.add_argument('--noPrint', required= False, action='store_true', help='prints no code when stated')
 args = parser.parse_args()
 inputFile = args.i
@@ -46,7 +47,7 @@ class myPipe(pipe):
         self.totalMappedReads = None
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', outputDirName))
         os.system('mkdir -p ' + self.outputDir)
-        self.treatment = sampleDictionary['treatment_title']
+        self.treatment_title = sampleDictionary['treatment_title']
         # self.minimumReadCount = round(int(sampleDictionary['minReadCount']) - 500000)
         self.group = sampleDictionary['group']
         self.cell = sampleDictionary['cell']
@@ -55,6 +56,7 @@ class myPipe(pipe):
         self.product = sampleDictionary['product']
         self.replicate = sampleDictionary['rep']
         self.treatment = sampleDictionary['treatment']
+        self.referenceBin25 = "/nas/longleaf/home/adebali/ogun/seq/hg19/HG19_UCSC/genome.25.sorted.bed"
         if int(self.group) == 1:
             self.sampleMinPyrCount = 7700464
         if int(self.group) == 2:
@@ -79,14 +81,23 @@ class myPipe(pipe):
         else:
             raise ValueError("Unknown product type. Exiting...")
 
+        self.repeats = '/nas/longleaf/home/adebali/ogun/seq/hg19/repeat.bed'
+
         ## Transcription factor binding sites
         if self.cell == "GM12878":
             # self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.GM12878.sorted.1K.sorted.bed']
             self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.GM12878.sorted.1K.sorted.top100K.bed']
             self.dnaseBedList = ['/proj/sancarlb/users/ogun/ENCODE/dnase/GM12878.bed']
+            self.TFmotifs = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.GM12878.strand.selectedExactTFsites.bed']
+            self.TFmotifs = ['/proj/sancarlb/users/ogun/ENCODE/Txn/merged.20TF.sorted.bed']
+            self.TFmotifs = ['/proj/sancarlb/users/ogun/ENCODE/Txn/merged.20TF.sorted.1Kf.bed']
+            
+            self.FakeMotifs = ['/proj/sancarlb/users/ogun/ENCODE/Txn/inputDNA210_noTFregion_TFmotifs_unique_1K.bed']
         elif self.cell == "NHF1":
             self.txnBedList = ['/proj/sancarlb/users/ogun/ENCODE/Txn/wgEncodeRegTfbsClusteredWithCellsV3.BJ.sorted.1K.sorted.bed']
             self.dnaseBedList = ['/proj/sancarlb/users/ogun/ENCODE/dnase/BJ.bed']
+            self.FakeMotifs = [None]
+            self.TFmotifs = [None]
         else:
             raise ValueError("No such a cell is defined: " + self.cell)
 
@@ -112,8 +123,8 @@ class myPipe(pipe):
         self.nucleosomeLowBed = None
         self.void147bed = None
 
-        self.TSSbedFile = '/proj/sancarlb/users/ogun/seq/hg19/annotations/expression/hg19_expression_noHeader_sgt300_noNeighIn6000_min10000_TSS_win100.bed'
-        self.TESbedFile = '/proj/sancarlb/users/ogun/seq/hg19/annotations/expression/hg19_expression_noHeader_sgt300_noNeighIn6000_min10000_TES_win100.bed'
+        self.TSSbedFile = '/proj/sancarlb/users/ogun/seq/hg19/annotations/expression/hg19_expression_noHeader_sgt300_noNeighIn6000_min15000_TSS_win100.bed'
+        self.TESbedFile = '/proj/sancarlb/users/ogun/seq/hg19/annotations/expression/hg19_expression_noHeader_sgt300_noNeighIn6000_min15000_TES_win100.bed'
 
         if self.cell == 'GM12878':
             self.chmmCellLine = self.cell
@@ -207,7 +218,9 @@ class myPipe(pipe):
             '-p', 4,
             '-1', self.input[0],
             '-2', self.input[1],
-            self.output
+            self.output,
+            '&>',
+            self.output[0] + '.log'
         ]
         self.execM(codeList)
         return self
@@ -229,6 +242,19 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def slop10_bed2bed(self):
+        slopB = 10
+        codeList = [
+            'bedtools',
+            'slop',
+            '-i', self.input,
+            '-g', self.chromosome_limits, # Chomosomal lengths, needed in case region shift goes beyond the chromosomal limits.
+            '-b', slopB,
+            '-s', # Take strand into account
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
 
     def convertBedToFasta_bed2fa(self):
         codeList = [
@@ -290,7 +316,7 @@ class myPipe(pipe):
         codeList = [
             'plotNucleotideAbundance.r',
             self.input,
-            self.treatment
+            self.treatment_title
         ]
         self.execM(codeList)
         return self
@@ -310,7 +336,7 @@ class myPipe(pipe):
         codeList = [
             'plotNucleotideFreqLine.r',
             self.input,
-            self.treatment
+            self.treatment_title
         ]
         self.execM(codeList)
         return self
@@ -376,6 +402,7 @@ class myPipe(pipe):
             '>', self.output
         ]
         self.execM(codeList)
+        self.finalBed = self.output[0]
         return self
 
 
@@ -405,12 +432,32 @@ class myPipe(pipe):
         return self
 
     def convertToBedGraph_bed2bdg(self):
+        if self.runFlag and self.runMode:
+            scaleFactor = float(1000000)/self.internalRun(bed.bed(self.input[0]).getHitNum, [], self.runFlag, 'get hit number')
+        else:
+            scaleFactor = 1
         codeList = [
             'bedtools',
             'genomecov',
             '-i', self.input,
             '-g', self.chromosome_limits,
+            '-bg',
+            '-scale', scaleFactor,
             '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def normalize_bdg2bdg(self):
+        if self.runFlag and self.runMode:
+            scaleFactor = float(1000000)/self.internalRun(bed.bed(self.input[0]).getHitNum, [], self.runFlag, 'get hit number')
+        else:
+            scaleFactor = 1
+        codeList = [
+            'bdg2normalize.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-x', scaleFactor
         ]
         self.execM(codeList)
         return self
@@ -436,13 +483,26 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def convertToBigWig_bdg2bw(self):
+    def toBigWig_bdg2bw(self):
         codeList = [
-            'wigToBigWig',
-            '-clip',
+            'bedGraphToBigWig',
             self.input,
             self.chromosome_limits,
             self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def trackLine_x2txt(self, fileType='bigWig'):
+        def concat(a,b):
+            return b + os.path.basename(a)
+        urls = pipeTools.listOperation(concat, self.input, 'ftp://sancaranon:anon@rc-ns-ftp.its.unc.edu/bw/')
+        codeList = [
+            './trackLine.py',
+            '-n', self.treatment_title_strand,
+            '-url', urls,
+            '-type', fileType,
+            '-o', self.output
         ]
         self.execM(codeList)
         return self
@@ -463,8 +523,8 @@ class myPipe(pipe):
         os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM"))
         for chromHMMfile in self.chromHMMfiles:
             regionName = chromHMMfile.split('/')[-1].split('_NHFL_')[0]
-            os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM", self.treatment))
-            outputDir = os.path.join(os.path.dirname(input), "chromHMM", self.treatment)
+            os.system("mkdir -p " + os.path.join(os.path.dirname(input), "chromHMM", self.treatment_title))
+            outputDir = os.path.join(os.path.dirname(input), "chromHMM", self.treatment_title)
             output = os.path.join(outputDir, regionName + '.bed')
             codeList = [
                 'bedtools',
@@ -477,6 +537,19 @@ class myPipe(pipe):
             self.execM(codeList)
             outputs.append(output)
         self.saveOutput(outputs)
+        return self
+
+    def count25_bed2bdg(self):
+        codeList = [
+            'bedtools',
+            'coverage',
+            '-counts',
+            '-a', self.referenceBin25,
+            '-b', self.input, # Read file, to get the read counts overlapping with the primary genomic locations
+            '-F', 0.49,
+            '>', self.output
+        ]
+        self.execM(codeList)
         return self
 
     def normalizeCoverageChromHMM_bed2bed(self):
@@ -519,7 +592,7 @@ class myPipe(pipe):
         return self
 
     def mergeChromHMM_txt2txt(self):
-        self.saveOutput([os.path.join(self.outputDir, self.treatment + "_mergedChromHMM.txt")])
+        self.saveOutput([os.path.join(self.outputDir, self.treatment_title + "_mergedChromHMM.txt")])
         codeList = ['paste'] + self.input + ['>' + self.output[0]]
         self.execM(codeList)
         return self
@@ -528,7 +601,7 @@ class myPipe(pipe):
         codeList = [
             "plotChromHMM.r",
             self.input,
-            self.treatment
+            self.treatment_title
         ]
         self.execM(codeList)
         return self
@@ -813,9 +886,9 @@ class myPipe(pipe):
     def nucleosomeCountPlot_bed2txt(self):
         def treatmentHeader(input):
             if 'Plus' in input:
-                return '"' + self.treatment + '_+"'
+                return '"' + self.treatment_title + '_+"'
             elif 'Minus' in input:
-                return '"' + self.treatment + '_-"'
+                return '"' + self.treatment_title + '_-"'
             else:
                 raise ValueError('No "Plus" or "Minus" in Input')
         def getDamageCount(input, runFlag):
@@ -844,9 +917,9 @@ class myPipe(pipe):
     def TxnCountPlot_bed2txt(self):
         def treatmentHeader(input):
             if 'Plus' in input:
-                return '"' + self.treatment + '_+"'
+                return '"' + self.treatment_title + '_+"'
             elif 'Minus' in input:
-                return '"' + self.treatment + '_-"'
+                return '"' + self.treatment_title + '_-"'
             else:
                 raise ValueError('No "Plus" or "Minus" in Input')
         def getDamageCount(input, runFlag):
@@ -888,6 +961,9 @@ class myPipe(pipe):
             self.output
         ]
         self.execM(codeList)
+        def addStrandToTitle(strand, title):
+            return title + '_' + strand
+        self.treatment_title_strand = pipeTools.listOperation(addStrandToTitle, ['Plus', 'Minus'], self.treatment_title)
         return self
 
     def intersectWithTFBS_bed2txt(self):
@@ -1041,6 +1117,90 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def length2frame(self, length, runFlag):
+        start = (-1) * (length / 2)
+        end = (-1) * start - 1
+        if runFlag:
+            result = [start, end]
+        else:
+            result = [-10,10]
+        return result
+
+    def bed2frame(self, bedFile, runFlag):
+        bedObject = bed.bed(bedFile)
+        if runFlag:
+            firstLineLength = bedObject.getFirstLineLength()
+        else:
+            firstLineLength = 20
+        return self.length2frame(firstLineLength, runFlag)
+
+    def intersectWithTFmotifsSameStrand_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-s', 
+            '-F', 0.5,
+            '-a', self.TFmotifs[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = self.bed2frame(self.TFmotifs[0], self.runFlag)
+        self.execM(codeList)
+        return self
+   
+    def intersectWithTFmotifsOppositeStrand_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-S', 
+            '-F', 0.5,
+            '-a', self.TFmotifs[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = self.bed2frame(self.TFmotifs[0], self.runFlag)
+        self.execM(codeList)
+        return self
+
+
+    def intersectWithFakeMotifSameStrand_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-s', 
+            '-F', 0.5,
+            '-a', self.FakeMotifs[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = self.bed2frame(self.TFmotifs[0], self.runFlag)
+        self.execM(codeList)
+        return self
+
+
+    def intersectWithFakeMotifOppositeStrand_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-wa',
+            '-wb',
+            '-S', 
+            '-F', 0.5,
+            '-a', self.FakeMotifs[0],
+            '-b', self.input,
+            '>', self.output
+        ]
+        self.frame = self.bed2frame(self.TFmotifs[0], self.runFlag)
+        self.execM(codeList)
+        return self
+
+
     def binnedCountsToPositions_bed2txt(self):
         codeList = [
             'bedBinned2totalCounts.py',
@@ -1051,6 +1211,7 @@ class myPipe(pipe):
         ]
         self.execM(codeList)
         return self
+
 
     def parsePositions_txt2txt(self):
         codeList = [
@@ -1088,6 +1249,23 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def intersectReverseNegToPositions_txt2txt(self):
+        codeList = [
+            'bedIntersect2parsedPosition.py',
+            '-i', self.input,
+            '--reverse',
+            '--name',
+            '-l', self.frame[1] - self.frame[0] + 1,
+            # '-rpm', self.internalRun(bed.bed(self.finalBed).getHitNum, [], self.runFlag, 'get hit number'),
+            # '-rpm', self.internalRun(bed.bed(self.finalBed).getHitNum, [], True, 'get hit number', True),
+            # '-rpm', self.internalRun(bed.bed(self.input[0]).getHitNum, [], self.runFlag, 'get hit number', True),
+            '-rpm', 1000000,
+            '-nameNorm', 1000,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
     def fillGaps_txt2txt(self):
         codeList = [
             'cat', self.input,
@@ -1097,6 +1275,18 @@ class myPipe(pipe):
             '-e', self.frame[1],
             '|',
             'cut -f2'
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def fillGapsWithPositions_txt2txt(self):
+        codeList = [
+            'cat', self.input,
+            '|',
+            'countTable2filledGaps.py',
+            '-s', self.frame[0],
+            '-e', self.frame[1],
             '>', self.output
         ]
         self.execM(codeList)
@@ -1117,7 +1307,7 @@ class myPipe(pipe):
             '-i', self.input,
             '-o', self.output,
             '-k', 2,
-            '-c', 'product,' + self.product + ' replicate,' + self.replicate + ' treatment,' + self.treatment,
+            '-c', 'product,' + self.product + ' replicate,' + self.replicate + ' treatment,' + self.treatment_title,
             '--percentage'
         ]
         self.execM(codeList)
@@ -1157,7 +1347,7 @@ class myPipe(pipe):
                 return None
         def rename(filename):
             strand = getStrand(filename)
-            newName = "_".join([self.cell, self.product, self.treatment, self.replicate, strand]) + '.bb'
+            newName = "_".join([self.cell, self.product, self.treatment_title, self.replicate, strand]) + '.bb'
             return newName
         newOutput = pipeTools.listOperation(rename, self.output)
         self.saveOutput(newOutput)
@@ -1170,17 +1360,136 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def addTreatments_txt2txt(self):
+        totalMappedReads = self.internalRun(bed.bed(self.finalBed).getHitNum, [], self.runFlag, 'get hit number')
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', self.product + ' ' + self.treatment + ' ' + self.replicate + ' ' + str(totalMappedReads)
+        ]
+        self.execM(codeList)
+        return self
+
+
+    def addAllMeta_txt2txt(self):
+        totalMappedReads = self.internalRun(bed.bed(self.finalBed).getHitNum, [], self.runFlag, 'get hit number')
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', ' '.join([self.treatment_title, self.cell, self.product, self.treatment, self.replicate, str(totalMappedReads)])
+        ]
+        self.execM(codeList)
+        return self
+
+    def addSameStrand_txt2txt(self):
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', 'Same'
+        ]
+        self.execM(codeList)
+        return self
+
+    def addOppositeStrand_txt2txt(self):
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', 'Opposite'
+        ]
+        self.execM(codeList)
+        return self
+
+    def printInputFiles(self):
+        originalInput = self.input
+        codeList = [
+            'echo',
+            self.input
+        ]
+        self.execM(codeList)
+        self.output = self.input = originalInput
+        return self
+
+    def getInsertSize_bed2txt(self):
+        codeList = [
+            'bed2insertSize.py',
+            '-i', self.input,
+            '|',
+            'R -q -e',
+            '"x<- read.csv(\'stdin\'); summary(x); sd(x[ , 1])"',
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+    
+    def singleLineInsert_txt2txt(self):
+        codeList = [
+            'grep Mean', self.input,
+            '|', 'cut -d\':\' -f 2', 
+            '| tr -d \'\\n\'',
+            '>', self.output,
+            '&&',
+            'grep -P "^\["', self.input,
+            '|', 'cut -d\']\' -f 2',
+            '>>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def toBed_sam2bed(self):
+        codeList = [
+            'sam2bed',
+            '<', self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+    
+    def countRepeats_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.repeats,
+            '-b', self.input,
+            '-c',
+            '-F', 0.49,
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+
+    def repeatToAllRatio_txt2txt(self):
+        if self.runFlag and self.runMode:
+            totalCount = bed.bed(self.input[0]).sumCount(7)
+            totalMappedReads = bed.bed(self.finalBed).getHitNum()
+        else:
+            totalCount = totalMappedReads = 1
+        codeList = [
+            'echo',
+            float(totalCount)/totalMappedReads,
+            self.treatment_title,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
 
 ###########################################################
 #  Pipeline
 ###########################################################
 p = myPipe(input)
 (p
+    .runSingle(p.printInputFiles, False)
     .run(p.cutadapt_fastq2fastq, False)
 
     .branch(True)
         .changeDefaultValues("hg19")
         .run(p.bowtie_fastq2sam, False)
+        .branch()
+            .run(p.toBed_sam2bed, False)
+        .stop()
         .run(p.convertToBam_sam2bam, False)
         
         # .branch(False)
@@ -1188,13 +1497,20 @@ p = myPipe(input)
         #     .run(p.makeIndex_bam2bai, True)
         # .stop()
         
-        .run(p.convertToBed_bam2bedpe, True)
-        .run(p.uniqueSort_bedpe2bedpe, True)
-        .run(p.convertBedpeToSingleFrame_bedpe2bed, True)
-        .run(p.slopBed_bed2bed, True)
-        .run(p.convertToFixedRange_bed2bed, True)
-        .run(p.sortBed_bed2bed, True)
-        .run(p.convertBedToFasta_bed2fa, True)
+        .run(p.convertToBed_bam2bedpe, False)
+        
+        .branch()
+            .run(p.convertBedpeToSingleFrame_bedpe2bed, False)
+            .run(p.getInsertSize_bed2txt, False)
+            .run(p.singleLineInsert_txt2txt, False)
+        .stop()
+
+        .run(p.uniqueSort_bedpe2bedpe, False)
+        .run(p.convertBedpeToSingleFrame_bedpe2bed, False)
+        .run(p.slopBed_bed2bed, False)
+        .run(p.convertToFixedRange_bed2bed, False)
+        .run(p.sortBed_bed2bed, False)
+        .run(p.convertBedToFasta_bed2fa, False)
             
         .branch(False) # Plot nucleotide abundance
             .run(p.getNucleotideAbundanceTable_fa2csv, True)
@@ -1206,12 +1522,17 @@ p = myPipe(input)
             .run(p.plotDinucleotideAbundance_csv2pdf, True)
         .stop()
 
-        .branch(True)
+        .branch(False)
             .run(p.dinucleotideFreqeuncies_fa2txt, True)
         .stop()
 
-        .run(p.getPyrimidineDimers_fa2bed, True)
-        .run(p.sortBed_bed2bed, True)
+        .run(p.getPyrimidineDimers_fa2bed, False)
+        .run(p.sortBed_bed2bed, False)
+
+        .branch(True)
+            .run(p.countRepeats_bed2txt, False)
+            .run(p.repeatToAllRatio_txt2txt, True)
+        .stop()
         
         # .branch(False) # ChromHMM analysis for NHF1 cells
         #     .run(p.coverageChromHMM_bed2bed, True)
@@ -1227,47 +1548,106 @@ p = myPipe(input)
         #     .run(p.normalizeChmm_bed2bed, False)
         # .stop()
 
-        .branch(True) # CHMM
+        .branch(False) # CHMM
             .run(p.countChmm_bed2bed, True)
             # .run(p.normalizeChmm_bed2bed, True)
         .stop()
 
 
+        .branch(False)
+            .run(p.intersectWithTFmotifsSameStrand_bed2txt, False)
+            .run(p.intersectReverseNegToPositions_txt2txt, True)
+            .run(p.addTreatments_txt2txt, True)
+            .run(p.addSameStrand_txt2txt, True)
+        .stop()
+
+        .branch(False)
+            .run(p.intersectWithTFmotifsOppositeStrand_bed2txt, False)
+            .run(p.intersectReverseNegToPositions_txt2txt, True)
+            .run(p.addTreatments_txt2txt,True)
+            .run(p.addOppositeStrand_txt2txt, True)
+        .stop()
+
+        .branch(False)
+            .run(p.intersectWithFakeMotifSameStrand_bed2txt, False)
+            .run(p.intersectReverseNegToPositions_txt2txt, True)
+            .run(p.addTreatments_txt2txt,True)
+            .run(p.addSameStrand_txt2txt, True)
+        .stop()
+
+        .branch(False)
+            .run(p.intersectWithFakeMotifOppositeStrand_bed2txt, False)
+            .run(p.intersectReverseNegToPositions_txt2txt, True)
+            .run(p.addTreatments_txt2txt,True)
+            .run(p.addOppositeStrand_txt2txt, True)
+        .stop()
+
         # .branch(False) # DNase analysis
-            # .run(p.dnaseClosest_bed2bed, False)
-            # .run(p.retrieveOnlyTheClosest_bed2bed, False)
-            # .run(p.getDistanceFromClosest_bed2txt, False)
+        #     .run(p.dnaseClosest_bed2bed, True)
+        #     .run(p.retrieveOnlyTheClosest_bed2bed, True)
+        #     .run(p.getDistanceFromClosest_bed2txt, True)
         # .stop()
 
+        .branch(False) # DNase analysis
+            .run(p.intersectWithDNase_bed2txt, True)
+            .run(p.parsePositions_txt2txt, True)
+            .run(p.countPositions_txt2txt, True)
+            .run(p.fillGapsWithPositions_txt2txt, True)
+            .run(p.addAllMeta_txt2txt, True)
+        .stop()
+
         .branch(True)
-            .run(p.separateStrands_bed2bed, True)
+            .run(p.separateStrands_bed2bed, False)
             
+            .branch(True)
+                .run(p.slop10_bed2bed, False)
+
+                .branch(False)
+                    .run(p.count25_bed2bdg, True)
+                    .run(p.normalize_bdg2bdg, True)
+                    .run(p.toBigWig_bdg2bw, True)
+                    .run(p.trackLine_x2txt, True)
+                .stop()
+
+                .run(p.convertToBedGraph_bed2bdg, False)
+                
+                .branch()
+                    .run(p.trackLine_x2txt, False, 'bedGraph')
+                .stop()
+                
+                .run(p.toBigWig_bdg2bw, False)
+                
+                .branch()
+                    .run(p.trackLine_x2txt, False)
+                .stop()
+            .stop()
+
             .branch(False)
                 .run(p.toBam_bed2bam, False)
                 .run(p.makeIndex_bam2bai, False)
             .stop()
 
-            .branch(True)
+            .branch(False)
                 .run(p.toBigBed_bed2bb, True)
             .stop()
 
-            .branch(True) # TSS
+            .branch(False) # TSS
                 .run(p.countTSS_bed2bed, True)
                 .run(p.binnedCountsToPositions_bed2txt, True)
             .stop()
 
-            .branch(True) # TES
+            .branch(False) # TES
                 .run(p.countTES_bed2bed, True)
                 .run(p.binnedCountsToPositions_bed2txt, True)
             .stop()
 
 
-            .branch(True) # TFBS analysis
+            .branch(False) # TFBS analysis
                 .run(p.intersectWithTFBS_bed2txt, True)
                 .run(p.intersectToPositions_txt2txt, True)
             .stop()
 
-            .branch(True) # DNase analysis
+            .branch(False) # DNase analysis
                 .run(p.intersectWithDNase_bed2txt, True)
                 .run(p.intersectToPositions_txt2txt, True)
             .stop()
@@ -1277,27 +1657,27 @@ p = myPipe(input)
             #     .run(p.intersectToPositions_txt2txt, False)
             # .stop()
 
-            .branch(True and p.cell == "GM12878")
-                .run(p.intersectWithCTCF_bed2txt, True)
-                .run(p.intersectToPositions_txt2txt, True)
+            .branch(False and p.cell == "GM12878")
+                .run(p.intersectWithCTCF_bed2txt, False)
+                .run(p.intersectToPositions_txt2txt, False)
             .stop()
 
-            .branch(True and p.cell == "GM12878")
+            .branch(False and p.cell == "GM12878")
                 .run(p.intersectWithBoundTFBS_bed2txt, False)
                 .run(p.intersectToPositions_txt2txt, False)
             .stop()
             
-            .branch(True and p.cell == "GM12878")
+            .branch(False and p.cell == "GM12878")
                 .run(p.intersectWithBoundTFBSUpstream_bed2txt, False)
                 .run(p.intersectToPositions_txt2txt, False)
             .stop()
 
-            .branch(True and p.cell == "GM12878")
+            .branch(False and p.cell == "GM12878")
                 .run(p.intersectWithBoundTFBSDownstream_bed2txt, False)
                 .run(p.intersectToPositions_txt2txt, False)
             .stop()
 
-            .branch(True and p.cell == "GM12878")
+            .branch(False and p.cell == "GM12878")
                 .run(p.intersectWithSTAT3_bed2txt, False)
                 .run(p.intersectToPositions_txt2txt, False)
             .stop()

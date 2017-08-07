@@ -1,0 +1,3 @@
+no,group,sample,product,treatment,treatment_title,replicate
+1,1,ONUR1.fastq,CPD,NA,NA_A,A
+2,1,ATCPDrep2.fastq,CPD,NA,NA_B,B

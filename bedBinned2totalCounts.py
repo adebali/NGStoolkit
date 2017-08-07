@@ -10,11 +10,18 @@ parser.add_argument('-o', nargs='?', type=argparse.FileType('w'), default=sys.st
 parser.add_argument('--mergeStrands', action='store_true', help='give out two lines for each strand')
 parser.add_argument('-reverseStrand', required=False, help='reverse the specified strand')
 parser.add_argument('-n', required=True, help='window number for each interval')
+parser.add_argument('-start', default=0, type=int, required=False, help='start of the relative position')
+parser.add_argument('-winLength', default=1, type=int, required=False, help='window length')
+parser.add_argument('--writePosition', action='store_true', help='writes out the position as well, should be used with --mergeStrands')
+
+
 args = parser.parse_args()
 
 filein = args.i
 out = args.o
 windowNumber = int(args.n)
+windowLength = args.winLength
+startPosition = args.start
 
 strands = { '+' : [0] * windowNumber, '-': [0] * windowNumber}
 i = 0
@@ -22,7 +29,7 @@ for line in filein:
 	position = i%windowNumber
 	bedLine = bed.bedline(line)
 	strand = bedLine.strand()
-	count = int(bedLine.fields()[-1])
+	count = float(bedLine.fields()[-1])
 	strands[strand][position] += count
 	i += 1
 
@@ -32,12 +39,22 @@ if args.reverseStrand:
 
 if args.mergeStrands:
 	lists = [map(add, strands['+'], strands['-'])]
+	separator = "\n"
 else:
 	lists = [strands['+'], strands['-']]
+	separator = "\t"
 
 print(strands)
 for e in lists:
+	i = 0
 	for positionCount in e:
-		out.write(str(positionCount) + '\t')
-	out.write('\n')
+		position = startPosition + (i * windowLength)
+		i += 1
+		line = ''
+		if args.mergeStrands and args.writePosition:
+			line = str(position) + '\t'
+		line += str(positionCount) + separator
+		out.write(line)
+	if not args.mergeStrands:
+		out.write('\n')
 

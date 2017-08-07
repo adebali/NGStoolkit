@@ -9,9 +9,12 @@ This repository is developed for project-specific NGS analysis.
 ## Setup
   ```
   cd ~
+  
   git clone git@bitbucket.org:adebali/sancarlabutils.git
+  
   cd sancarlabutils
-  ./setup.sh
+  
+  bash setup.sh
   ```
 ## Examples
 

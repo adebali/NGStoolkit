@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-echo "EXECUTABLE_SCRIPTS=\$HOME/sancarLabUtils
+echo "EXECUTABLE_SCRIPTS=\$HOME/sancarlabutils
 PATH=\$PATH:\$EXECUTABLE_SCRIPTS
 export PATH
 CUSTOM_PYTHON_SCRIPTS=\$EXECUTABLE_SCRIPTS/utils

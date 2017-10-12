@@ -1,0 +1,59 @@
+no,cell,group,product,rep,sample,treatment,treatment_title,quality,source
+1,NHF1,1,CPD,A,NCPD-A6N.1.fastq,Control,NHF1_CPD_Control_A,low,This_study
+2,NHF1,1,CPD,B,NC-B17N.1.fastq,Control,NHF1_CPD_Control_B,low,This_study
+3,NHF1,1,CPD,A,NCPD0HA1N.1.fastq,0h,NHF1_CPD_10J_0h_A,high,This_study
+4,NHF1,1,CPD,B,NC0HB13N.1.fastq,0h,NHF1_CPD_10J_0h_B,high,This_study
+5,NHF1,1,CPD,A,NC1HB14N.1.fastq,1h,NHF1_CPD_10J_1h_A,high,This_study
+6,NHF1,1,CPD,B,NC1HA2N.1.fastq,1h,NHF1_CPD_10J_1h_B,high,This_study
+7,NHF1,1,CPD,A,NC8HB15N.1.fastq,8h,NHF1_CPD_10J_8h_A,high,This_study
+8,NHF1,1,CPD,B,NC8HA3N.1.fastq,8h,NHF1_CPD_10J_8h_B,high,This_study
+9,NHF1,1,CPD,A,NC1DB16N.1.fastq,24h,NHF1_CPD_10J_24h_A,high,This_study
+10,NHF1,1,CPD,B,NC1DA4N.1.fastq,24h,NHF1_CPD_10J_24h_B,high,This_study
+11,NHF1,1,CPD,A,NCPD36A1.1.fastq,36h,NHF1_CPD_10J_36h_A,high,This_study
+12,NHF1,1,CPD,B,NCPD36B2.1.fastq,36h,NHF1_CPD_10J_36h_B,high,This_study
+13,NHF1,1,CPD,A,NCPD2DA5N.1.fastq,48h,NHF1_CPD_10J_48h_A,high,This_study
+14,NHF1,1,CPD,B,NC2DB18N.1.fastq,48h,NHF1_CPD_10J_48h_B,low,This_study
+15,NHF1,1,CPD,B2,NCPD2DB42.1.fastq,48h,NHF1_CPD_10J_48h_B2,low,This_study
+16,NHF1,1,CPD,B3,NCPD2DD7.1.fastq,48h,NHF1_CPD_10J_48h_B3,low,This_study
+17,NHF1,2,_6-4,A,N6-4-A33N.1.fastq,Control,NHF1_6-4_Control_A,low,This_study
+18,NHF1,2,_6-4,B,N6-4-C35N.1.fastq,Control,NHF1_6-4_Control_B,low,This_study
+19,NHF1,2,_6-4,A,N60HA7N.1.fastq,0h,NHF1_6-4_20J_0h_A,high,This_study
+20,NHF1,2,_6-4,B,N6-0HB19N.1.fastq,0h,NHF1_6-4_20J_0h_B,high,This_study
+21,NHF1,2,_6-4,A,N620MA8N.1.fastq,20min,NHF1_6-4_20J_20min_A,high,This_study
+22,NHF1,2,_6-4,B,N6-20MB9N.1.fastq,20min,NHF1_6-4_20J_20min_B,high,This_study
+23,NHF1,2,_6-4,A,N61HA10N.1.fastq,1h,NHF1_6-4_20J_1h_A,high,This_study
+24,NHF1,2,_6-4,B,N6-1HB20N.1.fastq,1h,NHF1_6-4_20J_1h_B,high,This_study
+25,NHF1,2,_6-4,A,N62HA11N.1.fastq,2h,NHF1_6-4_20J_2h_A,high,This_study
+26,NHF1,2,_6-4,B,N6-2HB12N.1.fastq,2h,NHF1_6-4_20J_2h_B,high,This_study
+27,NHF1,2,_6-4,A,N64HC34N.1.fastq,4h,NHF1_6-4_20J_4h_A,low,This_study
+28,NHF1,2,_6-4,B,N6-4HB21N.1.fastq,4h,NHF1_6-4_20J_4h_B,low,This_study
+29,NHF1,3,_6-4,A,N6-4HC-29.1.fastq,woCPD_Photolyase,NHF1_6-4_20J_4h_no_CPD_Photolyase,low,This_study
+30,NHF1,3,_6-4,B,N6-4HCP31.1.fastq,wCPD_Photolyase,NHF1_6-4_20J_4h_with_CPD_Photolyase,low,This_study
+31,GM12878,4,_6-4,A,G-6-4A22.1.fastq,nakedDNA,GM12878_6-4_20J_nakedDNA_A,high,This_study
+32,GM12878,4,_6-4,B,G-6-4B24.1.fastq,nakedDNA,GM12878_6-4_20J_nakedDNA_B,high,This_study
+33,GM12878,4,_6-4,B2,G-B6N2.1.fastq,nakedDNA,GM12878_6-4_20J_nakedDNA_B2,high,This_study
+34,GM12878,4,_6-4,C,G-C68.1.fastq,nakedDNA,GM12878_6-4_20J_nakedDNA_C,high,This_study
+35,GM12878,4,_6-4,A0,HL6-411_GGCTAC.1.fastq,nakedDNA,GM12878_6-4_20J_nakedDNA_A0,low,This_study - old protocol
+36,GM12878,4,_6-4,B0,HL6-49_GATCAG.1.fastq,nakedDNA,GM12878_6-4_20J_nakedDNA_B0,low,This_study - old protocol
+37,GM12878,4,_6-4,A,G6-4A23.1.fastq,cell,GM12878_6-4_20J_cell_A,high,This_study
+38,GM12878,4,_6-4,B,G6-4B25.1.fastq,cell,GM12878_6-4_20J_cell_B,high,This_study
+39,GM12878,4,_6-4,A0,HLC6-45_ACAGTG.1.fastq,cell,GM12878_6-4_20J_cell_A0,low,This_study - old protocol
+40,GM12878,4,_6-4,B0,HLC6-46_GCCAAT.1.fastq,cell,GM12878_6-4_20J_cell_B0,low,This_study - old protocol
+41,GM12878,5,CPD,A,G-CPDA29.1.fastq,nakedDNA,GM12878_CPD_20J_nakedDNA_A,high,This_study
+42,GM12878,5,CPD,B,G-CPDB31.1.fastq,nakedDNA,GM12878_CPD_20J_nakedDNA_B,high,This_study
+43,GM12878,5,CPD,B2,G-BCN3.1.fastq,nakedDNA,GM12878_CPD_20J_nakedDNA_B2,high,This_study
+44,GM12878,5,CPD,C,G-CC9.1.fastq,nakedDNA,GM12878_CPD_20J_nakedDNA_C,high,This_study
+45,GM12878,5,CPD,A0,HLCPD10_TAGCTT.1.fastq,nakedDNA,GM12878_CPD_20J_nakedDNA_A0,low,This_study - old protocol
+46,GM12878,5,CPD,B0,HLCPD12_CTTGTA.1.fastq,nakedDNA,GM12878_CPD_20J_nakedDNA_B0,low,This_study - old protocol
+47,GM12878,5,CPD,A,GCPDA36.1.fastq,cell,GM12878_CPD_20J_cell_A,high,This_study
+48,GM12878,5,CPD,B,GCPDB32.1.fastq,cell,GM12878_CPD_20J_cell_B,high,This_study
+49,GM12878,5,CPD,A0,HLCCPD7_CAGATC.1.fastq,cell,GM12878_CPD_20J_cell_A0,low,This_study - old protocol
+50,GM12878,5,CPD,B0,HLCCPD8_ACTTGA.1.fastq,cell,GM12878_CPD_20J_cell_B0,low,This_study - old protocol
+51,GM12878,6,GG,A,GCIS_A.1.fastq,cell,GM12878_Cisplatin_Cell_A,high,SRR3623538
+52,GM12878,6,GG,B,GCIS_B.1.fastq,cell,GM12878_Cisplatin_Cell_B,high,SRR3623539
+53,GM12878,6,GG,A,G-CIS_A.1.fastq,nakedDNA,GM12878_Cisplatin_nakedDNA_A,high,SRR3623546
+54,GM12878,6,GG,B,G-CIS_B.1.fastq,nakedDNA,GM12878_Cisplatin_nakedDNA_B,high,SRR3623547
+55,NHF1,8,NA,A,NINPA3.1.fastq,input,NHF1_input_A,high,This_study
+56,NHF1,8,NA,B,NINPB4.1.fastq,input,NHF1_input_B,high,This_study
+57,GM12878,9,NA,A,GINPA1.1.fastq,input,GM12878_input_A,high,This_study
+58,GM12878,9,NA,B,GINPB2.1.fastq,input,GM12878_input_B,high,This_study

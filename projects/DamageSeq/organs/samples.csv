@@ -20,3 +20,12 @@ no,group,sample,treatment,treatment_title,rep
 19,3,DAMSPLEEN_A_GCCAAT.1.fastq,spleen,spleen_C,C
 20,3,DAMSPLEEN_B_CAGGCG.1.fastq,spleen,spleen_D,D
 21,3,DAMLNAKED_CGATGT_S29.1.fastq,naked,naked_A,A
+22,4,DLung_B_CGTACG.fastq,lung,lung_E,E
+23,4,DLung_C_GAGTGG.fastq,lung,lung_F,F
+24,4,DSpleen_B_ACTGAT.fastq,spleen,spleen_E,E
+25,4,DSpleen_C_ATTCCT.fastq,spleen,spleen_F,F
+26,5,HaCat_BG4_cis_B-_GAGTGG.fastq,HaCat_BG4_cis,HaCat_BG4_cis_A,A
+27,5,HaCat_BG4_cont_B-_GTGAAA.fastq,HaCat_BG4_con,HaCat_BG4_con_A,A
+28,5,HaCat_cis_B-_AGTTCC.fastq,HaCat_cis,HaCat_cis_A,A
+29,5,HaCat_cont_B-_AGTCAA.fastq,HaCat_con,HaCat_con_A,A
+

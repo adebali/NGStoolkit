@@ -56,7 +56,12 @@ def countLines(fileName):
         return 0
     if is_binary(fileName):
         return -1
-    return int(subprocess.check_output('wc -l ' + fileName, shell=True).split(" ")[0])
+    divider = 1
+    if fileName.endswith('.fastq'):
+        divider = 4
+    elif fileName.endswith('.fa'):
+        divider = 2
+    return int(subprocess.check_output('wc -l ' + fileName, shell=True).split(" ")[0])/divider
 
 def replaceLast(source_string, replace_what, replace_with):
     head, sep, tail = source_string.rpartition(replace_what)
@@ -124,15 +129,11 @@ def run(codeList, pipelineObject):
     # code = code.replace('(', '\\(')
     # code = code.replace(')', '\\)')
     allStringList = list2allStringList(codeList)
+    branchSpace = '  '
     if pipelineObject.runFlag:
-        if pipelineObject.printFlag:
+        if pipelineObject.printFlag and (not pipelineObject.outputCheckMode):
             i = 0
-            if pipelineObject.outputCheckMode:
-                for output in pipelineObject.output:
-                    i += 1
-                    print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + output + ' ' + str(TrueFalse2binary(os.path.isfile(output))))
-            else:
-                print(str(pipelineObject.jobIndex) + ' -->\t' + code)
+            print('\033[94m' + str(pipelineObject.jobIndex) + ' =>\t' + pipelineObject.currentBranch * branchSpace + code + '\033[0m')
         if pipelineObject.runMode:
             failedHere = os.system(code)
             if failedHere:
@@ -140,17 +141,15 @@ def run(codeList, pipelineObject):
         # else:
         # 	print("gave up running the code, because the command is not given in the default 'RUN' mode.")
     else:
-        if pipelineObject.printFlag:
-            if pipelineObject.outputCheckMode:
-                i = 0
-                for output in pipelineObject.output:
-                    i += 1
-                    # if not pipelineObject.outputCheckModeCount:
-                    #     print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + output + ' ' + str(TrueFalse2binary(os.path.isfile(output))))
-                    # else:
-                    print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + output + ' ' + str(countLines(output)))                        
-            else:
-                print(str(pipelineObject.jobIndex) + ' X\t' + code)
+        if pipelineObject.printFlag and (not pipelineObject.outputCheckMode):
+            print(str(pipelineObject.jobIndex) + ' =X\t' + pipelineObject.currentBranch * branchSpace + code)
+
+    if pipelineObject.outputCheckMode and (not pipelineObject.runMode) and pipelineObject.printFlag:
+        i = 0
+        for inputFile in pipelineObject.input:
+            i += 1
+            print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + inputFile + ' ' + str(countLines(inputFile))) 
+
 
 def runWm(codeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex):
     code = list2gappedString(codeList)
@@ -193,13 +192,41 @@ def codeList2multiCodeList(codeList):
                 parallelJobLists[i].append(e[i])
     return parallelJobLists
 
+def makeCommandsFromListArrays(l):
+    '''Converts a list of lists andd strings and spits out the combinations
+    eg. input = ['bash', ['A','B'], ['C', 1]] 
+        output = makeCommandsFromListArrays(input)
+        print(output)
+        ['bash A C', 'bash A 1', 'bash B C', 'bash B 1']
+    '''
+    def makeNonlistElementListE(l):
+        ''' Makes nonlist element such as string or int a list element containing a single item'''
+        newL = []
+        for item in l:
+            if type(item) != list:
+                newL.append([str(item)])
+            else:
+                newL.append(item)
+        return newL
+
+    tuple2list = lambda x: list(x)
+    joinList = lambda x: ' '.join(str(v) for v in x)
+    commandList = list(map(joinList, list(map(tuple2list, list(itertools.product(*makeNonlistElementListE(l)))))))
+    return commandList
+
 # def execM(multiCodeList, runFlag, runMode, printFlag, jobIndex, outputCheckMode):
 def execM(multiCodeList, pipelineObject):
-    pipelineObject.jobIndex -= 1
+    # pipelineObject.jobIndex -= 1
     parallelJobLists = codeList2multiCodeList(multiCodeList)
     for codeList in parallelJobLists:
-        pipelineObject.jobIndex += 1
+        # pipelineObject.jobIndex += 1
         # run(codeList, runFlag, runMode, printFlag, jobIndex, outputCheckMode)
+        run(codeList, pipelineObject)
+    return len(parallelJobLists)
+
+def execL(listArray, pipelineObject):
+    parallelJobLists = makeCommandsFromListArrays(listArray)
+    for codeList in parallelJobLists:
         run(codeList, pipelineObject)
     return len(parallelJobLists)
 
@@ -262,4 +289,3 @@ if __name__ == "__main__":
             self.assertEqual(listOperation(basicSumFunction, theList, 1,2,3), [9,10,11,12])
 
     unittest.main()
-

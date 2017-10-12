@@ -9,6 +9,8 @@ import argparse
 import argument
 sys.path.append('..')
 from referenceGenomePath import referenceGenomePath
+import numpy
+import tempfile
 
 class myPipe(pipe):
     def __init__(self, input, args = argument.args()):
@@ -31,9 +33,10 @@ class myPipe(pipe):
             '-e ': 'err_' + self.treatment + '.txt',
         }
         self.wmParams = self.defaultWmParams
-        paths = referenceGenomePath()
-        self.reference = paths.get('TAIR9')
-        self.fragmentLengths = range(17, 32+1)
+        self.paths = referenceGenomePath()
+        
+        self.fragmentLengths = range(10, 32+1)
+        # self.fragmentLengths = range(10, 17+1)
     
     def prettyOutput(self):
         newOutputs = []
@@ -48,8 +51,15 @@ class myPipe(pipe):
             newOutputs.append(os.path.join(os.path.dirname(o),self.treatment_title + extraWord + '.' + extension))
         return newOutputs
 
-    def catFiles(self, wildcard, headers, output):
+    def tailFiles(self, wildcard, headers, output):
         code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "tail --lines=+2 " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
+        # code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
+        print(code)
+        os.system(code)
+
+    def catFiles(self, wildcard, headers, output):
+        code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
+        # code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
         print(code)
         os.system(code)
 
@@ -60,18 +70,64 @@ class myPipe(pipe):
         fullWildcard = os.path.join(directory, wildcard)
         return fullWildcard
 
-    def mergeNucleotideFrequencies(self):
+    def mergeNucleotideFrequencies(self, extraWord = ''):
         wildcard = self.fullPath2wildcard(self.input[0])
-        wildcard = wildcard.replace("geSiLe17", "*")
+        wildcard = wildcard.replace("geSiLe" + str(self.fragmentLengths[0]), "*")
         headers = ['position', 'sequence', 'value'] + sorted(self.attributes) + ['fragmentLength']
-        output = os.path.join(self.outputDir, '..', 'merged_NucleotideFrequencies.txt')
+        output = os.path.join(self.outputDir, '..', 'merged_NucleotideFrequencies' + extraWord + '.txt')
+        self.tailFiles(wildcard, headers, output)
+        return self
+
+    def mergeChrNucleotideFrequencies(self):
+        wildcard = self.fullPath2wildcard(self.input[0])
+        wildcard = wildcard.replace("geSiLe" + str(self.fragmentLengths[0]), "*").replace("seCh_1", "seCh_*")
+        headers = ['position', 'sequence', 'value'] + sorted(self.attributes) + ['fragmentLength', 'chromosome']
+        output = os.path.join(self.outputDir, '..', 'merged_ChrNucleotideFrequencies.txt')
+        self.tailFiles(wildcard, headers, output)
+        return self
+
+    def mergeLengthDist(self):
+        wildcard = self.fullPath2wildcard(self.input[0])
+        wildcard = wildcard.replace("geSiLe" + str(self.fragmentLengths[0]), "*").replace("seCh_1", "seCh_*")
+        headers = ['length', 'value'] + sorted(self.attributes) + ['fragmentLength', 'chromosome']
+        output = os.path.join(self.outputDir, '..', 'merged_lengthDistributions.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def mergeChrLengthDist(self):
+        wildcard = self.fullPath2wildcard(self.input[0])
+        wildcard = wildcard.replace("geSiLe" + str(self.fragmentLengths[0]), "*").replace("seCh_1", "seCh_*")
+        headers = ['length', 'value'] + sorted(self.attributes) + ['chromosome']
+        output = os.path.join(self.outputDir, '..', 'merged_chrLengthDistributions.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def mergeChromtainStates(self, outputName):
+        wildcard = self.fullPath2wildcard(self.input[0])
+        headers = ['chromosome', 'start', 'end', 'state', 'score', 'strand', 'count'] + self.attributes
+        output = os.path.join(self.outputDir, '..', outputName)
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def mergeGeneCounts(self, outputName):
+        wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "*")
+        headers = ['chromosome', 'start', 'end', 'gene', 'score', 'strand', 'count'] + self.attributes  + ['strand']
+        output = os.path.join(self.outputDir, '..', outputName)
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def mergeDNaseCounts(self, outputName):
+        wildcard = self.fullPath2wildcard(self.input[0])
+        headers = ['position', 'count'] + self.attributes 
+        output = os.path.join(self.outputDir, '..', outputName)
         self.catFiles(wildcard, headers, output)
         return self
 
     def cutadapt_fastq2fastq(self):
         output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
         self.saveOutput(output)
-        adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAGTCACATCACGATCTCGTATGCCGTCTTCTGCTTG'
+        adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAGTNNNNNNACGATCTCGTATGCCGTCTTCTGCTTG'
+        # adapter = 'TGGAATTCTCGGGTGCCAAGGAACTCCAGTCACATCACGATCTCGTATGCCGTCTTCTGCTTG'
         codeList = [
             'cutadapt',
             '-a', adapter,
@@ -81,20 +137,23 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def bowtie_fastq2sam(self):
-        noCpus = 1
+    def bowtie_fastq2sam(self, referenceGenome = "TAIR9"):
+        noCpus = 8
+        self.reference = self.paths.get(referenceGenome)
         self.mutateWmParams({'-n ': str(noCpus)})
-        output = [self.output[0]]
+        output = [self.output[0].replace(".sam", self.reference['name'] + ".sam")]
+        self.saveOutput(output)
         codeList = [
             'bowtie',
             '-t', self.reference['bowtie'],
             '-q', # FASTAQ input (default)
+            '-p',8,
             '--nomaqround', # Do NOT round MAC
             '--phred33-quals', # Depends on the sequencing platform
             '-S', # Output in SAM format
-            '-n', 2, # No more than 2 mismatches
+            # '-n', 2, # No more than 2 mismatches
             '-e', 70, # The sum of the Phred quality values at all mismatched positions (not just in the seed) may not exceed E 
-            '-m 4', # Do not report the reads that are mapped on to more than 4 genomic locations
+            # '-m 4', # Do not report the reads that are mapped on to more than 4 genomic locations
             '-p', noCpus,
             '--seed 123', # Randomization parameter in bowtie,
             self.input,
@@ -184,6 +243,19 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def sort_bed2bed(self):
+        codeList = [
+            'sort',
+            '-k1,1',
+            '-k2,2n',
+            '-k3,3n',
+            self.input,
+            '>', self.output
+        ]
+        self.finalBed = self.output[0]
+        self.execM(codeList)
+        return self
+
     def convertBedToFasta_bed2fa(self):
         codeList = [
             'bedtools',
@@ -196,7 +268,7 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def getNucleotideAbundanceTable_fa2csv(self):
+    def getNucleotideAbundanceTable_fa2csv(self, kmer=1):
         # nucleotideOrder = 'GCTA'
         headerList = []
         columns = self.list2attributes(self.attributes)
@@ -206,7 +278,7 @@ class myPipe(pipe):
             'fa2kmerAbundanceMeltedData.py',
             '-i', self.input,
             '-o', self.output,
-            '-k', 1,
+            '-k', kmer,
             '--percentage',
             '-c', ' '.join(headerList)
         ]
@@ -264,15 +336,25 @@ class myPipe(pipe):
         columnHeaders = self.attributes
         return self
 
+    def addValue_txt2txt(self, *nargs):
+        columns = list(nargs)
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', ' '.join(columns)
+        ]
+        self.execM(codeList)
+        return self
 
-    def addTSNTS_txt2txt(self, site):
+    def addTSNTS_txt2txt(self, *sites):
         columns = self.list2attributes(self.attributes)
         codeList = [
             'addColumns.py',
             '-i', self.input,
             '-o', self.output,
-            '-c', [ ' '.join(columns) +  ' TS ' + site, 
-                    ' '.join(columns) +  ' NTS ' + site]
+            '-c', [ ' '.join(columns) +  ' TS ' + ' '.join(sites), 
+                    ' '.join(columns) +  ' NTS ' + ' '.join(sites)]
         ]
         self.execM(codeList)
         columnHeaders = self.attributes
@@ -284,13 +366,34 @@ class myPipe(pipe):
             'addColumns.py',
             '-i', self.input,
             '-o', self.output,
-            '-c', self.fragmentLengths
+            '-c', self.fragmentLengths * (len(self.input) / len(self.fragmentLengths))
         ]
         self.execM(codeList)
         columnHeaders = self.attributes
         return self
 
-    def geneStrandMap_bed2bed(self):
+    def addLengthChr_csv2csv(self, *nargs):
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', [str(a) + ' ' + str(b) for a,b in zip(list(numpy.repeat(self.fragmentLengths, len(self.chromosomes))),self.chromosomes * (len(self.input) / len(self.chromosomes)))] 
+        ]
+        self.execM(codeList)
+        return self
+
+    def addChr_csv2csv(self, *nargs):
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', self.chromosomes
+        ]
+        self.execM(codeList)
+        return self
+
+
+    def geneStrandMap_bed2txt(self):
         newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
         self.saveOutput(newOutput)
         strandParameters = ['-S', '-s'] #[different strand, same strand]
@@ -298,7 +401,47 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.reference["genes"],
+            '-a', self.reference["transcripts2"],
+            '-b', self.input,
+            '-wa',
+            '-c',
+            strandParameters,
+            '-F', 0.50,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+  
+    def dnaseCount_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference["dnase"],
+            '-b', self.input,
+            '-wa',
+            '-c',
+            '-F', 0.50,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def transcriptSiteCount_bed2txt(self, siteKey): 
+        """
+        docstring here
+            :param self: 
+            :param siteKey: 
+        """   
+               
+        TSSreference = self.reference[siteKey]
+        newOutput = [self.addExtraWord(self.output[0], '_TS' + '_' + siteKey), self.addExtraWord(self.output[0], '_NTS' + '_' + siteKey)]
+        self.saveOutput(newOutput)
+        strandParameters = ['-S', '-s'] #[different strand, same strand]
+        self.input = [self.input[0], self.input[0]]
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', TSSreference,
             '-b', self.input,
             '-wa',
             '-c',
@@ -309,34 +452,170 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def TSScount_bed2txt(self):
-        newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
-        self.saveOutput(newOutput)
-        strandParameters = ['-S', '-s'] #[different strand, same strand]
-        self.input = [self.input[0], self.input[0]]
-        codeList = [
+    def transcriptIntersect_bed2txt(self, args={}):
+        transcripts = self.reference['transcripts2']
+
+        sliceFlag = args.get('slice', False)
+        if sliceFlag:
+            numberOfSlices = args.get('n')
+            currentSlice = args.get('sliceNum')
+            keyword = args.get('keyword')
+            sliceTemp_, sliceTemp = tempfile.mkstemp()
+            codeList = [
+                'bed2sliceByScore.py',
+                '-i', transcripts,
+                '-n', numberOfSlices,
+                '-slice', currentSlice,
+                '>', sliceTemp
+            ]
+            self.execM(codeList)
+            output = [self.addExtraWord(self.output[0], keyword)]
+            self.saveOutput(output)
+            transcripts = sliceTemp
+
+        random = args.get('random', False)
+        if random:
+            output = [
+                self.addExtraWord(self.output[0], '_random'),
+            ]
+            self.saveOutput(output)
+
+        averageLength = totalRecord = totalMappedReads = perNmappedReads= 1
+        if self.runMode == True and self.runFlag == True:
+            inputBed = bed.bed(self.input[0])
+            totalMappedReads = inputBed.getHitNum()
+            bedA = bed.bed(transcripts)
+            averageLength = bedA.getAverageLength()
+            totalRecord = bedA.getHitNum()
+            perNmappedReads = 1000000
+        
+        shuffleCode = [
+            'bedtools',
+            'shuffle',
+            '-i', transcripts,
+            '-g', self.reference['limits'],
+            '|',
+            'sort',
+            '-k1,1',
+            '-k2,2n',
+            '-k3,3n'
+        ]
+        if random:
+            codeList = list(shuffleCode)
+        else:
+            codeList = [
+                'cat',
+                transcripts
+            ]
+
+        codeList += [
+            '|',
             'bedtools',
             'intersect',
-            '-a', self.reference["TSS"],
+            '-a', 'stdin',
             '-b', self.input,
             '-wa',
-            '-c',
-            strandParameters,
+            '-wb',
             '-F', 0.50,
-            '>', self.output
+            '|',
+            'bedIntersect2positionTxt.py',
+            '|',
+            'bedIntersectPositionCount.py',
+            '-count', 7,
+            '-cat', 8,
+            '-ends', 'double',
+            '-scale',
+            1/float(totalRecord),
+            100/float(averageLength),
+            perNmappedReads/float(totalMappedReads),
+            '-o', self.output
         ]
         self.execM(codeList)
+        
+        _temp, temp = tempfile.mkstemp()
+
+        windowLength = 100
+        oneSideFlankingLength = 10000
+
+        if random:
+            prepareAbedCodeList = list(shuffleCode)
+        else:
+            prepareAbedCodeList = [
+                'cat',
+                transcripts
+            ]
+        prepareAbedCodeList += [
+            '|',
+            'bed2updownstream.py',
+            '--fixed',
+            '-l', oneSideFlankingLength,
+            '|',
+            'bed2removeChromosomeEdges.py',
+            '--fixed',
+            '-l', 10000,
+            '-g', self.reference['limits'],
+            '>', temp
+        ]
+        self.execM(prepareAbedCodeList)
+
+        totalRecord = 1
+        if self.runMode == True and self.runFlag == True:
+            bedA = bed.bed(temp)
+            totalRecord = bedA.getHitNum()/2
+
+        flankingCodeList = [
+            'bedtools',
+            'intersect',
+            # '-a', 'stdin',
+            '-a', temp,
+            '-b', self.input,
+            '-wa',
+            '-wb',
+            '-F', 0.50,
+            '|',
+            'bedIntersect2positionTxt.py',
+            '--flanking',
+            '--fixed',
+            '-w', windowLength,
+            '|',
+            'bedIntersectPositionCount.py',
+            '-count', 7,
+            '-cat', 8,
+            '-ends', 'remove',
+            '-scale', 
+            1/float(totalRecord), 
+            1/float(windowLength),
+            perNmappedReads/float(totalMappedReads),
+            '>>', self.output,
+            '&&',
+            'rm', temp
+        ]
+        self.execM(flankingCodeList)
         return self
 
-    def TEScount_bed2txt(self):
-        newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
+    # def spearateToQuartiles_bed2bed(self):
+    #     self.input = self.input * 4
+    #     self.saveOutput([
+    #                     self.addExtraWord(self.output[0], '_Q1'), 
+    #                     self.addExtraWord(self.output[1], '_Q1'),
+    #                     self.addExtraWord(self.output[0], '_Q2'), 
+    #                     self.addExtraWord(self.output[1], '_Q2'),
+    #                     self.addExtraWord(self.output[0], '_Q3'), 
+    #                     self.addExtraWord(self.output[1], '_Q3'),
+    #                     self.addExtraWord(self.output[0], '_Q4'), 
+    #                     self.addExtraWord(self.output[1], '_Q4')
+    #     ])
+
+    def TEScount_bed2txt(self, TESkey):
+        TESreference = self.reference[TESkey]
+        newOutput = [self.addExtraWord(self.output[0], '_TS' + '_' + TESkey), self.addExtraWord(self.output[0], '_NTS' + '_' + TESkey)]
         self.saveOutput(newOutput)
         strandParameters = ['-S', '-s'] #[different strand, same strand]
         self.input = [self.input[0], self.input[0]]
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.reference["TES"],
+            '-a', TESreference,
             '-b', self.input,
             '-wa',
             '-c',
@@ -364,6 +643,7 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+
     def addTreatmentAndStrand_txt2txt(self):
         columns = self.list2attributes(self.attributes)
         columnStringList = [' '.join(columns + ['TS']), ' '.join(columns + ['NTS'])]
@@ -376,40 +656,152 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def mergeGeneCounts(self):
+    def mergeTranscriptCounts(self):
         wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "_*S")
         headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['TSNTS']
-        output = os.path.join(self.outputDir, '..', 'merged_geneCounts.txt')
+        output = os.path.join(self.outputDir, '..', 'merged_transcriptCounts.txt')
         self.catFiles(wildcard, headers, output)
         return self
         
-    def mergeTSSTES(self):
-        wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "_*S").replace("TSS", "*").replace("TES", "*")
-        headers = ['position', 'value'] + self.attributes + ['strand', 'site']
-        output = os.path.join(self.outputDir, '..', 'merged_TSSTES.txt')
+    def mergeTSSTES(self, extraWord = ''):
+        wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "_*S").replace("TSS", "*").replace("TES", "*").replace("Q4","*")
+        headers = ['position', 'value'] + self.attributes + ['strand', 'site', 'quartile']
+        output = os.path.join(self.outputDir, '..', 'merged_TSSTES' + extraWord + '.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def mergeTCR(self, extraWord = ''):
+        wildcard = self.fullPath2wildcard(self.input[0]).replace("_Q4", "*")
+        headers = ['pos', 'count', 'cat', 'label']
+        output = os.path.join(self.outputDir, '..', 'merged_TCR' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
         return self
    
-    def binnedCountsToPositions_txt2txt(self, startPosition):
+    def binnedCountsToPositions_txt2txt(self, startPosition, numberOfWindows = 80, windowsLength = 100):
         codeList = [
             'bedBinned2totalCounts.py',
             '-i', self.input,
             '-o', self.output,
-            '-n', 60,
+            '-n', numberOfWindows,
             '-reverseStrand', '"-"',
             '--mergeStrands',
             '-start', startPosition,
-            '-winLength', 100,
-            '--writePosition'
+            '-winLength', windowsLength,
+            '--writePosition',
+            '--average'
         ]
         self.execM(codeList)
         return self
+
 
     def chromosomeCounts_bed2txt(self):
         codeList = [
             'bed2chromosomeRPKM.py',
             '-i', self.input,
             '-g', self.reference['limits'],
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def separateChromosomes_bed2bed(self):
+        chromosomes = []
+        outputs = []
+        outputStringList = []
+        inputs = []
+        filein = open(self.reference['limits'], 'r')
+        for line in filein:
+            chromosome = line.split('\t')[0].strip()
+            chromosomes.append(chromosome)
+        self.chromosomes = chromosomes
+        for i in range(len(self.input)):
+            outString = ''
+            for chromosome in chromosomes:
+                inputs.append(self.input[i])
+                outputName = self.output[i].replace('.bed', '_' + chromosome + '.bed')
+                outString += outputName + ' '
+                outputs.append(outputName)
+            else:
+                outputStringList.append(outString)
+
+        self.saveOutput(outputs)
+        print(len(inputs))
+        print(len(outputs))
+        codeList = [
+            'bed2chromosomeSeparatedBed.py',
+            '-i', self.input,
+            '-chr', ' '.join(chromosomes),
+            '-o', outputStringList
+        ]
+        # print(codeList)
+        self.execM(codeList)
+        return self
+
+    def geneCount_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference["genes"],
+            '-b', self.input,
+            '-c',
+            '-F', 0.49,
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+
+    def countChromatinStates_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference["chromatinStates"],
+            '-b', self.input,
+            '-c',
+            '-F', 0.49,
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+   
+    def subtractTCR_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'subtract',
+            '-a', self.input,
+            '-b', self.reference["transcripts"],
+            '-S', # Force opposite strand
+            '-A', # Remove if any overlap
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+   
+    def addArtificialGlobalRepair_bed2bed(self):
+        codeList = [
+            'python addArtificialGlobalRepair.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-transcribed', self.reference["transcripts"]
+        ]
+        self.execM(codeList)
+        return self
+   
+    def getIntersectPositions_txt2txt(self):
+        codeList = [
+            'bedIntersect2positionTxt.py',
+            '-i', self.input,
+            '-flanking', 'True',
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def countPositions_txt2txt(self):
+        codeList =[
+            'bedIntersectPositionCount.py',
+            '-i', self.input,
+            '-count', 7,
+            '-cat', 8,
             '-o', self.output
         ]
         self.execM(codeList)
@@ -454,69 +846,292 @@ input = getInputFromIndex(inputIndex)
 p = myPipe(input, args)
 (p
     .run(p.cutadapt_fastq2fastq, False)
-    .run(p.bowtie_fastq2sam, False)
-    .run(p.convertToBam_sam2bam, False)
-    .run(p.convertToBed_bam2bed, False)
-    .run(p.uniqueSort_bed2bed, False)
-    
-    .branch()
-        .run(p.lengthDistribution_bed2csv, False)
-        .run(p.plotLengthDistribution_csv2pdf, False)
-    .stop()
-
+# TAIR 9
     .branch(False)
-        .run(p.getSingleLength_bed2bed, False)
-        .run(p.convertBedToFasta_bed2fa, False)
-        .run(p.getNucleotideAbundanceTable_fa2csv, False)
-        .run(p.addLength_csv2csv, False)
-        .cat(p.mergeNucleotideFrequencies, False)
-    .stop()
-   
-    .branch(False)
-        .run(p.splitByStrand_bed2bed, False)
+        .run(p.bowtie_fastq2sam, False, 'TAIR9')
+        .run(p.convertToBam_sam2bam, False)
+        .run(p.convertToBed_bam2bed, False)
+        .run(p.uniqueSort_bed2bed, False)
         
         .branch(False)
-            .run(p.convertToBedGraph_bed2bdg, True)
-            .run(p.toBigWig_bdg2bw, True)
+            .run(p.lengthDistribution_bed2csv, False)
+            .run(p.plotLengthDistribution_csv2pdf, False)
         .stop()
-    .stop()
 
-    .branch(False)
-        .run(p.geneStrandMap_bed2bed, True)
-        .run(p.normalizeCounts_txt2txt, True)
-        
-        .branch()
-            .run(p.addTreatmentAndStrand_txt2txt, True)
-            .cat(p.mergeGeneCounts, False)
+        .branch(False)
+            .run(p.separateChromosomes_bed2bed, False)
+
+            .branch(False)
+                .run(p.lengthDistribution_bed2csv, False)
+                .run(p.addTreatment_txt2txt, False)
+                .run(p.addChr_csv2csv, False)
+                .cat(p.mergeChrLengthDist, False)                
+            .stop()
         .stop()
-    .stop()    
 
-    .branch(False)
-        .run(p.TSScount_bed2txt, True)
-        .run(p.normalizeCounts_txt2txt, True)
-        
-        .branch()
-            .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"')
-            .run(p.addTSNTS_txt2txt, True, "TSS")
-            # .cat(p.mergeTSSTES, True)
+        .branch(True)
+            .run(p.getSingleLength_bed2bed, False)
+
+            .branch(False)
+                .run(p.separateChromosomes_bed2bed, False)
+
+                .branch(False)
+                    .run(p.convertBedToFasta_bed2fa, False)
+                    .run(p.getNucleotideAbundanceTable_fa2csv, False)
+                    .run(p.addLengthChr_csv2csv, False)
+                    .cat(p.mergeChrNucleotideFrequencies, False)
+                .stop()
+            .stop()
+            
+            .branch(False)
+                .run(p.convertBedToFasta_bed2fa, False)
+                .run(p.getNucleotideAbundanceTable_fa2csv, False)
+                .run(p.addLength_csv2csv, False)
+                .cat(p.mergeNucleotideFrequencies, False)
+            .stop()
+                        
+            .branch(True)
+                .run(p.convertBedToFasta_bed2fa, True)
+                .run(p.getNucleotideAbundanceTable_fa2csv, True, 2)
+                .run(p.addLength_csv2csv, True)
+                .cat(p.mergeNucleotideFrequencies, True, '_diNuc')
+            .stop()
         .stop()
-    .stop()
-
-    .branch(False)
-        .run(p.TEScount_bed2txt, True)
-        .run(p.normalizeCounts_txt2txt, True)
-        
-        .branch()
-            .run(p.binnedCountsToPositions_txt2txt, True, -4000)
-            .run(p.addTSNTS_txt2txt, True, "TES")
-            .cat(p.mergeTSSTES, True)
-        .stop()
-    .stop() 
-
-    .branch(True)
-        .run(p.chromosomeCounts_bed2txt, True)
-    .stop()
-
     
+        .branch(False)
+            .run(p.splitByStrand_bed2bed, True)
+            
+            .branch(False)
+                .run(p.convertToBedGraph_bed2bdg, True)
+                .run(p.toBigWig_bdg2bw, True)
+            .stop()
+        .stop()
 
+        # .branch(True)
+        #     .run(p.geneStrandMap_bed2bed, True)
+        #     .run(p.normalizeCounts_txt2txt, True)
+            
+        #     .branch()
+        #         .run(p.addTreatmentAndStrand_txt2txt, True)
+        #         .cat(p.mergeGeneCounts, True)
+        #     .stop()
+        # .stop()    
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TSS')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 120, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TSS')
+                # .cat(p.mergeTSSTES, True)
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TSS')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch(True)
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-4000"', 120, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TES')
+                .cat(p.mergeTSSTES, True)
+            .stop()
+        .stop() 
+
+        .branch(False)
+            .run(p.chromosomeCounts_bed2txt, True)
+        .stop()
+
+    .stop()
+
+# TAIR10
+    .branch(True)
+        .run(p.bowtie_fastq2sam, False, 'TAIR10')
+        .run(p.convertToBam_sam2bam, False)
+        .run(p.convertToBed_bam2bed, False)
+        .run(p.uniqueSort_bed2bed, False)
+
+    # Get BigWig Files
+        .branch(False)
+            .run(p.splitByStrand_bed2bed, True)
+            
+            .branch(True)
+                .run(p.convertToBedGraph_bed2bdg, True)
+                .run(p.toBigWig_bdg2bw, True)
+            .stop()
+        .stop()
+
+    # Transcript counts
+        .branch(True)
+            .run(p.geneStrandMap_bed2txt, True)
+            .run(p.normalizeCounts_txt2txt, True)
+            .run(p.addTSNTS_txt2txt, True)
+            .cat(p.mergeGeneCounts, True, 'merged_transcriptCounts.txt')                     
+        .stop()
+
+    # DNase counts
+        .branch(False)
+            .run(p.dnaseCount_bed2txt, True)
+            .run(p.binnedCountsToPositions_txt2txt, True, '"-1000"', 200, 10)
+            .run(p.addTreatment_txt2txt, True)            
+            .cat(p.mergeDNaseCounts, True, 'merged_dnaseCounts.txt')                                 
+        .stop()
+
+    # CHMM Global Repair only
+        .branch(False)
+            .run(p.subtractTCR_bed2bed, False)            
+            .run(p.addArtificialGlobalRepair_bed2bed, False)
+            .run(p.countChromatinStates_bed2txt, False)
+            .run(p.normalizeCounts_txt2txt, False)
+            .run(p.addTreatment_txt2txt, False)
+            .cat(p.mergeChromtainStates, False, 'merged_noTCRchromatinStates.txt')                     
+        .stop()
+
+    # CHMM all
+        .branch(False)
+            .run(p.countChromatinStates_bed2txt, False)
+            .run(p.normalizeCounts_txt2txt, False)
+            .run(p.addTreatment_txt2txt, False)
+            .cat(p.mergeChromtainStates, False, 'merged_chromatinStates.txt')                     
+        .stop()
+
+    # TSS and TES with expression quartiles
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, False, 'TSS')
+            .run(p.normalizeCounts_txt2txt, False)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q')
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TSS_Q1')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q1')
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TSS_Q2')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q2')
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TSS_Q3')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q3')
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TSS_Q4')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q4')
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, False, 'TES')
+            .run(p.normalizeCounts_txt2txt, False)
+            
+            .branch(False)
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TES', 'Q')
+                # .cat(p.mergeTSSTES, True, '_TAIR10Nasc')
+            .stop()
+        .stop() 
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TES_Q1')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TES', 'Q1')
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TES_Q2')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TES', 'Q2')
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TES_Q3')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TES', 'Q3')
+            .stop()
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptSiteCount_bed2txt, True, 'TES_Q4')
+            .run(p.normalizeCounts_txt2txt, True)
+            
+            .branch()
+                .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
+                .run(p.addTSNTS_txt2txt, True, 'TES', 'Q4')
+                .cat(p.mergeTSSTES, True, '_TAIR10Nasc_Q')                
+            .stop()
+        .stop()
+    
+    # TCR Analysis
+
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, True)
+            .run(p.addValue_txt2txt, True, 'real')
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, True, {'random':True})
+            .run(p.addValue_txt2txt, True, 'random')
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
+            .run(p.addValue_txt2txt, True, 'Q1')
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
+            .run(p.addValue_txt2txt, True, 'Q2')
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
+            .run(p.addValue_txt2txt, True, 'Q3')
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
+            .run(p.addValue_txt2txt, True, 'Q4')
+            .cat(p.mergeTCR, True)
+        .stop()
+
+    .stop()
 )
+###########################################################

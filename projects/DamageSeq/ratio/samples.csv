@@ -1,0 +1,5 @@
+no,group,genome,sample,treatment,treatment_title
+1,1,Homo_sapiens,X20J7-_CAGATC.fastq,DS,Human_ds
+2,1,Homo_sapiens,XNOJ5-_ACAGTG.fastq,control,Human_con
+3,1,Escherichia_coli,X20J7-_CAGATC_ec.fastq,DS,Ecoli_ds
+4,1,Escherichia_coli,XNOJ5-_ACAGTG_ec.fastq,control,Ecoli_con

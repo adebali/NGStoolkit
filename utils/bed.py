@@ -3,6 +3,7 @@ import sys
 import unittest
 import random
 import pybedtools
+import math
 from pfm import Pfm
 
 class bedline:
@@ -15,6 +16,9 @@ class bedline:
 
 	def fields(self):
 		return self.line.split(self.separator)
+
+	def fields2line(self, fields, sep='\t'):
+		return sep.join(str(e) for e in fields)
 
 	def getField(self, columNo):
 		return self.fields()[columNo - 1]
@@ -35,7 +39,7 @@ class bedline:
 		return self.getField(nameCol)
 
 	def score(self, scoreCol = 5):
-		return int(self.getField(scoreCol))
+		return float(self.getField(scoreCol))
 
 	def strand(self, strandCol = 6):
 		return self.getField(strandCol)
@@ -76,6 +80,10 @@ class bedline:
 				newList[columnNo - 1] = otherFields[columnNo]
 		return self.separator.join(newList)
 
+	def addField(self, fields = []):
+		newList = self.fields() + fields
+		return self.separator.join(newList)
+
 	def getFasta(self, fastaInput, s=True, name=False):
 		b = pybedtools.BedTool(self.getLine(), from_string=True)
 		s = b.sequence(fi=fastaInput, s=s, name=name)
@@ -87,6 +95,10 @@ class bedline:
 
 	def getSequence(self, fastaInput):
 		return self.singleFastaToSequence(self.getFasta(fastaInput)).upper()
+
+	def countString(self, fastaInput, string):
+		sequence = self.getSequence(fastaInput)
+		return sequence.count(string)
 
 	def getNewLinesWithPfm(self, fastaInput, matrix, asString = False, strandCol = 6):
 		currentStrand = self.strand(strandCol)
@@ -113,20 +125,38 @@ class bedline:
 				newLines.append(newBedLine.newline(self.start() + i, self.start() + i + pfm.length, {strandCol: strand}))
 		return newLines
 
+	def changeField(self, fieldCol, value):
+		fields = self.fields()
+		fields[fieldCol - 1] = value
+		return bedline(self.fields2line(fields))
+
 class bed:
-	def __init__(self, input):
+	def __init__(self, input=None, **kwargs):
 		self.file = input
+		if self.file == None:
+			if kwargs['lines']:
+				self.lines = kwargs['lines']
 
 	def getTotalRegionLength(self):
 		totalLength = 0
-		filein = open(self.file, 'r')
-		for line in filein:
-			ll = line.split('\t')
-			beg = int(ll[1])
-			end = int(ll[2])
-			regionLength = end - beg
-			totalLength += regionLength
-		return totalLength
+		if self.file:
+			filein = open(self.file, 'r')
+			for line in filein:
+				ll = line.split('\t')
+				beg = int(ll[1])
+				end = int(ll[2])
+				regionLength = end - beg
+				totalLength += regionLength
+			return totalLength
+		elif self.lines:
+			for line in self.lines:
+				ll = line.split('\t')
+				beg = int(ll[1])
+				end = int(ll[2])
+				regionLength = end - beg
+				totalLength += regionLength
+			return totalLength
+		return None
 
 	def getColumnNumber(self):
 		firstLine = open(self.file, 'r').readline().strip()
@@ -144,10 +174,14 @@ class bed:
 
 	def getHitNum(self):
 		hitNum = 0
-		filein = open(self.file, 'r')
-		for line in filein:
-			hitNum += 1
-		return hitNum
+		if self.file:
+			filein = open(self.file, 'r')
+			for line in filein:
+				hitNum += 1
+			return hitNum
+		if self.lines:
+			return(len(self.lines))
+		return None
 	
 
 	def fixRange(self, side, length):
@@ -326,6 +360,116 @@ def bedLine2fixedRangedLine(bedLine, side, length, strandFlag=True):
 	ll[2] = str(newEnd)
 	return '\t'.join(ll)
 	
+class bedintersect(bedline):
+	'''Assumes bed intersect line with 12 columns:
+	chr1    100     200     .       .       +       chr1    150     170     .       .       +
+	chr1    330     2400    .       .       -       chr1    350     370     .       .       -
+	'''
+	def chromosome1(self, c=1):
+		return self.chromosome(c)
+	def chromosome2(self, c=7):
+		return self.chromosome(c)
+	def start1(self, c=2):
+		return self.start(c)
+	def end1(self, c=3):
+		return self.start(c)
+	def start2(self, c=8):
+		return self.start(c)
+	def end2(self, c=9):
+		return self.start(c)
+	def strand1(self, c=6):
+		return self.strand(c)
+	def strand2(self, c=12):
+		return self.strand(c)
+	def length1(self):
+		return self.end1() - self.start1()
+	def length2(self):
+		return self.end2() - self.start2()
+	
+	def sameStrands(self):
+		if not self.strand1() in ['+', '-', '.'] or not self.strand2() in ['+', '-', '.']:
+			raise ValueError('strands are not defined properly: ' + self.strand1() + ' and ' + self.strand2())
+		if self.strand1() == self.strand2():
+			return True
+		return False
+
+	def position2(self, pointOfB='center'):
+		if pointOfB == 'center':
+			position = (float(self.start2()) + float(self.end2())) / 2
+		elif pointOfB == 'start':
+			if self.strand1() == '+':
+				position = self.start2()
+			elif self.strand1() == '-':
+				position = self.end2()
+			elif self.strand1() == '.':
+				position = self.start2()
+			else:
+				raise ValueError('Strand is not defined')		
+		elif pointOfB == 'end':
+			if self.strand1() == '+':
+				position = self.end2()
+			elif self.strand1() == '-':
+				position = self.start2()
+			elif self.strand1() == '.':
+				position = self.end1()
+			else:
+				raise ValueError('Strand is not defined')		
+		else:
+			raise ValueError('pointOfB is not defined as expected (center, start or end): ' + pointOfB)
+		return position
+
+	def relativeDistanceOfPosition2(self, pointOfB= 'center', relativeTo='start'):
+		position = self.position2(pointOfB)
+		if relativeTo == 'start':
+			if self.strand1() == '+':
+				distance = abs(position - self.start1())
+			elif self.strand1() == '-':
+				distance = abs(position - self.end1())
+			else:
+				raise ValueError('relativeTo is not defined as expected (start or end): ' + relativeTo)
+		if relativeTo == 'end':
+			if self.strand1() == '+':
+				distance = abs(position - self.end1())
+			elif self.strand1() == '-':
+				distance = abs(position - self.start1())
+			else:
+				raise ValueError('relativeTo is not defined as expected (start or end): ' + relativeTo)
+		return distance
+
+	def getDistancePercentage(self, pointOfB = 'center', relativeTo = 'start'):
+		return round(100*(self.relativeDistanceOfPosition2(pointOfB, relativeTo) / float(self.length1())))
+
+	def getAbsoluteDistance(self, region = 'main', window= 1, pointOfB = 'center'):
+		if region == 'main' or region == 'downstream':
+			relativeTo = 'start'
+		elif region == 'upstream':
+			relativeTo = 'end'
+		else:
+			raise ValueError('Not a valid region: ' + region)
+		
+		position = self.position2(pointOfB)
+		if relativeTo == 'start':
+			if self.strand1() == '+':
+				distance = abs(position - self.start1())
+			elif self.strand1() == '-':
+				distance = abs(position - self.end1())
+			else:
+				raise ValueError('relativeTo is not defined as expected (start or end): ' + relativeTo)
+		if relativeTo == 'end':
+			if self.strand1() == '+':
+				distance = abs(position - self.end1())
+			elif self.strand1() == '-':
+				distance = abs(position - self.start1())
+			else:
+				raise ValueError('relativeTo is not defined as expected (start or end): ' + relativeTo)
+		if window != 1:
+			distance = math.ceil(distance/window)
+		if region == 'upstream':
+			distance = 0 - distance
+		elif region == 'downstream':
+			distance = distance + 100
+		return distance
+
 
 
 class bedTests(unittest.TestCase):
@@ -381,8 +525,10 @@ class bedTests(unittest.TestCase):
 		self.assertEqual(bedLine.midpoint(), 2601)
 		bedLine = bedline('chr1\t20\t30\tbedpe_example1\t30\t+\n')
 		self.assertEqual(bedLine.centerAndExtent(20), 'chr1\t5\t46\tbedpe_example1\t30\t+')
+		
 		bedLine = bedline('chr1\t20\t30\tbedpe_example1\t30\t-\n')
 		self.assertEqual(bedLine.centerAndExtent(20), 'chr1\t4\t45\tbedpe_example1\t30\t-')
+		self.assertEqual(bedLine.changeField(4, 'newName').getLine(), 'chr1\t20\t30\tnewName\t30\t-')
 
 		bedLine = bedline('chr1\t2\t5\tbedpe_example1\t30\t+\n')
 		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AAG')
@@ -420,6 +566,44 @@ class bedTests(unittest.TestCase):
 			])
 		bedLine = bedline(newLines[0])
 		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AGCTAAA')
+
+
+	def test_bedIntersect(self):
+		bedIntersectLine = 'chr1\t100\t500\t.\t.\t+\tchr1\t130\t150\t.\t.\t+\n'
+		bedIntersect = bedintersect(bedIntersectLine)
+		self.assertEqual(bedIntersect.length1(), 400)
+		self.assertEqual(bedIntersect.length2(), 20)
+		self.assertEqual(bedIntersect.position2(), 140)
+		self.assertEqual(bedIntersect.relativeDistanceOfPosition2(), 40)
+		self.assertEqual(bedIntersect.getDistancePercentage(), 10)
+		self.assertEqual(bedIntersect.sameStrands(), True)
+
+		bedIntersectLine = 'chr1\t100\t500\t.\t.\t-\tchr1\t130\t150\t.\t.\t+\n'
+		bedIntersect = bedintersect(bedIntersectLine)
+		self.assertEqual(bedIntersect.length1(), 400)
+		self.assertEqual(bedIntersect.length2(), 20)
+		self.assertEqual(bedIntersect.position2(), 140)
+		self.assertEqual(bedIntersect.relativeDistanceOfPosition2(), 360)
+		self.assertEqual(bedIntersect.getDistancePercentage(), 90)
+		self.assertEqual(bedIntersect.relativeDistanceOfPosition2('start'), 350)
+		self.assertEqual(bedIntersect.relativeDistanceOfPosition2('end'), 370)
+		self.assertEqual(bedIntersect.getDistancePercentage(), 90)
+		self.assertEqual(bedIntersect.getDistancePercentage('start', 'start'), 88)
+		# self.assertEqual(bedIntersect.getDistancePercentage('end', 'start'), 93)
+		self.assertEqual(bedIntersect.getDistancePercentage('start', 'end'), 13)
+		self.assertEqual(bedIntersect.getDistancePercentage('end', 'end'), 8)
+		self.assertEqual(bedIntersect.getDistancePercentage(), 90)
+
+		bedIntersectLine = 'chr1\t100\t500\t.\t.\t-\tchr1\t136\t150\t.\t.\t+\n'
+		bedIntersect = bedintersect(bedIntersectLine)
+		self.assertEqual(bedIntersect.getDistancePercentage(), 89)
+		self.assertEqual(bedIntersect.sameStrands(), False)
+		self.assertEqual(bedIntersect.getAbsoluteDistance(), 357)
+		self.assertEqual(bedIntersect.getAbsoluteDistance('upstream', 1), -43)
+		self.assertEqual(bedIntersect.getAbsoluteDistance('upstream', 10), -5)
+		self.assertEqual(bedIntersect.getAbsoluteDistance('upstream', 20), -3)
+		self.assertEqual(bedIntersect.getAbsoluteDistance('downstream'), 457)
+		self.assertEqual(bedIntersect.getAbsoluteDistance('downstream', 10), 136)
 
 if __name__ == "__main__":
 	unittest.main()

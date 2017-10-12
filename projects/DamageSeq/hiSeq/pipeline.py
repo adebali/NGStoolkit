@@ -6,6 +6,8 @@ import generalUtils
 import bed
 from glob import glob
 import argparse
+sys.path.append('../..')
+from referenceGenomePath import referenceGenomePath
 
 # Required tools in path
 # bowtie
@@ -61,6 +63,8 @@ class myPipe(pipe):
             self.sampleMinPyrCount = 7700464
         if int(self.group) == 2:
             self.sampleMinPyrCount = 1833986
+
+        self.paths = referenceGenomePath()
 
         # if self.product == 'CPD' or self.product == '_6-4':
         #     self.motifRegex = '\'.{4}(T|C|t|c)(T|C|t|c).{4}\'' # Get sequences pyrimidine dimer at the positions 5 and 6.
@@ -142,6 +146,8 @@ class myPipe(pipe):
 
     def changeDefaultValues(self, key):
         if key == "hg19":
+            self.reference = self.paths.get(key)
+
             self.referenceNickname = 'hg19'
             output = pipeTools.listOperation(self.addExtraWord, 
             self.output, '.hg19')
@@ -172,6 +178,8 @@ class myPipe(pipe):
                 self.STAT3 = ["/nas/longleaf/home/adebali/ogun/ENCODE/Txn/STAT3_ENCFF001VFM.bed"]
         elif key == "hg19_nucleosome":
             self.referenceNickname = 'hg19nuc'
+            self.reference = self.paths.get(self.referenceNickname)
+            
             output = pipeTools.listOperation(self.addExtraWord, self.output, '.hg19nuc')
             self.saveOutput(output)
             self.bowtie_reference = '/nas02/home/a/d/adebali/ogun/ENCODE/hg19/nucleosome/hg19'
@@ -185,6 +193,26 @@ class myPipe(pipe):
             self.void147bed = generalUtils.file('/proj/sancarlb/users/ogun/ENCODE/hg19/nucleosome/hg19.147.bed')
         return self
     
+    def prettyOutput(self, customWord = ''):
+        newOutputs = []
+        for o in self.output:
+            if 'Plus' in o:
+                extraWord = '_Plus'
+            elif 'Minus' in o:
+                extraWord = '_Minus'
+            else:
+                extraWord = ''
+
+            if '_TS' in o:
+                extraWord += '_TS'
+            elif '_NTS' in o:
+                extraWord += '_NTS'
+
+            extension = pipeTools.getExtension(o)
+            newOutputs.append(os.path.join(os.path.dirname(o),self.treatment_title + extraWord + customWord + '.' + extension))
+        return newOutputs
+
+
     def cutadapt_fastq2fastq(self):
         output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
         self.saveOutput(output)
@@ -251,6 +279,63 @@ class myPipe(pipe):
             '-g', self.chromosome_limits, # Chomosomal lengths, needed in case region shift goes beyond the chromosomal limits.
             '-b', slopB,
             '-s', # Take strand into account
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def normalizeCounts_txt2txt(self):
+        if self.runFlag and self.runMode:
+            self.scaleFactor = float(1000000)/self.internalRun(bed.bed(self.finalBed).getHitNum, [], self.runFlag, 'get hit number')
+        else:
+            self.scaleFactor = 1
+        codeList = [
+            'bedCount2normalizedCount.py',
+            '-i', self.input,
+            '-c', 7,
+            '-m', self.scaleFactor,
+            '-l', 1000,
+            # '--bypassLength',
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def relativeCount_txt2txt(self):
+        codeList = [
+            'bedCount2relativeRatio.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+
+    def makeBed6_bed2bed(self):
+        codeList = [
+            'bed4tobed6.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+
+    def transcriptStrandCount_bed2txt(self):
+        newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
+        self.saveOutput(newOutput)
+        self.saveOutput(self.prettyOutput('_transcriptCounts'))
+        strandParameters = ['-S', '-s'] #[different strand, same strand]
+        self.input = [self.input[0], self.input[0]]
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference["transcripts"],
+            '-b', self.input,
+            '-wa',
+            '-c',
+            strandParameters,
+            '-F', 0.50,
             '>', self.output
         ]
         self.execM(codeList)
@@ -404,6 +489,17 @@ class myPipe(pipe):
         self.execM(codeList)
         self.finalBed = self.output[0]
         return self
+
+    # def getCounts_bed2bed(self):
+    #     codeList = [
+    #         'getCounts.py',
+    #         '-b', self.input,
+    #         '-o', self.output,
+    #         '-a', self.intervalFile
+    #         '-fasta', self.fasta_reference
+    #     ]
+    #     self.execM(codeList)
+    #     return self
 
 
     def convertBedpeToSingleFrame_bedpe2bed(self):
@@ -1530,6 +1626,13 @@ p = myPipe(input)
         .run(p.sortBed_bed2bed, False)
 
         .branch(True)
+            .run(p.makeBed6_bed2bed, True)
+            .run(p.transcriptStrandCount_bed2txt, True)
+            .run(p.normalizeCounts_txt2txt, True)
+            .run(p.relativeCount_txt2txt, True)
+        .stop()
+
+        .branch(False)
             .run(p.countRepeats_bed2txt, False)
             .run(p.repeatToAllRatio_txt2txt, True)
         .stop()
@@ -1596,7 +1699,7 @@ p = myPipe(input)
             .run(p.addAllMeta_txt2txt, True)
         .stop()
 
-        .branch(True)
+        .branch(False)
             .run(p.separateStrands_bed2bed, False)
             
             .branch(True)

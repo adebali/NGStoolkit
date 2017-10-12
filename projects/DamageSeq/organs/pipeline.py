@@ -7,7 +7,8 @@ import bed
 from glob import glob
 import argparse
 import argument
-
+sys.path.append('../..')
+from referenceGenomePath import referenceGenomePath
 
 class myPipe(pipe):
     def __init__(self, input, args = argument.args()):
@@ -27,38 +28,12 @@ class myPipe(pipe):
         self.chromosome_limits = generalUtils.file('/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai')
         input1 = self.input
         input2 = generalUtils.in2out(self.input, '.1.fastq', '.2.fastq')
-        self.saveInput([input1, input2])
+        self.saveInput([input1])
         self.genesBedFile = "/proj/sancarlb/users/ogun/seq/mm10/geneList.bed"
-
-        self.mm10 = {
-            "name": "",
-            "bowtie": "/proj/seq/data/MM10_UCSC/Sequence/BowtieIndex/genome",
-            "fasta": "/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa",
-            "limits": "/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai",
-            "genes": "/proj/sancarlb/users/ogun/seq/mm10/geneList_yy_6.bed",
-            "chmm": {
-                "liver": "NA",
-                "spleen": "NA",
-                "kidney": "NA",
-                "testes": "NA"
-            }
-        }
-        self.mm9 = {
-            "name": "_mm9",
-            "bowtie": "/proj/seq/data/MM9_UCSC/Sequence/BowtieIndex/genome",
-            "fasta": "/proj/seq/data/MM9_UCSC/Sequence/WholeGenomeFasta/genome.fa",
-            "limits": "/proj/seq/data/MM9_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai",
-            "genes": "NA",
-            "chmm": {
-                "liver": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/liver_cStates_HMM",
-                "spleen": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/spleen_cStates_HMM",
-                "kidney": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/kidney_cStates_HMM",
-                "testes": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/testes_cStates_HMM"
-            }
-        }
+        self.paths = referenceGenomePath()
     
     def catFiles(self, wildcard, headers, output):
-        code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "tail --lines=+2 " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
+        code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
         print(code)
         os.system(code)
 
@@ -69,35 +44,26 @@ class myPipe(pipe):
         fullWildcard = os.path.join(directory, wildcard)
         return fullWildcard
 
-    def mergeGeneCounts(self):
-        wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "_*S")
-        headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['TSNTS']
-        output = os.path.join(self.outputDir, '..', 'merged_geneCounts.txt')
-        self.catFiles(wildcard, headers, output)
-        return self
-
     def cutadapt_fastq2fastq(self):
-        output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
-        self.saveOutput(output)
+        output = [os.path.join(self.outputDir, os.path.basename(self.output[0]))]
         adapter = 'GACTGGTTCCAATTGAAAGTGCTCTTCCGATCT'
         codeList = [
             'cutadapt',
             '--discard-trimmed', # Remove the reads containing the adapter sequence. If a read contains adapter, it is because of the artifact, no damage is expected on this read.
             '-g', adapter, # The adapter is located at the 5' end
-            '-o', self.output[0],
-            '-p', self.output[1],
-            self.input[0],
-            self.input[1]
+            '-o', output,
+            self.input,
         ]
         self.execM(codeList)
+        self.saveOutput(output)
         return self
 
-    def bowtie_fastq2sam(self, referenceDictionary):
-        output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
-        self.saveOutput([self.addExtraWord(output[0], referenceDictionary["name"])])
+    def bowtie_fastq2sam(self, reference):
+        self.reference = self.paths.get(reference)
+        
         codeList = [
             'bowtie',
-            '-t', referenceDictionary["bowtie"],
+            '-t', self.reference["bowtie"],
             '-q', # FASTAQ input (default)
             '--nomaqround', # Do NOT round MAC
             '--phred33-quals', # Depends on the sequencing platform
@@ -106,11 +72,9 @@ class myPipe(pipe):
             '-X', 1000,
             '--seed', 123, # Randomization parameter in bowtie,
             '-p', 8,
-            '-1', self.input[0],
-            '-2', self.input[1],
+            self.input,
             self.output
         ]
-        self.referenceDictionary = referenceDictionary
         self.execM(codeList)
         return self
 
@@ -166,12 +130,10 @@ class myPipe(pipe):
     #     return self
 
     def getNucleotideAbundanceTable_fa2csv(self):
-        nucleotideOrder = 'TCGA'
         codeList = [
-            'fa2nucleotideAbundanceTable.py',
+            'fa2kmerAbundanceMeltedData.py',
             '-i', self.input,
             '-o', self.output,
-            '-n', nucleotideOrder,
             '--percentage'
         ]
         self.execM(codeList)
@@ -181,14 +143,14 @@ class myPipe(pipe):
         codeList = [
             'plotNucleotideAbundance.r',
             self.input,
-            self.treatment
+            self.treatment_title
         ]
         self.execM(codeList)
         return self
 
     def getDimerAbundanceTable_fa2csv(self):
         codeList = [
-            'fa2kmerAbundanceTable.py',
+            'fa2kmerAbundanceMeltedData.py',
             '-i', self.input,
             '-o', self.output,
             '-k', 2,
@@ -201,7 +163,7 @@ class myPipe(pipe):
         codeList = [
             'plotNucleotideFreqLine.r',
             self.input,
-            self.treatment
+            self.treatment_title
         ]
         self.execM(codeList)
         return self
@@ -210,8 +172,7 @@ class myPipe(pipe):
         codeList = [
             'samtools',
             'view',
-            '-bf', '0x2', #	each segment properly aligned according to the aligner
-            #'-Sb'
+            '-Sb',
             '-o',
             self.output,
             self.input
@@ -223,8 +184,30 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'bamtobed',
-            '-bedpe',
-            '-mate1',
+            '-i', self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+   
+    def uniqueSort_bed2bed(self):
+        codeList = [
+            'sort',
+            '-u',
+            '-k1,1',
+            '-k2,2n',
+            '-k3,3n',
+            self.input,
+            '>', self.output
+        ]
+        self.finalBed = self.output[0]
+        self.execM(codeList)
+        return self
+
+    def convertToBed_bam2bed(self):
+        codeList = [
+            'bedtools',
+            'bamtobed',
             '-i', self.input,
             '>', self.output
         ]
@@ -296,21 +279,7 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def geneMap_bed2bed(self):
-        codeList = [
-            'bedtools',
-            'intersect',
-            '-wa',
-            '-a', self.genesBedFile,
-            '-b', self.input,
-            '-c',
-            '-F', 0.5,
-            '>', self.output
-        ]
-        self.execM(codeList)
-        return self
-
-    def geneStrandMap_bed2bed(self):
+    def geneStrandMap_bed2txt(self):
         newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
         self.saveOutput(newOutput)
         strandParameters = ['-S', '-s'] #[different strand, same strand]
@@ -318,7 +287,7 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.referenceDictionary["genes"],
+            '-a', self.reference["genes"],
             '-b', self.input,
             '-wa',
             '-c',
@@ -374,20 +343,6 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def uniqueSort_bed2bed(self):
-        codeList = [
-            'sort',
-            '-u',
-            '-k1,1',
-            '-k2,2n',
-            '-k3,3n',
-            self.input,
-            '>', self.output
-        ]
-        self.finalBed = self.output[0] 
-        self.execM(codeList)
-        return self
-
     def addTreatmentAndStrand_txt2txt(self):
         columns = self.list2attributes(self.attributes)
         columnStringList = [' '.join(columns + ['TS']), ' '.join(columns + ['NTS'])]
@@ -399,6 +354,91 @@ class myPipe(pipe):
         ]
         self.execM(codeList)
         return self
+
+    def splitByStrand_bed2bed(self):
+        strand = ['+', '-']
+        output = [
+            self.addExtraWord(self.output[0], '_Plus'), 
+            self.addExtraWord(self.output[0], '_Minus')
+        ]
+        self.saveOutput(output)
+        self.saveOutput(self.prettyOutput())
+        codeList = [
+            'grep',
+            strand,
+            self.input[0],
+            '>',
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def convertToBedGraph_bed2bdg(self):
+        if self.runFlag and self.runMode:
+            scaleFactor = float(1000000)/self.internalRun(bed.bed(self.input[0]).getHitNum, [], self.runFlag, 'get hit number')
+        else:
+            scaleFactor = 1
+        codeList = [
+            'bedtools',
+            'genomecov',
+            '-i', self.input,
+            '-g', self.reference['limits'],
+            '-bg',
+            '-scale', scaleFactor,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def toBigWig_bdg2bw(self):
+        codeList = [
+            'bedGraphToBigWig',
+            self.input,
+            self.reference['limits'],
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def mergeGeneCounts(self, extraWord = ""):
+        wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "_*S")
+        headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['TSNTS']
+        output = os.path.join(self.outputDir, '..', 'merged_geneCounts' + extraWord + '.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def prettyOutput(self):
+        newOutputs = []
+        for o in self.output:
+            if 'Plus' in o:
+                extraWord = '_Plus'
+            elif 'Minus' in o:
+                extraWord = '_Minus'
+            else:
+                extraWord = ''
+            extension = pipeTools.getExtension(o)
+            newOutputs.append(os.path.join(os.path.dirname(o),self.treatment_title + extraWord + '.' + extension))
+        return newOutputs
+   
+    def addTreatment_csv2txt(self):
+        columns = self.list2attributes(self.attributes)
+        columnStringList = ' '.join(columns)
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', columnStringList
+        ]
+        self.execM(codeList)
+        return self
+
+    def mergeNucleotideAbundance(self, extraWord = ""):
+        wildcard = self.fullPath2wildcard(self.input[0])
+        headers = ['position', 'sequence', 'value'] + self.attributes
+        output = os.path.join(self.outputDir, '..', 'merged_nucAbu' + extraWord + '.txt')
+        self.catFiles(wildcard, headers, output)
+        return self    
+
 
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq ZT Pipeline', prog="pipeline.py")
@@ -437,44 +477,52 @@ input = getInputFromIndex(inputIndex)
 p = myPipe(input, args)
 (p
     .run(p.cutadapt_fastq2fastq, False)
-    .run(p.bowtie_fastq2sam, False, p.mm10)
+    .run(p.bowtie_fastq2sam, False, 'mm10')
     .run(p.convertToBam_sam2bam, False)
-    .run(p.convertToBed_bam2bedpe, False)
-    .run(p.uniqueSort_bedpe2bedpe, False)
-    .run(p.convertBedpeToSingleFrame_bedpe2bed, False)
+    .run(p.convertToBed_bam2bed, False)
+    .run(p.uniqueSort_bed2bed, False)
     .run(p.slopBed_bed2bed, False)
     .run(p.convertToFixedRange_bed2bed, False)
     .run(p.sortBed_bed2bed, False)
     .run(p.convertBedToFasta_bed2fa, False)
         
-    .branch(False) # Plot nucleotide abundance
-        .run(p.getNucleotideAbundanceTable_fa2csv, False)
-        .run(p.plotNucleotideAbundance_csv2pdf, False)
+    .branch(True) # Plot nucleotide abundance
+        .run(p.getNucleotideAbundanceTable_fa2csv, True)
+        .run(p.addTreatment_csv2txt, True)
+        .cat(p.mergeNucleotideAbundance, True)
     .stop()
 
-    .branch(False) # Plot dinucleotide abundance
-        .run(p.getDimerAbundanceTable_fa2csv, False)
-        .run(p.plotDinucleotideAbundance_csv2pdf, False)
+    .branch(True) # Plot dinucleotide abundance
+        .run(p.getDimerAbundanceTable_fa2csv, True)
+        .run(p.addTreatment_csv2txt, True)
+        .cat(p.mergeNucleotideAbundance, True, '_diNuc')
     .stop()
 
     .run(p.getDamageSites_fa2bed, False)
     .run(p.uniqueSort_bed2bed, False)
 
-    .branch(True)
-        .run(p.geneStrandMap_bed2bed, False)
-        .run(p.normalizeCounts_txt2txt, False)
+    .branch(False)
+        .run(p.splitByStrand_bed2bed, False)
         
-        .branch()
-            .run(p.addTreatmentAndStrand_txt2txt, True)
-            .cat(p.mergeGeneCounts, True)
+        .branch(False)
+            .run(p.convertToBedGraph_bed2bdg, False)
+            .run(p.toBigWig_bdg2bw, False)
         .stop()
-    .stop()    
-
-    .run(p.separateStrands_bed2bed, False)
+    .stop()
 
     .branch(False)
-        .run(p.geneMap_bed2bed, False)
-        .run(p.categorizeTSvsNTS_bed2txt, False)
-    .stop()
+        .run(p.geneStrandMap_bed2txt, False)
+        
+        .branch(False)
+            .run(p.addTreatmentAndStrand_txt2txt, False)
+            .cat(p.mergeGeneCounts, False, '_noNorm')
+        .stop()
+        
+        .branch(False)
+            .run(p.normalizeCounts_txt2txt, False)
+            .run(p.addTreatmentAndStrand_txt2txt, False)
+            .cat(p.mergeGeneCounts, False)
+        .stop()
+    .stop()    
 )
 

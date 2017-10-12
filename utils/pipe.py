@@ -2,6 +2,7 @@ import pipeTools
 import sys
 import os
 import argument
+import itertools
 kMaximumIndentation = 10
 
 
@@ -32,6 +33,7 @@ class pipe(object):
         self.branchDependencyLevels = kMaximumIndentation * [None]
         self.i = 0
         self.jobIndex = 0
+        self.subJobIndex = 0
         self.runMode = True
         self.printFlag = True
         self.wmParams = {}
@@ -231,3 +233,9 @@ class pipe(object):
     def exit(self):
         voidClass = void()
         return voidClass
+
+    # def forEach(self, items, command):
+    #     for item in items:
+    #         self.currentKeyItem = item
+
+    #         return self

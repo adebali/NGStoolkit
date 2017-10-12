@@ -335,7 +335,7 @@ class fasta:
 			out.write("\n")
 		return 1
 
-	def writeKmerAbundanceMeltedData(self, kmerAbundanceDict, output, dictionary = {}, percentage=False, append=False):
+	def writeKmerAbundanceMeltedData(self, kmerAbundanceDict, output, dictionary = {}, percentage=False, append=False, headerFlag=False):
 		introducedList = []
 		dictionaryKeys = sorted(dictionary.keys())
 		for key in sorted(dictionaryKeys):
@@ -350,7 +350,8 @@ class fasta:
 		separator = '\t'
 		myDict = {}
 		out = open(output, writeMode)
-		out.write(separator.join(headerList) + '\n')
+		if headerFlag:
+			out.write(separator.join(headerList) + '\n')
 		for position in kmerAbundanceDict.keys():
 			for kmer in kmerAbundanceDict[position].keys():
 				value = kmerAbundanceDict[position][kmer]

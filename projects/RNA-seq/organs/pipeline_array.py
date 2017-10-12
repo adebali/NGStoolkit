@@ -40,7 +40,7 @@ if args.e:
     samples = list(set(samples) - set(exclude))
 
 parameters = {
-    "--job-name=": "XR-seq_barcode_pipeline",
+    "--job-name=": "RNA-seq_Mouse_Organs",
     "-n ": 1,
     # "-n ": 4,
     # "--mem=": 128000,

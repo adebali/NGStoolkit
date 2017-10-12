@@ -8,6 +8,8 @@ import bed
 from glob import glob
 import argparse
 import argument
+sys.path.append('../..')
+from referenceGenomePath import referenceGenomePath
 
 # Required tools in path
 # bowtie
@@ -25,44 +27,14 @@ class myPipe(pipe):
         sampleDictionary = generalUtils.table2dictionary(SAMPLE_STAT_FILE, 'sample')[input][0]
         self.attributes = sorted(sampleDictionary.keys())
         self = pipeTools.assignProperty(self, sampleDictionary)
-        # input = generalUtils.file(os.path.realpath(os.path.join('dataDir', 'raw', input)))
         input = os.path.realpath(os.path.join('dataDir', 'raw', input))
         self.saveInput([self.input, self.input.replace("_R1_001.fastq", "_R2_001.fastq")])
-
-        self.mm10 = {
-            "name": "",
-            "bowtie": "/proj/seq/data/MM10_UCSC/Sequence/BowtieIndex/genome",
-            "fasta": "/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa",
-            "limits": "/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai",
-            # "genes": "/proj/sancarlb/users/ogun/seq/mm10/geneList_6.bed",
-            "genes": "/proj/sancarlb/users/ogun/seq/mm10/geneList_yy_6.bed",
-            "chmm": {
-                "liver": "NA",
-                "spleen": "NA",
-                "kidney": "NA",
-                "testes": "NA"
-            }
-        }
-        self.mm9 = {
-            "name": "_mm9",
-            "bowtie": "/proj/seq/data/MM9_UCSC/Sequence/BowtieIndex/genome",
-            "fasta": "/proj/seq/data/MM9_UCSC/Sequence/WholeGenomeFasta/genome.fa",
-            "limits": "/proj/seq/data/MM9_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai",
-            "genes": "NA",
-            "chmm": {
-                "liver": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/liver_cStates_HMM",
-                "spleen": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/spleen_cStates_HMM",
-                "kidney": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/kidney_cStates_HMM",
-                "testes": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/testes_cStates_HMM"
-            }
-        }
-
-        self.readNumber = 1000000
-
+        self.paths = referenceGenomePath()
+        self.reference = self.paths.get('mm10')
+        
     def catFiles(self, wildcard, headers, output):
-        code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "tail --lines=+2 " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
+        code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
         os.system(code)
-
 
     def fullPath2wildcard(self, fullPath):
         basename = os.path.basename(fullPath)
@@ -83,7 +55,6 @@ class myPipe(pipe):
             extension = pipeTools.getExtension(o)
             newOutputs.append(os.path.join(os.path.dirname(o),self.treatment_title + extraWord + '.' + extension))
         return newOutputs
-
 
     def bowtie_fastq2sam(self, referenceDictionary):
         output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
@@ -142,12 +113,11 @@ class myPipe(pipe):
             'tophat',
             '--bowtie1',
             '-o', self.tophatDirectory,
-            self.mm10['bowtie'],
+            self.reference['bowtie'],
             self.input[0],
             self.input[1]
         ]
         self.execM(codeList)
-        self.referenceDictionary = self.mm10
         return self
    
     def convertToBed_bam2bed(self):
@@ -178,7 +148,6 @@ class myPipe(pipe):
         return self
 
     def geneMap_bed2txt(self):
-        print(self.output)
         newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
         self.saveOutput(newOutput)
         strandParameters = ['-S', '-s'] #[different strand, same strand]
@@ -186,7 +155,7 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.referenceDictionary["genes"],
+            '-a', self.reference["genes"],
             '-b', self.input,
             '-wa',
             '-c',
@@ -226,11 +195,57 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def mergeGeneCounts(self):
+    def writeTotalMappedReads_bed2txt(self):
+        codeList = [
+            'grep -c "^"',
+            self.input,
+            '>',
+            self.output
+        ]
+        self.totalMappedReadsFile = self.output[0]
+        self.execM(codeList)
+        return self
+
+    def mergeGeneCounts(self, extraWord = ""):
         wildcard = self.fullPath2wildcard(self.input[0])
         headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes
-        output = os.path.join(self.outputDir, '..', 'merged_geneCounts.txt')
+        output = os.path.join(self.outputDir, '..', 'merged_geneCounts' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
+        os.system("Rscript dcast.r " + output + ' ' + output.replace('.txt', '_dcasted.txt'))
+        return self
+   
+    def toBg_bed2bg(self):
+        try:
+            totalMappedReads = int(open(self.totalMappedReadsFile, 'r').readline())
+        except:
+            if self.runFlag == True and self.runMode == True:
+                raise ValueError('no read count file')
+            totalMappedReads = 1000000
+        scaleFactor = float(1000000) / totalMappedReads
+        # if self.runFlag and self.runMode:
+        #     scaleFactor = float(1000000)/self.internalRun(bed.bed(self.input[0]).getHitNum, [], self.runFlag, 'get hit number')
+        # else:
+        #     scaleFactor = 1
+        codeList = [
+            'bedtools',
+            'genomecov',
+            '-i', self.input,
+            '-g', self.reference["limits"],
+            '-bg',
+            '-scale', scaleFactor,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def toBw_bg2bw(self):
+        codeList = [
+            'bedGraphToBigWig',
+            self.input,
+            self.reference["limits"],
+            self.output
+        ]
+        self.execM(codeList)
         return self
 
 def getArgs():
@@ -270,7 +285,7 @@ input = getInputFromIndex(inputIndex)
 ###########################################################
 p = myPipe(input, args)
 (p
-    .branch()
+    .branch(False)
         .run(p.fastqc_fastq2html, False)
     .stop()
 
@@ -278,10 +293,26 @@ p = myPipe(input, args)
     .run(p.convertToBed_bam2bed, False)
     .run(p.uniqueSort_bed2bed, False)
 
+    .branch(False)
+        .run(p.writeTotalMappedReads_bed2txt, False)
+    .stop()
+
     .branch(True)
-        .run(p.geneMap_bed2txt, True)
-        .run(p.normalizeCounts_txt2txt, True)
-        .run(p.addTreatment_txt2txt, True)
+        .run(p.geneMap_bed2txt, False)
+
+        .branch(True)
+            .run(p.addTreatment_txt2txt, False)
+            .cat(p.mergeGeneCounts, True, "_noNorm")
+        .stop()
+
+        .run(p.normalizeCounts_txt2txt, False)
+        .run(p.addTreatment_txt2txt, False)
         .cat(p.mergeGeneCounts, True)
+   
+    .stop()
+
+    .run(p.toBg_bed2bg, False)
+    .run(p.toBw_bg2bw, False)
+
     .stop()
 )

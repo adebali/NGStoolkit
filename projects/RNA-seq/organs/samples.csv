@@ -7,3 +7,11 @@ no,group,sample,organ,treatment,replicate,treatment_title
 6,1,RNALung_cis_GTGAAA_S5_L001_R1_001.fastq,lung,cisplatin,A,RNA_lung_cis_A
 7,1,RNASpleen_GTGGCC_S4_L001_R1_001.fastq,spleen,control,A,RNA_spleen_con_A
 8,1,RNASpleen_cis_GTTTCG_S3_L001_R1_001.fastq,spleen,cisplatin,A,RNA_spleen_cis_A
+9,2,RNAKidneyB_AGTTCC_S5_L001_R1_001.fastq,kidney,control,B,RNA_kidney_con_B
+10,2,RNAKidneyB_cis_CGTACG_S4_L001_R1_001.fastq,kidney,cisplatin,B,RNA_kidney_cis_B
+11,2,RNALiverB_AGTCAA_S3_L001_R1_001.fastq,liver,control,B,RNA_liver_con_B
+12,2,RNALiverB_cis_GTTTCG_S2_L001_R1_001.fastq,liver,cisplatin,B,RNA_liver_cis_B
+13,2,RNALungB_GTCCGC_S1_L001_R1_001.fastq,lung,control,B,RNA_lung_con_B
+14,2,RNALungB_cis_ACTGAT_S6_L001_R1_001.fastq,lung,cisplatin,B,RNA_lung_cis_B
+15,2,RNASpleenB_GTGGCC_S7_L001_R1_001.fastq,spleen,control,B,RNA_spleen_con_B
+16,2,RNASpleenB_cis_ATTCCT_S8_L001_R1_001.fastq,spleen,cisplatin,B,RNA_spleen_cis_B

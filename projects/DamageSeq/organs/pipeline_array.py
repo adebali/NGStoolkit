@@ -39,8 +39,7 @@ if args.e:
 
 parameters = {
     "--job-name=": "DS_Organ_Pipeline",
-    "-n ": 8,
-    # "--mem=": 128000,
+    "-n ": 1,
     "--mem=": 32000,
     "--time=": "2-00:00:00",
     "--output=": "./log/%A_%a.out",
@@ -54,7 +53,13 @@ if not reportFlag:
     job = slurm.Slurm('python pipeline.py run -n $SLURM_ARRAY_TASK_ID')
     job.assignParams(parameters)
     job.printScript()
-    job.run()
+    jobId = job.run()
+
+    catJob = slurm.Slurm('python pipeline.py cat')
+    catJob.assignParams(parameters)
+    catJob.setDependencies([jobId])
+    catJob.printScript()
+    catJobId = catJob.run()
 else:
     os.system('rm report.txt')
     os.system('python pipeline.py -n 1 --outputCheck | cut -d\' \' -f 1 | xargs | sed -e \'s/ /,/g\' >report.txt')

@@ -54,5 +54,5 @@ for gene_id in masterTSdict.keys():
     start = dictionary['start']
     end = dictionary['end']
     strand = dictionary['strand']
-    out.write(chromosome + '\t' + str(start) + '\t' + str(end) + '\t.\t.\t' + strand + '\n')
+    out.write(chromosome + '\t' + str(start) + '\t' + str(end) + '\t' + gene_id + '\t.\t' + strand + '\n')
 out.close()

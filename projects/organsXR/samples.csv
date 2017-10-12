@@ -8,3 +8,17 @@ no,group,sample,product,treatment,treatment_title,replicate
 8,1,AYLUNG-CISPL_ACTTGA.fastq,GG,Lung,XRseq_Lung_B,B
 5,1,SPLEEN-CISPL_GATCAG.fastq,GG,Spleen,XRseq_Spleen_A,A
 9,1,AYSPLEEN-CISPL_GATCAG.fastq,GG,Spleen,XRseq_Spleen_B,B
+10,1,XRKidney_A_GGCTAC.fastq,GG,Kidney,XRseq_Kidney_C,C
+11,1,XRKidney_B_AGTTCC.fastq,GG,Kidney,XRseq_Kidney_D,D
+12,1,XRLung_A_CTTGTA.fastq,GG,Lung,XRseq_Lung_C,C
+13,1,XRLung_B_ATGTCA.fastq,GG,Lung,XRseq_Lung_D,D
+14,1,XRSpleen_A_AGTCAA.fastq,GG,Spleen,XRseq_Spleen_C,C
+15,1,XRSpleen_B_CCGTCC.fastq,GG,Spleen,XRseq_Spleen_D,D
+16,2,XRKidney_C-_GGCTAC.fastq,GG,Kidney,XRseq_Kidney_E,E
+17,2,XRKidney_D-_CCGTCC.fastq,GG,Kidney,XRseq_Kidney_F,F
+18,2,XRLung_C-_CTTGTA.fastq,GG,Lung,XRseq_Lung_E,E
+19,2,XRLung_D-_GTAGAG.fastq,GG,Lung,XRseq_Lung_F,F
+20,2,XRSpleen_C-_AGTCAA.fastq,GG,Spleen,XRseq_Spleen_E,E
+21,2,XRSpleen_D-_GTCCGC.fastq,GG,Spleen,XRseq_Spleen_F,F
+22,3,HaCat_A-_AGTTCC.fastq,GG,NA,XRseq_HaCat_A,A
+23,3,HaCat_B-_ATGTCA.fastq,GG,NA,XRseq_HaCat_B,B

@@ -2,9 +2,27 @@ import os
 
 class referenceGenomePath(object):
     def __init__(self):
+
+        hg19_root = "/proj/seq/data/HG19_UCSC"
+        hg19_custom_root = "/proj/sancarlb/users/ogun/seq/hg19"
+        self.hg19 = {
+            "name": "_hg19",
+            "bowtie": os.path.join(hg19_root, "Sequence/BowtieIndex/genome"),
+            "fasta": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa"),
+            "limits": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
+            "transcripts": os.path.join(hg19_custom_root, "geneTranscripts_sorted.bed"),
+            "TSS": "NA",
+            "TES": "NA",
+            # "genes": "NA",
+            "chromatinStates": "NA",
+            "LAD": os.path.join(hg19_custom_root, "LADcenter_w100bp_noY_bed6.bed") # http://compbio.med.harvard.edu/modencode/webpage/lad/human.fibroblast.DamID.hg19.bed
+
+        }
+
+        self.hg19nuc = self.hg19
+
         mm10_ucsc_root = "/proj/seq/data/MM10_UCSC/Sequence"
         mm10_custom_root = "/proj/sancarlb/users/ogun/seq/mm10"
-
         self.mm10 = {
             "name": "",
             "bowtie": os.path.join(mm10_ucsc_root, "BowtieIndex/genome"),
@@ -43,8 +61,23 @@ class referenceGenomePath(object):
             "bowtie": os.path.join(TAIR10_root, "Sequence/BowtieIndex/genome"),
             "fasta": os.path.join(TAIR10_root, "Sequence/WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(TAIR10_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
-            "genes": "NA",
-            "chmm": "NA"
+            "transcripts": os.path.join(TAIR10_custom_root, "rna_singleIsoform_chr.bed"),       
+            "genes": os.path.join(TAIR10_custom_root, "protein_coding_genes_chr.bed"),
+            "chromatinStates": os.path.join(TAIR10_custom_root, "chromatinStatesSorted.bed"),
+            "dnase": os.path.join(TAIR10_custom_root, "DHSs_chr_center1kb_w10.bed"),
+            "TSS": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_w100_TSS.bed"),
+            "TES": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_w100_TES.bed"),
+            "TSS_Q1": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q1.bed_w100_TSS.bed"),
+            "TES_Q1": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q1.bed_w100_TES.bed"),
+            "TSS_Q2": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q2.bed_w100_TSS.bed"),
+            "TES_Q2": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q2.bed_w100_TES.bed"),
+            "TSS_Q3": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q3.bed_w100_TSS.bed"),
+            "TES_Q3": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q3.bed_w100_TES.bed"),
+            "TSS_Q4": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q4.bed_w100_TSS.bed"),
+            "TES_Q4": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q4.bed_w100_TES.bed"),
+            "transcripts2": os.path.join(TAIR10_custom_root, "Hetzel_sorted_noEdge10K.bed")
+            # "transcripts2": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K.bed"),
+            
         }
 
         TAIR9_root = "/proj/seq/data/TAIR9/Arabidopsis_thaliana/Ensembl/TAIR9"
@@ -55,11 +88,24 @@ class referenceGenomePath(object):
             "fasta": os.path.join(TAIR9_root, "Sequence/WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(TAIR9_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
             "transcripts": os.path.join(TAIR9_custom_root, "transcripts.bed"),
-            "TSS": os.path.join(TAIR9_custom_root, "transcripts_gt4K_sorted_TSS_w100.bed"),
-            "TES": os.path.join(TAIR9_custom_root, "transcripts_gt4K_sorted_TES_w100.bed"),
-            "genes": "NA",
-            "chmm": "NA"
+            "TSS": os.path.join(TAIR9_custom_root, "transcripts_noOv4K_gt4K_w100_TSS.bed"),
+            "TES": os.path.join(TAIR9_custom_root, "transcripts_noOv4K_gt4K_w100_TES.bed"),
+            # "genes": "NA",
+            "chromatinStates": os.path.join(TAIR9_custom_root, "chromatinStatesSorted.bed")
         }
+
+        NC_000913_2_root = "/nas02/home/a/d/adebali/ncbi/ecoli"
+        self.NC_000913_2 = {
+            "name": "NC000913.2",
+            "bowtie": os.path.join(NC_000913_2_root, "NC_000913.2", "NC_000913.2"),
+            "fasta": os.path.join(NC_000913_2_root, "NC_000913.2", "NC_000913.2.chr.fa"),
+            "geneTT": os.path.join(NC_000913_2_root, "NC_000913.2", "NC_000913.2.genes.AA_TT.bed"),
+            "geneNames": os.path.join(NC_000913_2_root, "NC_000913.2", "NC_000913.2.genes.txt"),
+            "limits": os.path.join(NC_000913_2_root, "NC_000913.2", "NC_000913.2.chr.sizes"),
+            "genes": os.path.join(NC_000913_2_root, "NC_000913.2", "NC_000913.2.chr.genes.bed6.bed"),
+            "lacOperon": os.path.join(NC_000913_2_root, "NC_000913.2", "NC_000913.2.chr.lacOperon.bed")
+        }
+
 
     def get(self, key): return self.__getattribute__(key)
 

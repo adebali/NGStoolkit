@@ -37,6 +37,7 @@ def run(codeList, runFlag=True):
 		print('--|\t' + code)
 
 def file(input):
+	return input
 	if os.path.isfile(input):
 		return input
 	else:

@@ -13,6 +13,7 @@ parser.add_argument('-n', required=True, help='window number for each interval')
 parser.add_argument('-start', default=0, type=int, required=False, help='start of the relative position')
 parser.add_argument('-winLength', default=1, type=int, required=False, help='window length')
 parser.add_argument('--writePosition', action='store_true', help='writes out the position as well, should be used with --mergeStrands')
+parser.add_argument('--average', action='store_true', help='calculates the average instead of the total count')
 
 
 args = parser.parse_args()
@@ -25,10 +26,15 @@ startPosition = args.start
 
 strands = { '+' : [0] * windowNumber, '-': [0] * windowNumber}
 i = 0
+geneNo = 0
 for line in filein:
 	position = i%windowNumber
+	if position == 0:
+		geneNo += 1
 	bedLine = bed.bedline(line)
 	strand = bedLine.strand()
+	if strand == '.':
+		strand = '+'
 	count = float(bedLine.fields()[-1])
 	strands[strand][position] += count
 	i += 1
@@ -48,6 +54,8 @@ print(strands)
 for e in lists:
 	i = 0
 	for positionCount in e:
+		if args.average:
+			positionCount = float(positionCount)/ geneNo
 		position = startPosition + (i * windowLength)
 		i += 1
 		line = ''

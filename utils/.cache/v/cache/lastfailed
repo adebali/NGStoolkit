@@ -1,0 +1,5 @@
+{
+  "test_pfm.py::test_pfm": true,
+  "tests/test_bed.py::test_bedIntersect": true,
+  "tests/test_bed.py::test_bedline2": true
+}

@@ -1,6 +1,5 @@
 import os
 import sys
-import unittest
 import random
 import pybedtools
 import math
@@ -415,7 +414,7 @@ class bedintersect(bedline):
 			else:
 				raise ValueError('Strand is not defined')		
 		else:
-			raise ValueError('pointOfB is not defined as expected (center, start or end): ' + pointOfB)
+			raise ValueError('pointOfB is not defined as expected (center, start or end): ' + str(pointOfB))
 		return position
 
 	def relativeDistanceOfPosition2(self, pointOfB= 'center', relativeTo='start'):
@@ -470,140 +469,3 @@ class bedintersect(bedline):
 			distance = distance + 100
 		return distance
 
-
-
-class bedTests(unittest.TestCase):
-
-	def test_bedpeLine2bedLine(self):
-		bedpeLine = 'chr1\t100\t200\tchr1\t5000\t5100\tbedpe_example1\t30\t+\t-\n'
-		expectedResult1 = 'chr1\t100\t5100\tbedpe_example1\t30\t+'
-		self.assertEqual(bedpeLine2bedLine(bedpeLine), expectedResult1)
-		bedpeLineMinus = 'chr1\t1000\t1200\tchr1\t900\t950\tbedpe_example2\t30\t-\t+\n'
-		expectedResult2 = 'chr1\t900\t1200\tbedpe_example2\t30\t-'
-		self.assertEqual(bedpeLine2bedLine(bedpeLineMinus), expectedResult2)
-		bedpeLineCustomFields = bedpeLine.strip() + '\tField1\tField2\n'
-		expectedResult3 = expectedResult1 + '\tField1\tField2'
-		self.assertEqual(bedpeLine2bedLine(bedpeLineCustomFields), expectedResult3)
-
-
-	def test_bedLine2fixedRangeLine(self):
-		bedLine = 'chr1\t100\t5100\tbedpe_example1\t30\t+\n'
-		expectedResult = 'chr1\t100\t120\tbedpe_example1\t30\t+'
-		self.assertEqual(bedLine2fixedRangedLine(bedLine, 'l', 20), expectedResult)
-		expectedResult = 'chr1\t5075\t5100\tbedpe_example1\t30\t+'
-		self.assertEqual(bedLine2fixedRangedLine(bedLine, 'r', 25), expectedResult)
-
-		bedLine2 = 'chr1\t100000212\t100000296\tHISEQ:355:C9U5RANXX:4:1310:14307:58329\t255\t+'
-		expectedResult2 = 'chr1\t100000212\t100000222\tHISEQ:355:C9U5RANXX:4:1310:14307:58329\t255\t+'
-		self.assertEqual(bedLine2fixedRangedLine(bedLine2, 'l', 10), expectedResult2)
-
-		bedLine3 = 'chr1\t100\t150\tHISEQ:355:C9U5RANXX:4:1310:14307:58329\t255\t-'
-		expectedResult3 = 'chr1\t140\t150\tHISEQ:355:C9U5RANXX:4:1310:14307:58329\t255\t-'
-		self.assertEqual(bedLine2fixedRangedLine(bedLine3, 'l', 10), expectedResult3)
-
-		bedLine4 = 'chr1\t100\t150\tHISEQ:355:C9U5RANXX:4:1310:14307:58329\t255\t-'
-		expectedResult4 = 'chr1\t100\t110\tHISEQ:355:C9U5RANXX:4:1310:14307:58329\t255\t-'
-		self.assertEqual(bedLine2fixedRangedLine(bedLine3, 'r', 10), expectedResult4)
-
-	# def test_bedClass(self):
-	# 	myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/bedExample.bed'))
-	# 	myBed.fixRange('l', 10)
-
-	# 	myBed = bed(os.path.join(os.path.dirname(os.path.realpath(__file__)),'testFiles/genes.bed'))
-	# 	myBed.removeNeighbors(20)
-
-	def test_bedline2(self):
-		bedLine = bedline('chr1\t100\t5100\tbedpe_example1\t30\t+\n')
-		self.assertEqual(bedLine.fields(), ['chr1','100','5100','bedpe_example1','30','+'])
-		self.assertEqual(bedLine.chromosome(), 'chr1')
-		self.assertEqual(bedLine.start(), 100)
-		self.assertEqual(bedLine.end(), 5100)
-		self.assertEqual(bedLine.midpoint(True), 2600)
-		self.assertEqual(bedLine.newline(10,20), 'chr1\t10\t20\tbedpe_example1\t30\t+')
-		self.assertEqual(bedLine.newline(10,20, {6: "-"}), 'chr1\t10\t20\tbedpe_example1\t30\t-')
-		bedLine = bedline('chr1\t100\t5103\tbedpe_example1\t30\t+\n')
-		self.assertEqual(bedLine.midpoint(), 2601)
-		bedLine = bedline('chr1\t20\t30\tbedpe_example1\t30\t+\n')
-		self.assertEqual(bedLine.centerAndExtent(20), 'chr1\t5\t46\tbedpe_example1\t30\t+')
-		
-		bedLine = bedline('chr1\t20\t30\tbedpe_example1\t30\t-\n')
-		self.assertEqual(bedLine.centerAndExtent(20), 'chr1\t4\t45\tbedpe_example1\t30\t-')
-		self.assertEqual(bedLine.changeField(4, 'newName').getLine(), 'chr1\t20\t30\tnewName\t30\t-')
-
-		bedLine = bedline('chr1\t2\t5\tbedpe_example1\t30\t+\n')
-		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AAG')
-		bedLine = bedline('chr1\t2\t5\tbedpe_example1\t30\t-\n')
-		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'CTT')
-		bedLine = bedline('chr1\t0\t5\tbedpe_example1\t30\t+\n')
-		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AAAAG')
-		bedLine = bedline('chr1\t1\t5\tbedpe_example1\t30\t+\n')
-		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AAAG')
-		matrixString = '''
-			A [1 8 4]
-			T [9 8 6]
-			G [0 2 0]
-			C [0 0 0]'''
-		
-		bedLine = bedline('chr1\t2\t20\tbedpe_example1\t30\t+\n')
-		newLines = bedLine.getNewLinesWithPfm('utils/testFiles/bed.fa', matrixString, True)
-		self.assertEqual(newLines, [
-			'chr1\t11\t14\tbedpe_example1\t30\t+',
-			'chr1\t7\t10\tbedpe_example1\t30\t-',
-			'chr1\t8\t11\tbedpe_example1\t30\t-',
-			])
-		bedLine = bedline(newLines[0])
-		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'TTT')
-		
-		matrixString = '''
-			A [9 1 4 1 9 9 9]
-			T [1 1 6 8 0 0 0]
-			G [0 9 0 9 0 0 0]
-			C [0 0 9 0 0 0 0]'''
-		bedLine = bedline('chr1\t2\t20\tbedpe_example1\t30\t+\n')
-		newLines = bedLine.getNewLinesWithPfm('utils/testFiles/bed.fa', matrixString, True)
-		self.assertEqual(newLines, [
-			'chr1\t3\t10\tbedpe_example1\t30\t+'
-			])
-		bedLine = bedline(newLines[0])
-		self.assertEqual(bedLine.getSequence('utils/testFiles/bed.fa'), 'AGCTAAA')
-
-
-	def test_bedIntersect(self):
-		bedIntersectLine = 'chr1\t100\t500\t.\t.\t+\tchr1\t130\t150\t.\t.\t+\n'
-		bedIntersect = bedintersect(bedIntersectLine)
-		self.assertEqual(bedIntersect.length1(), 400)
-		self.assertEqual(bedIntersect.length2(), 20)
-		self.assertEqual(bedIntersect.position2(), 140)
-		self.assertEqual(bedIntersect.relativeDistanceOfPosition2(), 40)
-		self.assertEqual(bedIntersect.getDistancePercentage(), 10)
-		self.assertEqual(bedIntersect.sameStrands(), True)
-
-		bedIntersectLine = 'chr1\t100\t500\t.\t.\t-\tchr1\t130\t150\t.\t.\t+\n'
-		bedIntersect = bedintersect(bedIntersectLine)
-		self.assertEqual(bedIntersect.length1(), 400)
-		self.assertEqual(bedIntersect.length2(), 20)
-		self.assertEqual(bedIntersect.position2(), 140)
-		self.assertEqual(bedIntersect.relativeDistanceOfPosition2(), 360)
-		self.assertEqual(bedIntersect.getDistancePercentage(), 90)
-		self.assertEqual(bedIntersect.relativeDistanceOfPosition2('start'), 350)
-		self.assertEqual(bedIntersect.relativeDistanceOfPosition2('end'), 370)
-		self.assertEqual(bedIntersect.getDistancePercentage(), 90)
-		self.assertEqual(bedIntersect.getDistancePercentage('start', 'start'), 88)
-		# self.assertEqual(bedIntersect.getDistancePercentage('end', 'start'), 93)
-		self.assertEqual(bedIntersect.getDistancePercentage('start', 'end'), 13)
-		self.assertEqual(bedIntersect.getDistancePercentage('end', 'end'), 8)
-		self.assertEqual(bedIntersect.getDistancePercentage(), 90)
-
-		bedIntersectLine = 'chr1\t100\t500\t.\t.\t-\tchr1\t136\t150\t.\t.\t+\n'
-		bedIntersect = bedintersect(bedIntersectLine)
-		self.assertEqual(bedIntersect.getDistancePercentage(), 89)
-		self.assertEqual(bedIntersect.sameStrands(), False)
-		self.assertEqual(bedIntersect.getAbsoluteDistance(), 357)
-		self.assertEqual(bedIntersect.getAbsoluteDistance('upstream', 1), -43)
-		self.assertEqual(bedIntersect.getAbsoluteDistance('upstream', 10), -5)
-		self.assertEqual(bedIntersect.getAbsoluteDistance('upstream', 20), -3)
-		self.assertEqual(bedIntersect.getAbsoluteDistance('downstream'), 457)
-		self.assertEqual(bedIntersect.getAbsoluteDistance('downstream', 10), 136)
-
-if __name__ == "__main__":
-	unittest.main()

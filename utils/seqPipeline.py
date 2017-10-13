@@ -4,7 +4,6 @@
 
 import os
 import sys
-import unittest
 import fastq
 import bed
 import fasta

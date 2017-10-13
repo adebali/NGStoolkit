@@ -13,7 +13,7 @@
                 "WaitOnNormalExit",
                 "RedirectOutput"
             ]
-        },       
+        },
         {
             "name": "Python3",
             "type": "python",

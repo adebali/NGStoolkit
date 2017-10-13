@@ -1,7 +1,6 @@
 import os
 import re
 import itertools
-import unittest
 
 kDNAcomplementaryDictionary = {
 	'A':'T', 'T':'A', 'G':'C', 'C':'G',
@@ -66,7 +65,7 @@ class Sequence:
 class DNA(Sequence):
 	def reverseComplement(self):
 		seq_dict = kDNAcomplementaryDictionary
-		return DNA("".join([seq_dict[base] for base in reversed(self.sequence)]))
+		return DNA("".join([seq_dict[base] for base in reversed(self.sequence)]), False)
 
 class reMotif(object):
 	def __init__(self, input, ignorecaseFlag=True):
@@ -123,38 +122,5 @@ class consensus(reMotif):
 				newString += upperLetter
 		return newString
 
-class tests(unittest.TestCase):
-	def test_reverseComplement(self):
-		sequence = DNA('ATCGGCAntAxXGCG')
-		self.assertEqual(sequence.reverseComplement().getSequence(), 'CGCXxTanTGCCGAT')
 
-	def test_subseq(self):
-		sequence = DNA('AATTTAGCGTTAGCTGCTTTT')	
-		self.assertEqual(sequence.subseq(2, 5).getSequence(), 'TTT')
-
-	def test_motifCount(self):
-		sequence = DNA('AATTTAGCGTTAGCTGCTTTT')	
-		self.assertEqual(sequence.motifCount('TT'), 6)
-
-	def test_motifClass(self):
-		motif = reMotif('(A|T)CGC')
-		complementMotif = reMotif('(T|A)GCG')
-		reverseMotif = reMotif('CGC(T|A)')
-		reverseComplementMotif = reMotif('GCG(A|T)')
-		self.assertEqual(motif.DNA_complement().reverse().getPatternAsString(), reverseComplementMotif.getPatternAsString())
-		self.assertEqual(motif.reverse().getPatternAsString(), reverseMotif.getPatternAsString())
-		self.assertEqual(motif.DNA_complement().getPatternAsString(), complementMotif.getPatternAsString())
-		self.assertEqual(motif.getIndexList('acgtACgCaaaACGCaaaa'), ([4, 11], [8,15]))
-
-	def test_consensus(self):
-		consensusString = 'NBNBATTTCCSGGAARTSNNN'
-		con = consensus(consensusString)
-		self.assertEqual(con.getPatternAsString(), '.(C|G|T).(C|G|T)(A)(T)(T)(T)(C)(C)(C|G)(G)(G)(A)(A)(A|G)(T)(C|G)...')
-
-	def test_DNA(self):
-		dna = DNA("ATGC")
-		self.assertEqual(dna.reverseComplement().getSequence(), "GCAT")
-
-if __name__ == "__main__":
-	unittest.main()
 

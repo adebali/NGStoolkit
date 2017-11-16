@@ -90,7 +90,7 @@ class bedline:
 
 	def singleFastaToSequence(self, fastaString):
 		lines = fastaString.strip().split("\n")
-		return("".join(lines[1:]))
+		return("".join(lines[1:]).strip())
 
 	def getSequence(self, fastaInput):
 		return self.singleFastaToSequence(self.getFasta(fastaInput)).upper()
@@ -247,8 +247,11 @@ class bed:
 					print('\t'.join(newLineList))
 
 	def read(self):
-		filein = open(self.file, 'r')
-		for line in filein:
+		if hasattr(self, 'input'):
+			lines = open(self.file, 'r')
+		else:
+			lines = self.lines
+		for line in lines:
 			yield(bedline(line))
 
 	def removeNeighbors(self, distance):
@@ -388,7 +391,7 @@ class bedintersect(bedline):
 	def sameStrands(self):
 		if not self.strand1() in ['+', '-', '.'] or not self.strand2() in ['+', '-', '.']:
 			raise ValueError('strands are not defined properly: ' + self.strand1() + ' and ' + self.strand2())
-		if self.strand1() == self.strand2():
+		if self.strand1().replace('.', '+') == self.strand2().replace('.', '+'):
 			return True
 		return False
 
@@ -420,14 +423,14 @@ class bedintersect(bedline):
 	def relativeDistanceOfPosition2(self, pointOfB= 'center', relativeTo='start'):
 		position = self.position2(pointOfB)
 		if relativeTo == 'start':
-			if self.strand1() == '+':
+			if self.strand1() == '+' or self.strand1() == '.':
 				distance = abs(position - self.start1())
 			elif self.strand1() == '-':
 				distance = abs(position - self.end1())
 			else:
 				raise ValueError('relativeTo is not defined as expected (start or end): ' + relativeTo)
 		if relativeTo == 'end':
-			if self.strand1() == '+':
+			if self.strand1() == '+' or self.strand1() == '.':
 				distance = abs(position - self.end1())
 			elif self.strand1() == '-':
 				distance = abs(position - self.start1())
@@ -448,14 +451,14 @@ class bedintersect(bedline):
 		
 		position = self.position2(pointOfB)
 		if relativeTo == 'start':
-			if self.strand1() == '+':
+			if self.strand1() == '+' or self.strand1() == '.':
 				distance = abs(position - self.start1())
 			elif self.strand1() == '-':
 				distance = abs(position - self.end1())
 			else:
 				raise ValueError('relativeTo is not defined as expected (start or end): ' + relativeTo)
 		if relativeTo == 'end':
-			if self.strand1() == '+':
+			if self.strand1() == '+' or self.strand1() == '.':
 				distance = abs(position - self.end1())
 			elif self.strand1() == '-':
 				distance = abs(position - self.start1())

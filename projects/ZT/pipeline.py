@@ -8,11 +8,9 @@ import bed
 from glob import glob
 import argparse
 import argument
-
-# Required tools in path
-# bowtie
-# bedtools
-# samtools
+sys.path.append('..')
+from referenceGenomePath import referenceGenomePath
+import tempfile
 
 class myPipe(pipe):
     def __init__(self, input, args = argument.args()):
@@ -27,34 +25,8 @@ class myPipe(pipe):
         self = pipeTools.assignProperty(self, sampleDictionary)
         input = generalUtils.file(os.path.realpath(os.path.join('dataDir', 'raw', input)))
         self.saveInput([self.input])
-        
-        self.mm10 = {
-            "name": "",
-            "bowtie": "/proj/seq/data/MM10_UCSC/Sequence/BowtieIndex/genome",
-            "fasta": "/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa",
-            "limits": "/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai",
-            # "genes": "/proj/sancarlb/users/ogun/seq/mm10/geneList_6.bed",
-            "genes": "dataDir/mm10_geneList_yy_6.bed",
-            "chmm": {
-                "liver": "NA",
-                "spleen": "NA",
-                "kidney": "NA",
-                "testes": "NA"
-            }
-        }
-        self.mm9 = {
-            "name": "_mm9",
-            "bowtie": "/proj/seq/data/MM9_UCSC/Sequence/BowtieIndex/genome",
-            "fasta": "/proj/seq/data/MM9_UCSC/Sequence/WholeGenomeFasta/genome.fa",
-            "limits": "/proj/seq/data/MM9_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai",
-            "genes": "NA",
-            "chmm": {
-                "liver": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/liver_cStates_HMM",
-                "spleen": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/spleen_cStates_HMM",
-                "kidney": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/kidney_cStates_HMM",
-                "testes": "/nas/longleaf/home/adebali/ogun/seq/mm9/chromatin_states_chromHMM_mm9/testes_cStates_HMM"
-            }
-        }
+        self.paths = referenceGenomePath()
+
 
         self.readNumber = 1000000
 
@@ -84,15 +56,16 @@ class myPipe(pipe):
         return newOutputs
 
 
-    def bowtie_fastq2sam(self, referenceDictionary):
+    def bowtie_fastq2sam(self, referenceGenome = 'mm10'):
+        self.reference = self.paths.get(referenceGenome)
         output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
-        self.saveOutput([self.addExtraWord(output[0], referenceDictionary["name"])])
+        self.saveOutput([self.addExtraWord(output[0], self.reference["name"])])
         noCpus = 1
         self.mutateWmParams({'-n ': str(noCpus)})
         output = [self.output[0]]
         codeList = [
             'bowtie',
-            '-t', referenceDictionary["bowtie"],
+            '-t', self.reference["bowtie"],
             '-q', # FASTAQ input (default)
             '--nomaqround', # Do NOT round MAC
             '--phred33-quals', # Depends on the sequencing platform
@@ -156,7 +129,7 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def countGene_bed2txt(self, referenceDictionary):
+    def countGene_bed2txt(self):
         newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
         self.saveOutput(newOutput)
         strandParameters = ['-S', '-s'] #[different strand, same strand]
@@ -164,7 +137,7 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', referenceDictionary["genes"],
+            '-a', self.reference["genes"],
             '-b', self.input,
             '-wa',
             '-c',
@@ -199,8 +172,8 @@ class myPipe(pipe):
         self.catFiles(wildcard, headers, output)
         return self
 
-    def countChmm_bed2bed(self, reference):
-        chmmFile = reference["chmm"][self.organ]
+    def countChmm_bed2bed(self):
+        chmmFile = self.reference["chmm"][self.organ]
         codeList = [
             'bedtools',
             'intersect',
@@ -216,6 +189,130 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def tssTes_bed2txt(self, args={}):
+        bedAfile = self.reference[args.get('bedA', 'genesNR')]
+
+        random = args.get('random', False)
+        if random:
+            output = [
+                self.addExtraWord(self.output[0], '_random'),
+            ]
+            self.saveOutput(output)
+
+        averageLength = totalRecord = totalMappedReads = perNmappedReads= 1
+        if self.runMode == True and self.runFlag == True:
+            inputBed = bed.bed(self.input[0])
+            totalMappedReads = inputBed.getHitNum()
+            bedA = bed.bed(bedAfile)
+            averageLength = bedA.getAverageLength()
+            totalRecord = bedA.getHitNum()
+            perNmappedReads = 1000000
+        
+        shuffleCode = [
+            'bedtools',
+            'shuffle',
+            '-i', bedAfile,
+            '-g', self.reference['limits'],
+            '|',
+            'sort',
+            '-k1,1',
+            '-k2,2n',
+            '-k3,3n'
+        ]
+
+
+        codeList = [
+            'cat',
+            bedAfile
+        ]
+
+        codeList += [
+            '|',
+            'bedtools',
+            'intersect',
+            '-a', 'stdin',
+            '-b', self.input,
+            '-wa',
+            '-wb',
+            '-F', 0.50,
+            '|',
+            'bedIntersect2positionTxt.py',
+            # '>', 'output.1.txt',
+            # '&&',
+            # 'cat', 'output.1.txt'
+            '|',
+            'bedIntersectPositionCount.py',
+            '-count', 7,
+            '-cat', 8,
+            '-ends', 'remove',
+            '-scale',
+            1/float(totalRecord),
+            100/float(averageLength),
+            perNmappedReads/float(totalMappedReads),
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        
+        _temp, temp = tempfile.mkstemp()
+
+        windowLength = 50
+        oneSideFlankingLength = 5000
+
+        # if random:
+            # prepareAbedCodeList = list(shuffleCode)
+        # else:
+        prepareAbedCodeList = [
+            'cat',
+            bedAfile
+        ]
+        prepareAbedCodeList += [
+            '|',
+            'bed2updownstream.py',
+            '--fixed',
+            '-l', oneSideFlankingLength,
+            '|',
+            'bed2removeChromosomeEdges.py',
+            '--fixed',
+            '-l', oneSideFlankingLength,
+            '-g', self.reference['limits'],
+            '>', temp
+        ]
+        self.execM(prepareAbedCodeList)
+
+        totalRecord = 1
+        if self.runMode == True and self.runFlag == True:
+            bedA = bed.bed(temp)
+            totalRecord = bedA.getHitNum()/2
+
+        flankingCodeList = [
+            'bedtools',
+            'intersect',
+            # '-a', 'stdin',
+            '-a', temp,
+            '-b', self.input,
+            '-wa',
+            '-wb',
+            '-F', 0.50,
+            '|',
+            'bedIntersect2positionTxt.py',
+            '--flanking',
+            '--fixed',
+            '-w', windowLength,
+            '|',
+            'bedIntersectPositionCount.py',
+            '-count', 7,
+            '-cat', 4, 8,
+            '-ends', 'remove',
+            '-scale', 
+            1/float(totalRecord), 
+            1/float(windowLength),
+            perNmappedReads/float(totalMappedReads),
+            '>>', self.output,
+            '&&',
+            'rm', temp
+        ]
+        self.execM(flankingCodeList)
+        return self
 
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq ZT Pipeline', prog="pipeline.py")
@@ -254,30 +351,34 @@ input = getInputFromIndex(inputIndex)
 ###########################################################
 p = myPipe(input, args)
 (p
-    .run(p.bowtie_fastq2sam, False, p.mm10)
+    .run(p.bowtie_fastq2sam, False, 'mm10')
     .run(p.convertToBam_sam2bam, False)
     .run(p.convertToBed_bam2bed, False)
     .run(p.uniqueSort_bed2bed, False)
 
     .branch(True)
-        .run(p.countGene_bed2txt, False, p.mm10)
-        .run(p.normalizeCounts_txt2txt, True)
+        .run(p.countGene_bed2txt, False)
+        .run(p.normalizeCounts_txt2txt, False)
         
         .branch()
-            .run(p.addTreatmentAndStrand_txt2txt, True)
-            .cat(p.mergeGeneCounts, True)
+            .run(p.addTreatmentAndStrand_txt2txt, False)
+            .cat(p.mergeGeneCounts, False)
         .stop()
+    .stop()
+
+    .branch(True)
+        .run(p.tssTes_bed2txt, True)
     .stop()
 )
 
 # Chromatin State Analysis on MM9
 p = myPipe(input, args)
 (p
-    .run(p.bowtie_fastq2sam, False, p.mm9)
+    .run(p.bowtie_fastq2sam, False, 'mm9')
     .run(p.convertToBam_sam2bam, False)
     .run(p.convertToBed_bam2bed, False)
     .run(p.uniqueSort_bed2bed, False)
-    .run(p.countChmm_bed2bed, False, p.mm9)
+    .run(p.countChmm_bed2bed, False)
 )
 
 # def f(x):

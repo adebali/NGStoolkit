@@ -8,6 +8,7 @@ class referenceGenomePath(object):
         self.hg19 = {
             "name": "_hg19",
             "bowtie": os.path.join(hg19_root, "Sequence/BowtieIndex/genome"),
+            "salmon_quasi": os.path.join(hg19_custom_root, 'transcriptome', 'Homo_sapiens.GRCh38.all.quasi_k31_index'),
             "fasta": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
             "transcripts": os.path.join(hg19_custom_root, "geneTranscripts_sorted.bed"),
@@ -29,6 +30,7 @@ class referenceGenomePath(object):
             "fasta": os.path.join(mm10_ucsc_root, "WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(mm10_ucsc_root, "WholeGenomeFasta/genome.fa.fai"),
             "genes": os.path.join(mm10_custom_root, "geneList_yy_6.bed"),
+            "genesNR": os.path.join(mm10_custom_root, "mm10_genesNR.bed"),
             "chmm": {
                 "liver": "NA",
                 "spleen": "NA",
@@ -64,7 +66,14 @@ class referenceGenomePath(object):
             "transcripts": os.path.join(TAIR10_custom_root, "rna_singleIsoform_chr.bed"),       
             "genes": os.path.join(TAIR10_custom_root, "protein_coding_genes_chr.bed"),
             "chromatinStates": os.path.join(TAIR10_custom_root, "chromatinStatesSorted.bed"),
-            "dnase": os.path.join(TAIR10_custom_root, "DHSs_chr_center1kb_w10.bed"),
+            # "chmm36": os.path.join(TAIR10_custom_root, "Liu2017", "chrStates_noEdge_short.bed"),
+            "chmm36": os.path.join(TAIR10_custom_root, "Liu2017", "chrStates_noEdge.bed"),
+            "chmm36_shuffled": os.path.join(TAIR10_custom_root, "Liu2017", "chrStates_noEdge_shuffled.bed"),
+            "epigeneticMarkers": os.path.join(TAIR10_custom_root, "Liu2017", "epigeneticMarks", "epigeneticMarkers.bed"),
+            "epigeneticMarkers_shuffled": os.path.join(TAIR10_custom_root, "Liu2017", "epigeneticMarks", "epigeneticMarkers_shuffled.bed"),
+            "CCA1potentialGenes": os.path.join(TAIR10_custom_root, "Liu2017", "epigeneticMarks", "CCA1-SRX997425_potentialGenes.bed"),
+            # "dnase": os.path.join(TAIR10_custom_root, "DHSs_chr_center1kb_w10.bed"),
+            "dnase": os.path.join(TAIR10_custom_root, "DHSs_chr.bed"),
             "TSS": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_w100_TSS.bed"),
             "TES": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_w100_TES.bed"),
             "TSS_Q1": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q1.bed_w100_TSS.bed"),
@@ -75,9 +84,11 @@ class referenceGenomePath(object):
             "TES_Q3": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q3.bed_w100_TES.bed"),
             "TSS_Q4": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q4.bed_w100_TSS.bed"),
             "TES_Q4": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K_sortByScore.bed_Q4.bed_w100_TES.bed"),
-            "transcripts2": os.path.join(TAIR10_custom_root, "Hetzel_sorted_noEdge10K.bed")
+            "transcripts2": os.path.join(TAIR10_custom_root, "Hetzel_sorted_noEdge10K.bed"),
+            "transcriptsNoNeighbor5K": os.path.join(TAIR10_custom_root, "Hetzel_sorted_noEdge10K_noNeighborIn5K.bed"),
             # "transcripts2": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K.bed"),
-            
+            "originOfReplication": os.path.join(TAIR10_custom_root, "Gutierrez_DNA_replication_origin_TAIR10_GBROWSE.bed"),
+            "originOfReplication_shuffled": os.path.join(TAIR10_custom_root, "Gutierrez_DNA_replication_origin_TAIR10_GBROWSE_shuffled.bed")
         }
 
         TAIR9_root = "/proj/seq/data/TAIR9/Arabidopsis_thaliana/Ensembl/TAIR9"

@@ -80,7 +80,7 @@ class pipe(object):
         return self
 
     def cat(self, function, runFlag=True, *nargs):
-        if runFlag and self.args.get("subprogram") == "cat":
+        if runFlag == True and self.branchRunFlag == True and self.args.get("subprogram") == "cat":
             function(*nargs)
         return self
     

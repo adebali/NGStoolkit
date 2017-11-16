@@ -1,0 +1,15 @@
+no,group,sample,product,treatment,treatment_title,replicate,time
+1,1,FC17_s_2.fa,NA,NA,ZT0_A,A,ZT0
+2,1,FC17_s_3.fa,NA,NA,ZT4_A,A,ZT4
+3,1,FC17_s_4.fa,NA,NA,ZT8_A,A,ZT8
+4,1,FC17_s_5.fa,NA,NA,ZT12_A,A,ZT12
+5,1,FC17_s_6.fa,NA,NA,ZT16_A,A,ZT16
+6,1,FC17_s_7.fa,NA,NA,ZT20_A,A,ZT20
+7,1,FC17_s_8.fa,NA,NA,ZT24_A,A,ZT24
+8,1,FC14_s_1.fa,NA,NA,ZT0_B,B,ZT0
+9,1,FC14_s_2.fa,NA,NA,ZT4_B,B,ZT4
+10,1,FC14_s_3.fa,NA,NA,ZT8_B,B,ZT8
+11,1,FC14_s_4.fa,NA,NA,ZT12_B,B,ZT12
+12,1,FC14_s_6.fa,NA,NA,ZT16_B,B,ZT16
+13,1,FC14_s_7.fa,NA,NA,ZT20_B,B,ZT20
+14,1,FC14_s_8.fa,NA,NA,ZT24_B,B,ZT24

@@ -37,5 +37,5 @@ else:
 
 for line in lines:
     bedLine = bed.bedline(line)
-    if bedLine.start() - lengthOfRegion > 0 and bedLine.end() + lengthOfRegion < chromosomeSizes[bedLine.chromosome()]:
+    if (bedLine.start() - lengthOfRegion) > 0 and (bedLine.end() + lengthOfRegion) < chromosomeSizes.get(bedLine.chromosome(), 1e+15):
         out.write(bedLine.getLine() + '\n')

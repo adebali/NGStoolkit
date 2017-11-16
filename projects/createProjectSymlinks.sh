@@ -4,4 +4,5 @@ do
     LINK="./$FILE/dataDir"
     rm -f $LINK
     ln -s /proj/sancarlb/users/ogun/$FILE $LINK
+    mkdir ./$FILE/log
 done

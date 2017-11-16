@@ -58,7 +58,10 @@ for line in filein:
         strands = 'same'
     else:
         strands = 'opposite'
-    fields = intersectLine.fields()[6:]
+    allFields = intersectLine.fields()
+    name1 = allFields[3]
+    fields = allFields[6:]
+    fields[3] = name1.replace('_upstream', '').replace('_downstream', '')
     fields.append(str(distance))
     fields.append(strands)
     newLine = intersectLine.fields2line(fields)

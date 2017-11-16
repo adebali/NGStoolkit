@@ -63,9 +63,13 @@ class Sequence:
 
 
 class DNA(Sequence):
-	def reverseComplement(self):
+	def reverseComplement(self, reverse=True):
 		seq_dict = kDNAcomplementaryDictionary
-		return DNA("".join([seq_dict[base] for base in reversed(self.sequence)]), False)
+		if reverse:
+			string = reversed(self.sequence)
+		else:
+			string = self.sequence
+		return DNA("".join([seq_dict[base] for base in string]), False)
 
 class reMotif(object):
 	def __init__(self, input, ignorecaseFlag=True):

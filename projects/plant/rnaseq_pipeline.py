@@ -1118,6 +1118,15 @@ def getArgs():
     parser_cat.add_argument('--mock', required= False, default=True, action='store_true', help='mock flag')
     parser_cat.add_argument('--noPrint', required= False, default=True, action='store_true', help='prints no code when stated')
 
+
+    parser_cat = subparsers.add_parser('array', help='array help')
+    # parser_cat.add_argument('-n', required= False, default="1", help='input index')
+    parser_cat.add_argument('-s', required= False, nargs="+", help='sample index')
+    parser_cat.add_argument('-g', required= False, nargs="+", help='sample group index')
+    # parser_cat.add_argument('--mock', required= False, default=True, action='store_true', help='mock flag')
+    # parser_cat.add_argument('--noPrint', required= False, default=True, action='store_true', help='prints no code when stated')
+
+
     args = parser.parse_args()
     return argument.args(args)
 
@@ -1131,28 +1140,55 @@ def getInputFromIndex(n):
     return sampleIO(SAMPLE_STAT_FILE, n, 'no', 'sample')
 
 args = getArgs()
-inputIndex = args.get("n")
-input = getInputFromIndex(inputIndex)
+
 
 
 ###########################################################
 #  Pipeline
 ###########################################################
 if __name__ == "__main__":
-    p = pipeline(input, args)
-    (p
+    if args.get("subprogram") == "array":
+        if args.get("g"):
+            sampleNoArg = '-g ' + ','.join(args.get("g"))
+        elif args.get("s"):
+            sampleNoArg = '-s ' + ','.join(args.get("s"))
+        else:
+            sampleNoArg = ''
 
-        .run(p.bowtie_fa2sam, True, 'TAIR10')
-        .run(p.convertToBam_sam2bam, True)
-        .run(p.convertToBed_bam2bed, True)
-        .run(p.uniqueSort_bed2bed, True)
+        if args.get("e"):
+            excludeArg = '-e ' + ','.join(args.get("e"))
+        else:
+            excludeArg = ''
 
-    # Annotated transcript counts
-        .branch(True)
-            .run(p.geneMap_bed2txt, True, "transcripts")
-            .run(p.normalizeCounts_txt2txt, True)
-            .run(p.addTreatment_txt2txt, True)
-            .cat(p.mergeGeneCounts, True, 'merged_RNAcounts.txt')                     
-        .stop()
-    )
+        codeList = [
+            "python",
+            "pipeline_array.py",
+            "-script", os.path.basename(__file__),
+            "-samples", SAMPLE_STAT_FILE,
+            sampleNoArg
+        ]
+        code = ' '.join(codeList)
+        print(code)
+        os.system(code)
+
+    else:
+        inputIndex = args.get("n")
+        input = getInputFromIndex(inputIndex)
+
+        p = pipeline(input, args)
+        (p
+
+            .run(p.bowtie_fa2sam, True, 'TAIR10')
+            .run(p.convertToBam_sam2bam, True)
+            .run(p.convertToBed_bam2bed, True)
+            .run(p.uniqueSort_bed2bed, True)
+
+        # Annotated transcript counts
+            .branch(True)
+                .run(p.geneMap_bed2txt, True, "transcripts")
+                .run(p.normalizeCounts_txt2txt, True)
+                .run(p.addTreatment_txt2txt, True)
+                .cat(p.mergeGeneCounts, True, 'merged_RNAcounts.txt')                     
+            .stop()
+        )
 ###########################################################

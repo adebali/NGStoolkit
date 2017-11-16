@@ -13,3 +13,10 @@ no,group,sample,product,treatment,treatment_title,replicate,time
 12,1,FC14_s_6.fa,NA,NA,ZT16_B,B,ZT16
 13,1,FC14_s_7.fa,NA,NA,ZT20_B,B,ZT20
 14,1,FC14_s_8.fa,NA,NA,ZT24_B,B,ZT24
+15,1,FC17i_s_1.fa,NA,NA,ZT0_C,C,ZT0
+16,1,FC17i_s_2.fa,NA,NA,ZT4_C,C,ZT4
+17,1,FC17i_s_3.fa,NA,NA,ZT8_C,C,ZT8
+18,1,FC17i_s_4.fa,NA,NA,ZT12_C,C,ZT12
+19,1,FC17i_s_6.fa,NA,NA,ZT16_C,C,ZT16
+20,1,FC17i_s_7.fa,NA,NA,ZT20_C,C,ZT20
+21,1,FC17i_s_8.fa,NA,NA,ZT24_C,C,ZT24

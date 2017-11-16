@@ -6,5 +6,13 @@
     "python.unitTest.pyTestEnabled": false,
     "python.unitTest.promptToConfigure": false,
     "python.unitTest.unittestEnabled": false,
-    "python.unitTest.nosetestsEnabled": false
+    "python.unitTest.nosetestsEnabled": false,
+    "files.exclude": {
+        "**/.cache": true,
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true
+    }
 }

@@ -93,6 +93,17 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def addTreatment_txt2txt(self):
+        columns = self.list2attributes(self.attributes)
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', ' '.join(columns)
+        ]
+        self.execM(codeList)
+        return self
+
     def convertToBam_sam2bam(self):
         codeList = [
             'samtools',
@@ -169,6 +180,13 @@ class myPipe(pipe):
         wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "_*S")
         headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['TSNTS']
         output = os.path.join(self.outputDir, '..', 'merged_geneCounts.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def mergeTSSTES(self):
+        wildcard = self.fullPath2wildcard(self.input[0])
+        headers = ['position', 'count', 'cat'] + self.attributes
+        output = os.path.join(self.outputDir, '..', 'merged_TSSTES.txt')
         self.catFiles(wildcard, headers, output)
         return self
 
@@ -301,7 +319,7 @@ class myPipe(pipe):
             '|',
             'bedIntersectPositionCount.py',
             '-count', 7,
-            '-cat', 4, 8,
+            '-cat', 8,
             '-ends', 'remove',
             '-scale', 
             1/float(totalRecord), 
@@ -368,6 +386,8 @@ p = myPipe(input, args)
 
     .branch(True)
         .run(p.tssTes_bed2txt, True)
+        .run(p.addTreatment_txt2txt, True)        
+        .cat(p.mergeTSSTES, True)        
     .stop()
 )
 

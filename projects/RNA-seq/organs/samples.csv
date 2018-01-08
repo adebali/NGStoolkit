@@ -15,3 +15,7 @@ no,group,sample,organ,treatment,replicate,treatment_title
 14,2,RNALungB_cis_ACTGAT_S6_L001_R1_001.fastq,lung,cisplatin,B,RNA_lung_cis_B
 15,2,RNASpleenB_GTGGCC_S7_L001_R1_001.fastq,spleen,control,B,RNA_spleen_con_B
 16,2,RNASpleenB_cis_ATTCCT_S8_L001_R1_001.fastq,spleen,cisplatin,B,RNA_spleen_cis_B
+17,3,RNALungC_GTCCGC_S4_L002_R1_001.fastq,lung,control,C,RNA_lung_con_C
+18,3,RNALungC_cis_ACTGAT_S3_L002_R1_001.fastq,lung,cisplatin,C,RNA_lung_cis_C
+19,3,RNASpleenC_GTGGCC_S5_L002_R1_001.fastq,spleen,control,C,RNA_spleen_con_C
+20,3,RNASpleenC_cis_ATTCCT_S6_L002_R1_001.fastq,spleen,cisplatin,C,RNA_spleen_cis_C

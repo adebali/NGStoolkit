@@ -7,7 +7,7 @@ import bed
 from glob import glob
 import argparse
 import argument
-sys.path.append('..')
+sys.path.append('../..')
 from referenceGenomePath import referenceGenomePath
 import numpy
 import tempfile
@@ -15,9 +15,9 @@ import tempfile
 class pipeline(pipe):
     def __init__(self, input, args = argument.args()):
         pipe.__init__(self, input, args)
-        OUTPUT_DIR = '0707'
+        OUTPUT_DIR = '1801'
         SAMPLE_STAT_FILE = 'samples.csv'    
-        self.input = os.path.join(os.path.curdir, 'dataDir', 'raw', self.input)
+        self.input = os.path.join(os.path.curdir, 'dataDir', OUTPUT_DIR, self.input)
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', OUTPUT_DIR))
         os.system('mkdir -p ' + self.outputDir)
         sampleDictionary = generalUtils.table2dictionary(SAMPLE_STAT_FILE, 'sample')[input][0]
@@ -29,16 +29,13 @@ class pipeline(pipe):
             '-n ': 1,
             '-t ': '24:00:00',
             '--job-name=': 'XR-seq',
-            '-o ': 'log_' + self.treatment + '.txt',
-            '-e ': 'err_' + self.treatment + '.txt',
+            '-o ': 'log_' + self.title + '.txt',
+            '-e ': 'err_' + self.title + '.txt',
         }
         self.wmParams = self.defaultWmParams
         self.paths = referenceGenomePath()
-        
-        self.fragmentLengths = range(10, 32+1)
-        self.reference = self.paths.get('TAIR10')
-        # self.fragmentLengths = range(10, 17+1)
-    
+        self.reference = self.paths.get('S288C_R64_2_1')        
+
     def prettyOutput(self):
         newOutputs = []
         for o in self.output:
@@ -49,7 +46,7 @@ class pipeline(pipe):
             else:
                 extraWord = ''
             extension = pipeTools.getExtension(o)
-            newOutputs.append(os.path.join(os.path.dirname(o),self.treatment_title + extraWord + '.' + extension))
+            newOutputs.append(os.path.join(os.path.dirname(o),self.title + extraWord + '.' + extension))
         return newOutputs
 
     def tailFiles(self, wildcard, headers, output):
@@ -168,7 +165,7 @@ class pipeline(pipe):
         return self
 
     def bowtie_fastq2sam(self, referenceGenome = "TAIR9"):
-        noCpus = 8
+        noCpus = 1
         self.reference = self.paths.get(referenceGenome)
         self.mutateWmParams({'-n ': str(noCpus)})
         output = [self.output[0].replace(".sam", self.reference['name'] + ".sam")]
@@ -515,7 +512,7 @@ class pipeline(pipe):
         return self
 
     def transcriptIntersect_bed2txt(self, args={}):
-        transcripts = self.reference[args.get('transcripts', 'transcripts2')]
+        transcripts = self.reference[args.get('genes', 'genes')]
         keyword = args.get('keyword', '')
         output = [self.addExtraWord(self.output[0], keyword)]
         self.saveOutput(output)
@@ -597,8 +594,8 @@ class pipeline(pipe):
         
         _temp, temp = tempfile.mkstemp()
 
-        windowLength = 100
-        oneSideFlankingLength = 10000
+        oneSideFlankingLength = 2000
+        windowLength = oneSideFlankingLength/100
 
         if random:
             prepareAbedCodeList = list(shuffleCode)
@@ -977,7 +974,7 @@ class pipeline(pipe):
 
     def mergeTCR(self, extraWord = '', prefix = ''):
         wildcard =  self.fullPath2wildcard(self.input[0], prefix).replace("_no_neighbor", "*")
-        headers = ['pos', 'count', 'cat', 'label']
+        headers = ['pos', 'count', 'cat'] + self.attributes +  ['label']
         output = os.path.join(self.outputDir, '..', 'merged_TCR' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
         return self
@@ -1141,25 +1138,6 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
-    def GEO_bed2txt(self):
-        GEOtarget = self.reference['geo']
-        codeList = [
-            'cp',
-            self.input,
-            GEOtarget,
-            '&&',
-            'md5sum',
-            os.path.join(GEOtarget, os.path.basename(self.input[0])),
-            '>',
-             os.path.join(GEOtarget,os.path.basename(self.output[0]))         
-        ]
-        self.execM(codeList)
-        return self
-
-    def GEO_fastq2txt(self):
-        self.GEO_bed2txt()
-        return self
-
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq Mouse Organs Pipeline', prog="pipeline.py")
     parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
@@ -1192,422 +1170,53 @@ args = getArgs()
 inputIndex = args.get("n")
 input = getInputFromIndex(inputIndex)
 
-
 ###########################################################
-#  Pipeline
-###########################################################
-if __name__ == "__main__":
+def main():
+    '''Pipeline'''
+    
     p = pipeline(input, args)
     (p
+        .run(p.uniqueSort_bed2bed, False)
+       
+       # TCR Analysis
         .branch(True)
-            .run(p.GEO_fastq2txt, True)
+            .run(p.transcriptIntersect_bed2txt, False)
+            .run(p.addTreatment_txt2txt, False, 'real')
         .stop()
-        .run(p.cutadapt_fastq2fastq, False)
-    # TAIR 9
+
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, False, {'random':True})
+            .run(p.addTreatment_txt2txt, False, 'random')
+        .stop()
 
         .branch(False)
-            .run(p.bowtie_fastq2sam, False, 'TAIR9')
-            .run(p.convertToBam_sam2bam, False)
-            .run(p.convertToBed_bam2bed, False)
-            .run(p.uniqueSort_bed2bed, False)
-            
-            .branch(False)
-                .run(p.lengthDistribution_bed2csv, False)
-                .run(p.plotLengthDistribution_csv2pdf, False)
-            .stop()
-
-            # .branch(False)
-            #     .run(p.separateChromosomes_bed2bed, False)
-
-            #     .branch(False)
-            #         .run(p.lengthDistribution_bed2csv, False)
-            #         .run(p.addTreatment_txt2txt, False)
-            #         .run(p.addChr_csv2csv, False)
-            #         .cat(p.mergeChrLengthDist, False)                
-            #     .stop()
-            # .stop()
-
-            # .branch(True)
-            #     .run(p.get27mer_bed2bed, False)
-
-            #     .branch(False)
-            #         .run(p.separateChromosomes_bed2bed, False)
-
-            #         .branch(False)
-            #             .run(p.convertBedToFasta_bed2fa, False)
-            #             .run(p.getNucleotideAbundanceTable_fa2csv, False)
-            #             .run(p.addLengthChr_csv2csv, False)
-            #             .cat(p.mergeChrNucleotideFrequencies, False)
-            #         .stop()
-            #     .stop()
-                
-            #     .branch(False)
-            #         .run(p.convertBedToFasta_bed2fa, False)
-            #         .run(p.getNucleotideAbundanceTable_fa2csv, False)
-            #         .run(p.addLength_csv2csv, False)
-            #         .cat(p.mergeNucleotideFrequencies, False)
-            #     .stop()
-                            
-            #     .branch(True)
-            #         .run(p.convertBedToFasta_bed2fa, True)
-            #         .run(p.getNucleotideAbundanceTable_fa2csv, True, 2)
-            #         .run(p.addLength_csv2csv, True)
-            #         .cat(p.mergeNucleotideFrequencies, True, '_diNuc')
-            #     .stop()
-            # .stop()
-        
-            .branch(False)
-                .run(p.splitByStrand_bed2bed, True)
-                
-                .branch(False)
-                    .run(p.convertToBedGraph_bed2bdg, True)
-                    .run(p.toBigWig_bdg2bw, True)
-                .stop()
-            .stop()
-
-            # .branch(True)
-            #     .run(p.geneStrandMap_bed2bed, True)
-            #     .run(p.normalizeCounts_txt2txt, True)
-                
-            #     .branch()
-            #         .run(p.addTreatmentAndStrand_txt2txt, True)
-            #         .cat(p.mergeGeneCounts, True)
-            #     .stop()
-            # .stop()    
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TSS')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 120, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TSS')
-                    # .cat(p.mergeTSSTES, True)
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TSS')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch(True)
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-4000"', 120, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TES')
-                    .cat(p.mergeTSSTES, False)
-                .stop()
-            .stop() 
-
-            .branch(False)
-                .run(p.chromosomeCounts_bed2txt, True)
-            .stop()
-
+            .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":1, "keyword":'_Q1'})
+            .run(p.addTreatment_txt2txt, False, 'Q1')
         .stop()
 
-    # TAIR10
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":2, "keyword":'_Q2'})
+            .run(p.addTreatment_txt2txt, False, 'Q2')
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":3, "keyword":'_Q3'})
+            .run(p.addTreatment_txt2txt, False, 'Q3')
+        .stop()
+
+        .branch(False)
+            .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":4, "keyword":'_Q4'})
+            .run(p.addTreatment_txt2txt, False, 'Q4')
+        .stop()
+
+       # Non overlapping transcripts
         .branch(True)
-            .run(p.bowtie_fastq2sam, False, 'TAIR10')
-            .run(p.convertToBam_sam2bam, False)
-            .run(p.convertToBed_bam2bed, False)
-            .run(p.uniqueSort_bed2bed, False)
-            
-            .branch(True)
-                .run(p.GEO_bed2txt, True)
-            .stop()
-
-            .branch(False)
-                .run(p.lengthDistribution_bed2csv, True)
-                .run(p.addTreatment_txt2txt, True)
-                .cat(p.mergeLength, True)                
-            .stop()
-
-            .branch(False)
-                .run(p.get27mer_bed2bed, True)
-                .run(p.convertBedToFasta_bed2fa, True)
-                .run(p.getNucleotideAbundanceTable_fa2csv, True)
-                .cat(p.mergeNucleotide, True)
-            .stop()
-
-            .branch(False)
-                .run(p.getAllLengths_bed2bed, False)
-                .run(p.convertBedToFasta_bed2fa, False)
-                .run(p.getNucleotideAbundanceTable_fa2csv, False)
-                .run(p.addLength_csv2csv, True)
-                .cat(p.mergeNucleotideFrequenciesAll, True)
-            .stop()
-
-
-        # Get BigWig Files
-            .branch(False)
-                .run(p.splitByStrand_bed2bed, True)
-                
-                .branch(True)
-                    .run(p.convertToBedGraph_bed2bdg, True)
-                    .run(p.toBigWig_bdg2bw, True)
-                .stop()
-            .stop()
-
-        # Annotated transcript counts
-            .branch(False)
-                .run(p.geneStrandMap_bed2txt, True, "transcripts")
-                .run(p.normalizeCounts_txt2txt, True)
-                .run(p.addTSNTS_txt2txt, True)
-                .cat(p.mergeGeneCounts, True, 'merged_annotatedTranscriptCounts.txt')                     
-            .stop()
-
-        # Bin count
-            .branch(False)
-                .run(p.binCount_bed2txt, True, 1000)
-                .run(p.normalizeCounts_txt2txt, True)
-                .run(p.addTreatment_txt2txt, True)
-                .cat(p.mergeBinCounts, True, 'merged_bin1000.txt')
-            .stop()
-
-        # Measured transcript counts
-            .branch(False)
-                .run(p.geneStrandMap_bed2txt, True, "transcripts2")
-                .run(p.normalizeCounts_txt2txt, True)
-                .run(p.addTSNTS_txt2txt, True)
-                .cat(p.mergeGeneCounts, True, 'merged_measuredTranscriptCounts.txt')                     
-            .stop()
-
-        # Coding gene counts
-            .branch(False)
-                .run(p.geneStrandMap_bed2txt, True, "genes")
-                .run(p.normalizeCounts_txt2txt, True)
-                .run(p.addTSNTS_txt2txt, True)
-                .cat(p.mergeGeneCounts, True, 'merged_genes.txt')                     
-            .stop()
-
-        # DNase counts
-            .branch(False)
-                .run(p.dnaseCount_bed2txt, True)
-                .run(p.binnedCountsToPositions_txt2txt, True, '"-1000"', 200, 10)
-                .run(p.addTreatment_txt2txt, True)            
-                .cat(p.mergeDNaseCounts, False, 'merged_dnaseCounts.txt')                                 
-            .stop()
-
-        # CHMM Global Repair only
-            .branch(False)
-                .run(p.subtractTCR_bed2bed, False)            
-                .run(p.addArtificialGlobalRepair_bed2bed, False)
-                .run(p.countChromatinStates_bed2txt, False)
-                .run(p.normalizeCounts_txt2txt, False)
-                .run(p.addTreatment_txt2txt, False)
-                .cat(p.mergeChromtainStates, False, 'merged_noTCRchromatinStates.txt')                     
-            .stop()
-
-        # CHMM all
-            .branch(False)
-                .run(p.countChromatinStates_bed2txt, True)
-                .run(p.normalizeCounts_txt2txt, True)
-                .run(p.addTreatment_txt2txt, True)
-                .cat(p.mergeChromtainStates, True, 'merged_chromatinStates.txt')                     
-            .stop()
-
-        # TSS and TES with expression quartiles
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, False, 'TSS')
-                .run(p.normalizeCounts_txt2txt, False)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q')
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TSS_Q1')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q1')
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TSS_Q2')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q2')
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TSS_Q3')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q3')
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TSS_Q4')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-8000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TSS', 'Q4')
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, False, 'TES')
-                .run(p.normalizeCounts_txt2txt, False)
-                
-                .branch(False)
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TES', 'Q')
-                    # .cat(p.mergeTSSTES, True, '_TAIR10Nasc')
-                .stop()
-            .stop() 
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TES_Q1')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TES', 'Q1')
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TES_Q2')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TES', 'Q2')
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TES_Q3')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TES', 'Q3')
-                .stop()
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptSiteCount_bed2txt, True, 'TES_Q4')
-                .run(p.normalizeCounts_txt2txt, True)
-                
-                .branch()
-                    .run(p.binnedCountsToPositions_txt2txt, True, '"-2000"', 100, 100)
-                    .run(p.addTSNTS_txt2txt, True, 'TES', 'Q4')
-                    .cat(p.mergeTSSTES, False, '_TAIR10Nasc_Q')                
-                .stop()
-            .stop()
-        
-        # TCR Analysis
-
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False)
-                .run(p.addValue_txt2txt, False, 'real')
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {'random':False})
-                .run(p.addValue_txt2txt, False, 'random')
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":1, "keyword":'_Q1'})
-                .run(p.addValue_txt2txt, False, 'Q1')
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":2, "keyword":'_Q2'})
-                .run(p.addValue_txt2txt, False, 'Q2')
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":3, "keyword":'_Q3'})
-                .run(p.addValue_txt2txt, False, 'Q3')
-            .stop()
-
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":4, "keyword":'_Q4'})
-                .run(p.addValue_txt2txt, False, 'Q4')
-            .stop()
-
-        # Non overlapping transcripts
-
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {'transcripts': 'transcriptsNoNeighbor5K', 'keyword': '_no_neighbor'})
-                .run(p.addValue_txt2txt, False, 'no_neighbor')
-                .cat(p.mergeTCR, False)
-            .stop()
-
-        # DNase Analysis
-
-            .branch(False)
-                .run(p.dnaseIntersect_bed2txt, True)
-                .run(p.addValue_txt2txt, True, 'real')
-            .stop()
-
-            .branch(False)
-                .run(p.dnaseIntersect_bed2txt, True, {'random': True})
-                .run(p.addValue_txt2txt, True, 'random')
-                .cat(p.mergeDNase, True)
-            .stop()
-                
-        # CHMM36 Analysis
-            .branch(False)
-                .run(p.chmmIntersect_bed2txt, True)
-                .run(p.addValue_txt2txt, True, 'real')
-            .stop()
-
-            .branch(False)
-                .run(p.chmmIntersect_bed2txt, True, {'random': True, 'bedA': 'chmm36_shuffled'})
-                .run(p.addValue_txt2txt, True, 'random')
-                .cat(p.mergeChmm, False)
-            .stop()
-        
-        # Epigenetic Markers
-            .branch(False)
-                .run(p.epigeneticIntersect_bed2txt, False, {'bedA': 'epigeneticMarkers'})
-                .run(p.addValue_txt2txt, False, 'real')
-                .run(p.addTreatment_txt2txt, False)
-            .stop()
-
-            .branch(False)
-                .run(p.epigeneticIntersect_bed2txt, False, {'random': False, 'bedA': 'epigeneticMarkers_shuffled'})
-                .run(p.addValue_txt2txt, False, 'random')
-                .run(p.addTreatment_txt2txt, False)                
-                .cat(p.mergeEpigenetic, False)
-            .stop()
-
-        # Origin of replication
-            .branch(False)
-                .run(p.OORintersect_bed2txt, True, {'bedA': 'originOfReplication'})
-                .run(p.addValue_txt2txt, True, 'real')
-                .run(p.addTreatment_txt2txt, True)
-            .stop()
-
-            .branch(False)
-                .run(p.OORintersect_bed2txt, True, {'random': True, 'bedA': 'originOfReplication_shuffled'})
-                .run(p.addValue_txt2txt, True, 'random')
-                .run(p.addTreatment_txt2txt, True)                
-                .cat(p.mergeOOR, False)
-            .stop()
-
-        # CCA1 potential gene counts
-            .branch(False)
-                .run(p.geneStrandMap_bed2txt, True, "CCA1potentialGenes")
-                .run(p.normalizeCounts_txt2txt, True)
-                .run(p.addTSNTS_txt2txt, True)
-                .cat(p.mergeGeneCounts, False, 'merged_CCA1potGenes.txt')                     
-            .stop()
-
+            .run(p.transcriptIntersect_bed2txt, True, {'genes': 'genes_noNeighborIn500bp', 'keyword': '_no_neighbor'})
+            .run(p.addTreatment_txt2txt, True, 'no_neighbor')
+            .cat(p.mergeTCR, True)
         .stop()
     )
 ###########################################################
+
+if __name__ == "__main__":
+    main()

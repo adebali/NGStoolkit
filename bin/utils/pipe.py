@@ -166,7 +166,6 @@ class pipe(object):
         def input2output(input):
             return pipeTools.funIn2out(functionName, input, '', 2)
         input = self.getInput_()
-        
         self.latestInput = input
         self.input = input
         output = self.listOp_(input2output, input)

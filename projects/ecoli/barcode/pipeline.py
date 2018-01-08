@@ -863,13 +863,13 @@ p = myPipe(input, args)
             .stop()
 
             .run(p.getTT_fa2bed, False)
-            .run(p.sort_bed2bed, False)
+            .run(p.sort_bed2bed, True)
             
             .branch(False)
                 .run(p.writeTotalMappedReads_bed2txt, False)
             .stop()
 
-            .branch(True)
+            .branch(False)
                 # .run(p.countRegions_bed2bed, True)
                 .run(p.subsample_bed2bed, True)
                 .run(p.subtractBackground_bed2bed, True)

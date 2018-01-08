@@ -63,6 +63,7 @@ class referenceGenomePath(object):
             "bowtie": os.path.join(TAIR10_root, "Sequence/BowtieIndex/genome"),
             "fasta": os.path.join(TAIR10_root, "Sequence/WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(TAIR10_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
+            "limits_bed": os.path.join(TAIR10_custom_root, "genome.bed"),
             "transcripts": os.path.join(TAIR10_custom_root, "rna_singleIsoform_chr.bed"),       
             "genes": os.path.join(TAIR10_custom_root, "protein_coding_genes_chr.bed"),
             "chromatinStates": os.path.join(TAIR10_custom_root, "chromatinStatesSorted.bed"),
@@ -88,7 +89,8 @@ class referenceGenomePath(object):
             "transcriptsNoNeighbor5K": os.path.join(TAIR10_custom_root, "Hetzel_sorted_noEdge10K_noNeighborIn5K.bed"),
             # "transcripts2": os.path.join(TAIR10_custom_root, "Hetzel2016_noHeader_sorted_NascentRNA_noOv2K_gt2K.bed"),
             "originOfReplication": os.path.join(TAIR10_custom_root, "Gutierrez_DNA_replication_origin_TAIR10_GBROWSE.bed"),
-            "originOfReplication_shuffled": os.path.join(TAIR10_custom_root, "Gutierrez_DNA_replication_origin_TAIR10_GBROWSE_shuffled.bed")
+            "originOfReplication_shuffled": os.path.join(TAIR10_custom_root, "Gutierrez_DNA_replication_origin_TAIR10_GBROWSE_shuffled.bed"),
+            "geo": "/pine/scr/a/d/adebali/GEO/oadebali@gmail.com/"
         }
 
         TAIR9_root = "/proj/seq/data/TAIR9/Arabidopsis_thaliana/Ensembl/TAIR9"
@@ -117,6 +119,15 @@ class referenceGenomePath(object):
             "lacOperon": os.path.join(NC_000913_2_root, "NC_000913.2", "NC_000913.2.chr.lacOperon.bed")
         }
 
+        S288C_R64_2_1_custom_root = "/proj/sancarlb/users/ogun/seq/S288C/S288C_reference_genome_R64-2-1_20150113"
+        self.S288C_R64_2_1 = {
+            "name": "S288C_R64_2_1",
+            "bowtie": "/proj/sancarlb/users/wentao/S288C_reference_genome/Bt1_SacCer3/yeast_bt1.SacCer3",
+            "genes": os.path.join(S288C_R64_2_1_custom_root, "genes.bed"),
+            "genes_noNeighborIn500bp": os.path.join(S288C_R64_2_1_custom_root, "genes_noNeighborIn500bp.bed"),
+            "fasta": os.path.join(S288C_R64_2_1_custom_root, "genome.fa"),
+            "limits": os.path.join(S288C_R64_2_1_custom_root, "genome.fa.fai")
+        }
 
     def get(self, key): return self.__getattribute__(key)
 

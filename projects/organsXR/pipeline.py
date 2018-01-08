@@ -283,7 +283,8 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.reference["genes"],
+            # '-a', self.reference["genes"],
+            '-a', self.reference["genesNR"],
             '-b', self.input,
             '-wa',
             '-c',
@@ -329,6 +330,24 @@ class myPipe(pipe):
         headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['TSNTS']
         output = os.path.join(self.outputDir, '..', 'merged_geneCounts' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
+        dcast_output = os.path.join(self.outputDir, '..', 'merged_geneCounts' + extraWord + '_dcasted.txt')
+        code = "Rscript dcast.r " + output + " " + dcast_output
+        parameters = {
+            "--job-name=": "dcast",
+            "-n ": 1,
+            "--mem=": 4000,
+            "--time=": "1-00:00:00",
+            "--output=": "./log/%A_%a.out",
+            "--error=": "./log/%A_%a.err",
+            "--array=": 1,
+            "--mail-type=": "END,FAIL",      # notifications for job done & fail
+            "--mail-user=": "oadebali@gmail.com" # send-to address
+        }
+        import slurm
+        job = slurm.Slurm(code)
+        job.assignParams(parameters)
+        job.printScript()
+        jobId = job.run()
         return self
 
     def prettyOutput(self):
@@ -434,7 +453,7 @@ p = myPipe(input, args)
         .run(p.plotLengthDistribution_csv2pdf, True)
     .stop()
 
-    .branch(True)
+    .branch(False)
         .run(p.get26mer_bed2bed, True)
         .run(p.convertBedToFasta_bed2fa, True)
         .branch(True) # Plot nucleotide abundance
@@ -450,10 +469,10 @@ p = myPipe(input, args)
         .stop()
     .stop()
    
-    .branch(False)
+    .branch(True)
         .run(p.geneStrandMap_bed2txt, True)
 
-        .branch(False)
+        .branch(True)
             .run(p.addTreatmentAndStrand_txt2txt, True)
             .cat(p.mergeGeneCounts, True, '_noNorm')
         .stop()

@@ -9,12 +9,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-g', nargs="+", type=int, required= False, help='group no')
 parser.add_argument('-s', required= False, help='comma separated sample list')
 parser.add_argument('-e', required= False, help='comma separated samples to be excluded')
+parser.add_argument('-samples', required= False, default='samples.csv', help='sample list (default:samples.csv)')
+parser.add_argument('-script', required= False, default='pipeline.py', help='script command (default:pipeline.py)')
 parser.add_argument('--report', action='store_true',help='get report only')
 args = parser.parse_args()
 
 reportFlag = args.report
 
-SAMPLE_STAT_FILE = 'samples.csv'
+SAMPLE_STAT_FILE = args.samples
+if not os.path.isfile(SAMPLE_STAT_FILE):
+    raise ValueError('No such a file: ' + SAMPLE_STAT_FILE)
 
 def group2sample(group):
     if group == '0':
@@ -40,13 +44,12 @@ if args.e:
     samples = list(set(samples) - set(exclude))
 
 parameters = {
-    "--job-name=": "RNA-seq_Mouse_Organs",
+    "--job-name=": "yeast_pipeline",
     "-n ": 1,
     # "-n ": 8,
-    # "-n ": 4,
     # "--mem=": 128000,
     # "--mem=": 32000,
-    "--mem=": 8000,
+    "--mem=": 16000,
     "--time=": "2-00:00:00",
     "--output=": "./log/%A_%a.out",
     "--error=": "./log/%A_%a.err",
@@ -55,13 +58,18 @@ parameters = {
     "--mail-user=": "oadebali@gmail.com" # send-to address
 }
 print(samples)
-os.system('mkdir -p log')
-
 if not reportFlag:
-    job = slurm.Slurm('python pipeline.py run -n $SLURM_ARRAY_TASK_ID')
+    job = slurm.Slurm('python ' + args.script + ' run -n $SLURM_ARRAY_TASK_ID')
     job.assignParams(parameters)
     job.printScript()
-    job.run()
+    jobId = job.run()
+
+    catJob = slurm.Slurm('python ' + args.script + ' cat')
+    catJob.assignParams(parameters)
+    catJob.setDependencies([jobId])
+    catJob.printScript()
+    catJobId = catJob.run()
+
 else:
     os.system('rm dataDir/report.txt')
     os.system('python pipeline.py run -n 1 --outputCheck | cut -d\' \' -f 1 | xargs | sed -e \'s/ /,/g\' >dataDir/report.txt')

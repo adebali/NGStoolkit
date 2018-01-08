@@ -32,6 +32,7 @@ class myPipe(pipe):
 
     def catFiles(self, wildcard, headers, output):
         code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "tail --lines=+2 " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
+        print(code)
         os.system(code)
 
 
@@ -93,6 +94,17 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def addValue_txt2txt(self, *nargs):
+        columns = list(nargs)
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', ' '.join(columns)
+        ]
+        self.execM(codeList)
+        return self
+
     def addTreatment_txt2txt(self):
         columns = self.list2attributes(self.attributes)
         codeList = [
@@ -100,6 +112,27 @@ class myPipe(pipe):
             '-i', self.input,
             '-o', self.output,
             '-c', ' '.join(columns)
+        ]
+        self.execM(codeList)
+        return self
+
+    def addTreatmentWstrand_txt2txt(self):
+        columns = self.list2attributes(self.attributes)
+        labels = [
+            'real NTS TSS ' + ' '.join(columns) ,
+            'real NTS TES ' + ' '.join(columns),
+            'real TS TSS ' + ' '.join(columns),
+            'real TS TES ' + ' '.join(columns),
+            'shuffled NTS TSS ' + ' '.join(columns) ,
+            'shuffled NTS TES ' + ' '.join(columns),
+            'shuffled TS TSS ' + ' '.join(columns),
+            'shuffled TS TES ' + ' '.join(columns)
+        ]
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', labels
         ]
         self.execM(codeList)
         return self
@@ -184,9 +217,16 @@ class myPipe(pipe):
         return self
 
     def mergeTSSTES(self):
-        wildcard = self.fullPath2wildcard(self.input[0])
-        headers = ['position', 'count', 'cat'] + self.attributes
+        wildcard = self.fullPath2wildcard(self.input[0]).replace('_random', '_*')
+        headers = ['position', 'count', 'cat', 'reality'] + self.attributes
         output = os.path.join(self.outputDir, '..', 'merged_TSSTES.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def mergeSingleSite(self, outputFile):
+        wildcard = self.fullPath2wildcard(self.input[0]).replace('_real_TSS_NTS', '_*')
+        headers = ['position', 'count', 'reality', 'strandFlag', 'site'] + self.attributes
+        output = os.path.join(self.outputDir, '..', outputFile + '.txt')
         self.catFiles(wildcard, headers, output)
         return self
 
@@ -216,6 +256,11 @@ class myPipe(pipe):
                 self.addExtraWord(self.output[0], '_random'),
             ]
             self.saveOutput(output)
+        else:
+            output = [
+                self.addExtraWord(self.output[0], '_real'),
+            ]
+            self.saveOutput(output)
 
         averageLength = totalRecord = totalMappedReads = perNmappedReads= 1
         if self.runMode == True and self.runFlag == True:
@@ -238,11 +283,13 @@ class myPipe(pipe):
             '-k3,3n'
         ]
 
-
-        codeList = [
-            'cat',
-            bedAfile
-        ]
+        if random:
+            codeList = list(shuffleCode)
+        else:
+            codeList = [
+                'cat',
+                bedAfile
+            ]
 
         codeList += [
             '|',
@@ -255,9 +302,6 @@ class myPipe(pipe):
             '-F', 0.50,
             '|',
             'bedIntersect2positionTxt.py',
-            # '>', 'output.1.txt',
-            # '&&',
-            # 'cat', 'output.1.txt'
             '|',
             'bedIntersectPositionCount.py',
             '-count', 7,
@@ -273,16 +317,17 @@ class myPipe(pipe):
         
         _temp, temp = tempfile.mkstemp()
 
-        windowLength = 50
-        oneSideFlankingLength = 5000
+        oneSideFlankingLength = 200
+        windowLength = oneSideFlankingLength / 100
 
-        # if random:
-            # prepareAbedCodeList = list(shuffleCode)
-        # else:
-        prepareAbedCodeList = [
-            'cat',
-            bedAfile
-        ]
+        if random:
+            prepareAbedCodeList = list(shuffleCode)
+        else:
+            prepareAbedCodeList = [
+                'cat',
+                bedAfile
+            ]
+
         prepareAbedCodeList += [
             '|',
             'bed2updownstream.py',
@@ -332,6 +377,135 @@ class myPipe(pipe):
         self.execM(flankingCodeList)
         return self
 
+    def intersectTranscript_bed2txt(self):
+        shuffleCodeString = ' '.join([
+            '|',
+            'bedtools',
+            'shuffle',
+            '-g', self.reference['limits'],
+            '|',
+            'sort',
+            '-k1,1',
+            '-k2,2n',
+            '-k3,3n'
+        ])
+
+        strandFlags = ['-s', '-s', '-S', '-S'] * 2
+        siteFlags = ['start', 'end', 'start', 'end'] * 2
+        randomLabel = ['real'] * 4 + ['random'] * 4
+        randomFlag = [' '] * 4 + [shuffleCodeString] * 4
+
+        output = self.output
+        self.saveOutput([
+            self.addExtraWord(output[0], '_real_TSS_NTS'), 
+            self.addExtraWord(output[0], '_real_TES_NTS'), 
+            self.addExtraWord(output[0], '_real_TSS_TS'),
+            self.addExtraWord(output[0], '_real_TES_TS'),
+            self.addExtraWord(output[0], '_shuffled_TSS_NTS'), 
+            self.addExtraWord(output[0], '_shuffled_TES_NTS'), 
+            self.addExtraWord(output[0], '_shuffled_TSS_TS'),
+            self.addExtraWord(output[0], '_shuffled_TES_TS')
+            ])
+
+        codeList = [
+            'cat',
+            self.reference['genesNR'],
+            '|',
+            'bed2oneSiteBed.py',
+            '-s', siteFlags,
+            '-l', 1000,
+            randomFlag,
+            '|',
+            'bedtools',
+            'intersect',
+            strandFlags,
+            '-wa',
+            '-wb',
+            '-F', 0.5,
+            '-a', 'stdin',
+            '-b', self.input[0],
+            '>', self.output
+        ]
+        self.frame = [-1000,1000]
+        self.execM(codeList)
+        return self
+
+    def parsePositions_txt2txt(self):
+        codeList = [
+            'bedIntersect2parsedPosition.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def countPositions_txt2txt(self):
+        codeList = [
+            'list2countTable.py',
+            '-i', self.input,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def fillGapsWithPositions_txt2txt(self):
+        codeList = [
+            'cat', self.input,
+            '|',
+            'countTable2filledGaps.py',
+            '-s', self.frame[0],
+            '-e', self.frame[1],
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def splitByStrand_bed2bed(self):
+        strand = ['"\\t\+$"', '"\\t\-$"']
+        output = [
+            self.addExtraWord(self.output[0], '_Plus'), 
+            self.addExtraWord(self.output[0], '_Minus')
+        ]
+        self.saveOutput(output)
+        self.saveOutput(self.prettyOutput())
+        codeList = [
+            'grep -P ',
+            strand,
+            self.input[0],
+            '>',
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def convertToBedGraph_bed2bdg(self):
+        if self.runFlag and self.runMode:
+            scaleFactor = float(1000000)/self.internalRun(bed.bed(self.input[0]).getHitNum, [], self.runFlag, 'get hit number')
+        else:
+            scaleFactor = 1
+        codeList = [
+            'bedtools',
+            'genomecov',
+            '-i', self.input,
+            '-g', self.reference['limits'],
+            '-bg',
+            '-scale', scaleFactor,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def toBigWig_bdg2bw(self):
+        codeList = [
+            'bedGraphToBigWig',
+            self.input,
+            self.reference['limits'],
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq ZT Pipeline', prog="pipeline.py")
     parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
@@ -374,7 +548,18 @@ p = myPipe(input, args)
     .run(p.convertToBed_bam2bed, False)
     .run(p.uniqueSort_bed2bed, False)
 
-    .branch(True)
+# Get BigWig Files
+    .branch(False)
+        .run(p.splitByStrand_bed2bed, True)
+        
+        .branch(True)
+            .run(p.convertToBedGraph_bed2bdg, True)
+            .run(p.toBigWig_bdg2bw, True)
+        .stop()
+    .stop()
+
+# Count gene repair
+    .branch(False)
         .run(p.countGene_bed2txt, False)
         .run(p.normalizeCounts_txt2txt, False)
         
@@ -384,10 +569,28 @@ p = myPipe(input, args)
         .stop()
     .stop()
 
+# TCR Gene Body
     .branch(True)
         .run(p.tssTes_bed2txt, True)
-        .run(p.addTreatment_txt2txt, True)        
+        .run(p.addValue_txt2txt, True, 'real')
+        .run(p.addTreatment_txt2txt, True)      
+    .stop()
+
+    .branch(True)
+        .run(p.tssTes_bed2txt, True, {'random': True})
+        .run(p.addValue_txt2txt, True, 'random')
+        .run(p.addTreatment_txt2txt, True)      
         .cat(p.mergeTSSTES, True)        
+    .stop()
+
+# Individual TSS TES
+    .branch(False)
+        .run(p.intersectTranscript_bed2txt, True)
+        .run(p.parsePositions_txt2txt, True)
+        .run(p.countPositions_txt2txt, True)
+        .run(p.fillGapsWithPositions_txt2txt, True)
+        .run(p.addTreatmentWstrand_txt2txt, True)                
+        .cat(p.mergeSingleSite, True, 'merged_TES')        
     .stop()
 )
 

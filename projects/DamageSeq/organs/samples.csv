@@ -24,8 +24,3 @@ no,group,sample,treatment,treatment_title,rep
 23,4,DLung_C_GAGTGG.fastq,lung,lung_F,F
 24,4,DSpleen_B_ACTGAT.fastq,spleen,spleen_E,E
 25,4,DSpleen_C_ATTCCT.fastq,spleen,spleen_F,F
-26,5,HaCat_BG4_cis_B-_GAGTGG.fastq,HaCat_BG4_cis,HaCat_BG4_cis_A,A
-27,5,HaCat_BG4_cont_B-_GTGAAA.fastq,HaCat_BG4_con,HaCat_BG4_con_A,A
-28,5,HaCat_cis_B-_AGTTCC.fastq,HaCat_cis,HaCat_cis_A,A
-29,5,HaCat_cont_B-_AGTCAA.fastq,HaCat_con,HaCat_con_A,A
-

@@ -1,0 +1,5 @@
+no,group,sample,treatment,treatment_title,rep
+1,1,HaCat_BG4_cis_B-_GAGTGG.fastq,HaCat_BG4_cis,HaCat_BG4_cis_A,A
+2,1,HaCat_BG4_cont_B-_GTGAAA.fastq,HaCat_BG4_con,HaCat_BG4_con_A,A
+3,1,HaCat_cis_B-_AGTTCC.fastq,HaCat_cis,HaCat_cis_A,A
+4,1,HaCat_cont_B-_AGTCAA.fastq,HaCat_con,HaCat_con_A,A

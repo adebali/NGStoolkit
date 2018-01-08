@@ -13,7 +13,7 @@ from referenceGenomePath import referenceGenomePath
 class myPipe(pipe):
     def __init__(self, input, args = argument.args()):
         SAMPLE_STAT_FILE = 'samples.csv'  
-        OUTPUT_DIR = '0125'
+        OUTPUT_DIR = '1712'
         pipe.__init__(self, input, args)
         self.input = os.path.realpath(os.path.join(os.path.curdir, 'dataDir', 'raw', input))
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', OUTPUT_DIR))
@@ -21,15 +21,10 @@ class myPipe(pipe):
         sampleDictionary = generalUtils.table2dictionary(SAMPLE_STAT_FILE, 'sample')[input][0]
         self.attributes = sorted(sampleDictionary.keys())
         self = pipeTools.assignProperty(self, sampleDictionary)
-        self.motifRegex = '\'.{4}(G|g)(G|g).{4}\'' # Get GG only at the positions 5 and 6.
-        self.referenceNickname = 'mm10'
-        self.bowtie_reference = '/proj/seq/data/MM10_UCSC/Sequence/BowtieIndex/genome'
-        self.fasta_reference = generalUtils.file('/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa')
-        self.chromosome_limits = generalUtils.file('/proj/seq/data/MM10_UCSC/Sequence/WholeGenomeFasta/genome.fa.fai')
+        self.motifRegex = '\'.{4}(T|t)(T|t).{4}\'' # Get GG only at the positions 5 and 6.
         input1 = self.input
-        input2 = generalUtils.in2out(self.input, '.1.fastq', '.2.fastq')
-        self.saveInput([input1])
-        self.genesBedFile = "/proj/sancarlb/users/ogun/seq/mm10/geneList.bed"
+        input2 = self.input.replace('_1.fastq', '_2.fastq')
+        self.saveInput([input1, input2])
         self.paths = referenceGenomePath()
     
     def catFiles(self, wildcard, headers, output):
@@ -45,22 +40,24 @@ class myPipe(pipe):
         return fullWildcard
 
     def cutadapt_fastq2fastq(self):
-        output = [os.path.join(self.outputDir, os.path.basename(self.output[0]))]
+        self.saveOutput([os.path.join(self.outputDir, os.path.basename(self.output[0])),
+        os.path.join(self.outputDir, os.path.basename(self.output[1]))])
         adapter = 'GACTGGTTCCAATTGAAAGTGCTCTTCCGATCT'
         codeList = [
             'cutadapt',
             '--discard-trimmed', # Remove the reads containing the adapter sequence. If a read contains adapter, it is because of the artifact, no damage is expected on this read.
             '-g', adapter, # The adapter is located at the 5' end
-            '-o', output,
-            self.input,
+            '-o', self.output[0],
+            '-p', self.output[1],
+            self.input[0],
+            self.input[1]
         ]
         self.execM(codeList)
-        self.saveOutput(output)
         return self
 
     def bowtie_fastq2sam(self, reference):
         self.reference = self.paths.get(reference)
-        
+        self.saveOutput([self.output[0]])
         codeList = [
             'bowtie',
             '-t', self.reference["bowtie"],
@@ -72,7 +69,8 @@ class myPipe(pipe):
             '-X', 1000,
             '--seed', 123, # Randomization parameter in bowtie,
             '-p', 8,
-            self.input,
+            '-1', self.input[0],
+            '-2', self.input[1],
             self.output
         ]
         self.execM(codeList)
@@ -87,7 +85,7 @@ class myPipe(pipe):
             'bedtools',
             'slop',
             '-i', self.input,
-            '-g', self.chromosome_limits, # Chomosomal lengths, needed in case region shift goes beyond the chromosomal limits.
+            '-g', self.reference['limits'], # Chomosomal lengths, needed in case region shift goes beyond the chromosomal limits.
             '-b', slopB,
             '-s', # Take strand into account
             '>', self.output
@@ -100,7 +98,7 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'getfasta',
-            '-fi', self.fasta_reference,
+            '-fi', self.reference['fasta'],
             '-bed', self.input,
             '-fo', self.output,
             '-s' # Force strandedness. If the feature occupies the antisense strand, the sequence will be reverse complemented
@@ -172,6 +170,7 @@ class myPipe(pipe):
         codeList = [
             'samtools',
             'view',
+            '-f', 2,
             '-Sb',
             '-o',
             self.output,
@@ -180,20 +179,32 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def convertToBed_bam2bedpe(self):
-        codeList = [
-            'bedtools',
-            'bamtobed',
-            '-i', self.input,
-            '>', self.output
-        ]
+    def convertToBed_bam2bed(self, paired=True):
+        if paired:
+            codeList = [
+                'bedtools',
+                'bamtobed',
+                '-bedpe',
+                '-mate1',
+                '-i', self.input,
+                '>', self.output
+            ]
+        else:
+            codeList = [
+                'bedtools',
+                'bamtobed',
+                '-i', self.input,
+                '>', self.output
+            ]
         self.execM(codeList)
         return self
-   
-    def uniqueSort_bed2bed(self):
+
+    def sort_bed2bed(self, unique=False):
+        sortCommand = 'sort'
+        if unique:
+            sortCommand +=' -u'
         codeList = [
-            'sort',
-            '-u',
+            sortCommand,
             '-k1,1',
             '-k2,2n',
             '-k3,3n',
@@ -201,16 +212,6 @@ class myPipe(pipe):
             '>', self.output
         ]
         self.finalBed = self.output[0]
-        self.execM(codeList)
-        return self
-
-    def convertToBed_bam2bed(self):
-        codeList = [
-            'bedtools',
-            'bamtobed',
-            '-i', self.input,
-            '>', self.output
-        ]
         self.execM(codeList)
         return self
 
@@ -254,7 +255,7 @@ class myPipe(pipe):
         return self
 
 
-    def convertBedpeToSingleFrame_bedpe2bed(self):
+    def convertBedpeToSingleFrame_bed2bed(self):
         codeList = [
             'bedpe2bed.py',
             self.input,
@@ -287,8 +288,7 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            # '-a', self.reference["genes"],
-            '-a', self.reference["genesNR"],
+            '-a', self.reference["genes"],
             '-b', self.input,
             '-wa',
             '-c',
@@ -406,24 +406,6 @@ class myPipe(pipe):
         headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['TSNTS']
         output = os.path.join(self.outputDir, '..', 'merged_geneCounts' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
-        dcast_output = os.path.join(self.outputDir, '..', 'merged_geneCounts' + extraWord + '_dcasted.txt')
-        code = "Rscript dcast.r " + output + " " + dcast_output
-        parameters = {
-            "--job-name=": "dcast",
-            "-n ": 1,
-            "--mem=": 4000,
-            "--time=": "1-00:00:00",
-            "--output=": "./log/%A_%a.out",
-            "--error=": "./log/%A_%a.err",
-            "--array=": 1,
-            "--mail-type=": "END,FAIL",      # notifications for job done & fail
-            "--mail-user=": "oadebali@gmail.com" # send-to address
-        }
-        import slurm
-        job = slurm.Slurm(code)
-        job.assignParams(parameters)
-        job.printScript()
-        jobId = job.run()
         return self
 
     def prettyOutput(self):
@@ -496,47 +478,45 @@ input = getInputFromIndex(inputIndex)
 p = myPipe(input, args)
 (p
     .run(p.cutadapt_fastq2fastq, False)
-    .run(p.bowtie_fastq2sam, False, 'mm10')
+    .run(p.bowtie_fastq2sam, False, 'NC_000913_2')
     .run(p.convertToBam_sam2bam, False)
     .run(p.convertToBed_bam2bed, False)
-    .run(p.uniqueSort_bed2bed, False)
-    .run(p.slopBed_bed2bed, False)
-    .run(p.convertToFixedRange_bed2bed, False)
-    .run(p.sortBed_bed2bed, False)
-    .run(p.convertBedToFasta_bed2fa, False)
-        
-    .branch(False) # Plot nucleotide abundance
-        .run(p.getNucleotideAbundanceTable_fa2csv, True)
-        .run(p.addTreatment_csv2txt, True)
-        .cat(p.mergeNucleotideAbundance, True)
-    .stop()
+    .run(p.sort_bed2bed, True, True)
+    .run(p.convertBedpeToSingleFrame_bed2bed, True)
+    .run(p.slopBed_bed2bed, True)
+    .run(p.convertToFixedRange_bed2bed, True)
+    .run(p.sort_bed2bed, True)
+    
+    .branch(True)
+        .run(p.convertBedToFasta_bed2fa, True)
+            .branch(True) # Plot nucleotide abundance
+                .run(p.getNucleotideAbundanceTable_fa2csv, True)
+                .run(p.addTreatment_csv2txt, True)
+                .cat(p.mergeNucleotideAbundance, True)
+            .stop()
 
-    .branch(False) # Plot dinucleotide abundance
-        .run(p.getDimerAbundanceTable_fa2csv, True)
-        .run(p.addTreatment_csv2txt, True)
-        .cat(p.mergeNucleotideAbundance, True, '_diNuc')
-    .stop()
+            .branch(True) # Plot dinucleotide abundance
+                .run(p.getDimerAbundanceTable_fa2csv, True)
+                .run(p.addTreatment_csv2txt, True)
+                .cat(p.mergeNucleotideAbundance, True, '_diNuc')
+            .stop()
 
-    .run(p.getDamageSites_fa2bed, False)
-    .run(p.uniqueSort_bed2bed, False)
+        .run(p.getDamageSites_fa2bed, True)
+        .run(p.sort_bed2bed, True)
 
-    .branch(False)
-        .run(p.splitByStrand_bed2bed, False)
-        
-        .branch(False)
-            .run(p.convertToBedGraph_bed2bdg, False)
-            .run(p.toBigWig_bdg2bw, False)
+        .branch(True)
+            .run(p.splitByStrand_bed2bed, True)
+            
+            .branch(True)
+                .run(p.convertToBedGraph_bed2bdg, True)
+                .run(p.toBigWig_bdg2bw, True)
+            .stop()
         .stop()
     .stop()
 
     .branch(True)
         .run(p.geneStrandMap_bed2txt, True)
-        
-        .branch(True)
-            .run(p.addTreatmentAndStrand_txt2txt, True)
-            .cat(p.mergeGeneCounts, True, '_noNorm')
-        .stop()
-        
+
         .branch(True)
             .run(p.normalizeCounts_txt2txt, True)
             .run(p.addTreatmentAndStrand_txt2txt, True)

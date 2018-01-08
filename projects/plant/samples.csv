@@ -8,4 +8,15 @@ no,group,sample,product,treatment,treatment_title,replicate,time
 7,2,OO_XR_cir13-_TAGCTT.fastq,CPD,LD,LD_ZT5_A,A,ZT5
 8,2,OO_XR_cir16-_GGCTAC.fastq,CPD,LD,LD_ZT8_A,A,ZT8
 9,2,OO_XR_cir19-_CTTGTA.fastq,CPD,LD,LD_ZT11_A,A,ZT11
-10,2,OO_XR_cir22-_AGTCAA.fastq,CPD,LD,LD_ZT15_A,A,ZT14
+10,2,OO_XR_cir22-_AGTCAA.fastq,CPD,LD,LD_ZT14_A,A,ZT14
+11,3,OO_XR_cir2-1_TTAGGC.fastq,CPD,LD,LD_ZT17_B,B,ZT17
+12,3,OO_XR_cir2-4_TGACCA.fastq,CPD,LD,LD_ZT20_B,B,ZT20
+13,3,OO_XR_cir2-7_ACAGTG.fastq,CPD,LD,LD_ZT23_B,B,ZT23
+14,3,OO_XR_cir2-10_GCCAAT.fastq,CPD,LD,LD_ZT2_B,B,ZT2
+15,3,OO_XR_cir2-13_CAGATC.fastq,CPD,LD,LD_ZT5_B,B,ZT5
+16,3,OO_XR_cir2-16_ACTTGA.fastq,CPD,LD,LD_ZT8_B,B,ZT8
+17,3,OO_XR_cir2-19_GATCAG.fastq,CPD,LD,LD_ZT11_B,B,ZT11
+18,3,OO_XR_cir2-22_TAGCTT.fastq,CPD,LD,LD_ZT14_B,B,ZT14
+19,4,experiment1.fastq,CPD,all,all_NA_A,A,NA
+20,4,experiment2.fastq,CPD,all,all_NA_B,B,NA
+21,5,experiment12.fastq,CPD,all,all_NA_AB,AB,NA

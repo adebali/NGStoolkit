@@ -1,4 +1,4 @@
-no,group,sample,product,treatment,treatment_title,replicate
+no,group,sample,prodcut,treatment,treatment_title,replicate
 1,1,KIDNEY-CISPL_ACTTGA.fastq,GG,Kidney,XRseq_Kidney_A,A
 6,1,AYKIDNEY-CISPL_CAGATC.fastq,GG,Kidney,XRseq_Kidney_B,B
 2,1,LIVERA_AGTTCC.fastq,GG,Liver,XRseq_Liver_A,A
@@ -20,5 +20,3 @@ no,group,sample,product,treatment,treatment_title,replicate
 19,2,XRLung_D-_GTAGAG.fastq,GG,Lung,XRseq_Lung_F,F
 20,2,XRSpleen_C-_AGTCAA.fastq,GG,Spleen,XRseq_Spleen_E,E
 21,2,XRSpleen_D-_GTCCGC.fastq,GG,Spleen,XRseq_Spleen_F,F
-22,3,HaCat_A-_AGTTCC.fastq,GG,NA,XRseq_HaCat_A,A
-23,3,HaCat_B-_ATGTCA.fastq,GG,NA,XRseq_HaCat_B,B

@@ -19,19 +19,18 @@ from referenceGenomePath import referenceGenomePath
 class myPipe(pipe):
     def __init__(self, input, args = argument.args()):
         SAMPLE_STAT_FILE = 'samples.csv'    
-        OUTPUT_DIR = "0519"
+        OUTPUT_DIR = "1801"
         pipe.__init__(self, input, args)
-        self.input = os.path.realpath(os.path.join(os.path.curdir, 'dataDir', 'raw', input))
+        self.saveInput(os.path.realpath(os.path.join(os.path.curdir, 'dataDir', OUTPUT_DIR, input)))
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', OUTPUT_DIR))
         os.system('mkdir -p ' + self.outputDir)
         sampleDictionary = generalUtils.table2dictionary(SAMPLE_STAT_FILE, 'sample')[input][0]
         self.attributes = sorted(sampleDictionary.keys())
         self = pipeTools.assignProperty(self, sampleDictionary)
-        input = os.path.realpath(os.path.join('dataDir', 'raw', input))
-        self.saveInput([self.input, self.input.replace("_R1_001.fastq", "_R2_001.fastq")])
         self.paths = referenceGenomePath()
-        self.reference = self.paths.get('mm10')
-        
+        self.reference = self.paths.get('S288C_R64_2_1')
+
+
     def catFiles(self, wildcard, headers, output):
         code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
         os.system(code)
@@ -53,25 +52,33 @@ class myPipe(pipe):
             else:
                 extraWord = ''
             extension = pipeTools.getExtension(o)
-            newOutputs.append(os.path.join(os.path.dirname(o),self.treatment_title + extraWord + '.' + extension))
+            newOutputs.append(os.path.join(os.path.dirname(o),self.title + extraWord + '.' + extension))
         return newOutputs
 
-    def bowtie_fastq2sam(self, referenceDictionary):
-        output = pipeTools.listOperation(pipeTools.changeDir, self.output, self.outputDir)
-        self.saveOutput([self.addExtraWord(output[0], referenceDictionary["name"])])
-        noCpus = 1
+    def cutadapt_fastq2fastq(self):
+        adapter = 'ATCTCGTATGCCGTCTTCTGCTTG'
+        codeList = [
+            'cutadapt',
+            '-a', adapter,
+            '-o', self.output,
+            self.input
+        ]
+        self.execM(codeList)
+        return self
+
+    def bowtie_fastq2sam(self):
+        noCpus = 8
         self.mutateWmParams({'-n ': str(noCpus)})
-        output = [self.output[0]]
         codeList = [
             'bowtie',
-            '-t', referenceDictionary["bowtie"],
+            '-t', self.reference['bowtie'],
             '-q', # FASTAQ input (default)
             '--nomaqround', # Do NOT round MAC
             '--phred33-quals', # Depends on the sequencing platform
             '-S', # Output in SAM format
-            '-n', 2, # No more than 2 mismatches
+            # '-n', 2, # No more than 2 mismatches
             '-e', 70, # The sum of the Phred quality values at all mismatched positions (not just in the seed) may not exceed E 
-            '-m 4', # Do not report the reads that are mapped on to more than 4 genomic locations
+            # '-m 4', # Do not report the reads that are mapped on to more than 4 genomic locations
             '-p', noCpus,
             '--seed 123', # Randomization parameter in bowtie,
             self.input,
@@ -80,50 +87,19 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
-    def fastqc_fastq2html(self):
-        codeList= [
-            'fastqc',
+    def convertToBam_sam2bam(self):
+        codeList = [
+            'samtools',
+            'view',
+            '-Sb'
+            '-o',
+            self.output,
             self.input
-        ]
-        self.execM(codeList)
-        return self
-
-    def tophat_fastq2bam(self):
-        newOutput = [self.input[0] + '_1', self.input[0] + '_2']
-
-        codeList = [
-            'ln -fs',
-            self.input[0],
-            newOutput[0],
-            '&',
-            'ln -fs',
-            self.input[1],
-            newOutput[1]
-        ]
-
-        self.execM(codeList)
-        self.saveInput(newOutput)
-
-        self.tophatDirectory = os.path.join(self.outputDir, 'tophat', self.treatment_title)
-
-        codeList = [
-            'mkdir -p',
-            self.tophatDirectory,
-            '&',
-            'tophat',
-            '--bowtie1',
-            '-o', self.tophatDirectory,
-            self.reference['bowtie'],
-            self.input[0],
-            self.input[1]
         ]
         self.execM(codeList)
         return self
    
     def convertToBed_bam2bed(self):
-        self.saveInput([os.path.join(self.tophatDirectory, 'accepted_hits.bam')])
-        self.output = [os.path.join(self.outputDir, self.treatment_title + '.bed')]
-        self.saveOutput(self.output)
         codeList = [
             'bedtools',
             'bamtobed',
@@ -133,6 +109,42 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def fastqc_fastq2html(self):
+        
+        codeList= [
+            'fastqc',
+            self.input
+        ]
+        self.execM(codeList)
+        return self
+
+    def tophat_fastq2bam(self):
+        newOutput = [self.input + '_1']
+
+        codeList = [
+            'ln -fs',
+            self.input,
+            newOutput
+        ]
+
+        self.execM(codeList)
+        self.saveInput(newOutput)
+
+        self.tophatDirectory = os.path.join(self.outputDir, 'tophat', self.title)
+
+        codeList = [
+            'mkdir -p',
+            self.tophatDirectory,
+            '&',
+            'tophat',
+            '--bowtie1',
+            '-o', self.tophatDirectory,
+            self.reference['bowtie'],
+            self.input,
+        ]
+        self.execM(codeList)
+        return self
+   
     def uniqueSort_bed2bed(self):
         codeList = [
             'sort',
@@ -143,7 +155,7 @@ class myPipe(pipe):
             self.input,
             '>', self.output
         ]
-        self.finalBed = self.output[0]
+        self.finalBed = self.output
         self.execM(codeList)
         return self
 
@@ -155,7 +167,7 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.reference["genesNR"],
+            '-a', self.reference["genes"],
             '-b', self.input,
             '-wa',
             '-c',
@@ -248,6 +260,16 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def makeScoreBed6_txt2bed(self):
+        codeList = [
+            'awk \'{print $1"\\t"$2"\\t"$3"\\t"$4"\\t"$7"\\t"$6}\'',
+            self.input,
+            '>',
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq ZT Pipeline', prog="pipeline.py")
     parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
@@ -289,30 +311,28 @@ p = myPipe(input, args)
         .run(p.fastqc_fastq2html, False)
     .stop()
 
-    .run(p.tophat_fastq2bam, False)
+    .run(p.cutadapt_fastq2fastq, False)
+    .run(p.bowtie_fastq2sam, False)
+    .run(p.convertToBam_sam2bam, False)
     .run(p.convertToBed_bam2bed, False)
     .run(p.uniqueSort_bed2bed, False)
 
-    .branch(False)
+    .branch(True)
         .run(p.writeTotalMappedReads_bed2txt, False)
     .stop()
 
     .branch(True)
-        .run(p.geneMap_bed2txt, True)
-
+        .run(p.geneMap_bed2txt, False)
+        .run(p.normalizeCounts_txt2txt, False)
+        .run(p.addTreatment_txt2txt, False)
         .branch(True)
-            .run(p.addTreatment_txt2txt, True)
-            .cat(p.mergeGeneCounts, True, "_noNorm")
+            .run(p.makeScoreBed6_txt2bed, True)
         .stop()
-
-        .run(p.normalizeCounts_txt2txt, True)
-        .run(p.addTreatment_txt2txt, True)
-        .cat(p.mergeGeneCounts, True)
-   
+        .cat(p.mergeGeneCounts, False)
     .stop()
 
-    .run(p.toBg_bed2bg, True)
-    .run(p.toBw_bg2bw, True)
+    .run(p.toBg_bed2bg, False)
+    .run(p.toBw_bg2bw, False)
 
     .stop()
 )

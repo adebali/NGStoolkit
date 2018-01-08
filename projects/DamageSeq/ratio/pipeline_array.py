@@ -38,7 +38,7 @@ if args.e:
     samples = list(set(samples) - set(exclude))
 
 parameters = {
-    "--job-name=": "DS_ratio",
+    "--job-name=": "G4_damage",
     "-n ": 8,
     # "--mem=": 128000,
     "--mem=": 32000,

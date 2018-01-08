@@ -1,0 +1,3 @@
+no,group,sample,prodcut,treatment,treatment_title,replicate
+1,1,HaCat_A-_AGTTCC.fastq,GG,NA,XRseq_HaCat_A,A
+2,1,HaCat_B-_ATGTCA.fastq,GG,NA,XRseq_HaCat_B,B

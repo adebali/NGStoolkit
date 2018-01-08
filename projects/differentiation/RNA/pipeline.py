@@ -13,7 +13,7 @@ class myPipe(pipe):
     def __init__(self, input, args = argument.args()):
         SAMPLE_STAT_FILE = 'samples.csv'    
         OUTPUT_DIR = '1102'
-        RAW_DATA_DIR = '/proj/sancarlb/users/wentao/20171031NT2RNAseq/rawdata'
+        RAW_DATA_DIR = 'dataDir/raw'
         pipe.__init__(self, input, args)
         self.input = os.path.join(RAW_DATA_DIR, input)
         self.outputDir = os.path.realpath(os.path.join(os.path.curdir, 'dataDir', OUTPUT_DIR))
@@ -95,6 +95,127 @@ class myPipe(pipe):
         wildcard = self.fullPath2wildcard(self.input[0])
         os.system('tar czvf dataDir/salmon.tar.gz ' + wildcard)
 
+    def writeTotalMappedReads_bed2txt(self):
+        codeList = [
+            'grep -c "^"',
+            self.input,
+            '>',
+            self.output
+        ]
+        self.totalMappedReadsFile = self.output[0]
+        self.execM(codeList)
+        return self
+
+    def tophat_fastq2bam(self):
+        newOutput = [self.input[0] + '_1', self.input[0] + '_2']
+
+        # codeList = [
+        #     'ln -fs',
+        #     self.input[0],
+        #     newOutput[0],
+        #     '&',
+        #     'ln -fs',
+        #     self.input[1],
+        #     newOutput[1]
+        # ]
+
+        # self.execM(codeList)
+        # self.saveInput(newOutput)
+
+        self.tophatDirectory = os.path.join(self.outputDir, 'tophat', self.treatment_title)
+
+        codeList = [
+            'mkdir -p',
+            self.tophatDirectory,
+            '&',
+            'tophat',
+            '--bowtie1',
+            '-o', self.tophatDirectory,
+            self.reference['bowtie'],
+            self.input[0],
+            self.input[1]
+        ]
+        self.execM(codeList)
+        return self
+   
+    def convertToBed_bam2bed(self):
+        self.saveInput([os.path.join(self.tophatDirectory, 'accepted_hits.bam')])
+        self.output = [os.path.join(self.outputDir, self.treatment_title + '.bed')]
+        self.saveOutput(self.output)
+        codeList = [
+            'bedtools',
+            'bamtobed',
+            '-i', self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def uniqueSort_bed2bed(self):
+        codeList = [
+            'sort',
+            '-u',
+            '-k1,1',
+            '-k2,2n',
+            '-k3,3n',
+            self.input,
+            '>', self.output
+        ]
+        self.finalBed = self.output[0]
+        self.execM(codeList)
+        return self
+
+    def splitByStrand_bed2bed(self):
+        strand = ['"\\t\+$"', '"\\t\-$"']
+        output = [
+            self.addExtraWord(self.output[0], '_Plus'), 
+            self.addExtraWord(self.output[0], '_Minus')
+        ]
+        self.saveOutput(output)
+        self.saveOutput(self.prettyOutput())
+        codeList = [
+            'grep -P ',
+            strand,
+            self.input[0],
+            '>',
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def toBg_bed2bg(self):
+        try:
+            totalMappedReads = int(open(self.totalMappedReadsFile, 'r').readline())
+        except:
+            if self.runFlag == True and self.runMode == True:
+                raise ValueError('no read count file')
+            totalMappedReads = 1000000
+        scaleFactor = float(1000000) / totalMappedReads
+        # if self.runFlag and self.runMode:
+        #     scaleFactor = float(1000000)/self.internalRun(bed.bed(self.input[0]).getHitNum, [], self.runFlag, 'get hit number')
+        # else:
+        #     scaleFactor = 1
+        codeList = [
+            'bedtools',
+            'genomecov',
+            '-i', self.input,
+            '-g', self.reference["limits"],
+            '-bg',
+            '-scale', scaleFactor,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def toBw_bg2bw(self):
+        codeList = [
+            'bedGraphToBigWig',
+            self.input,
+            self.reference["limits"],
+            self.output
+        ]
+        self.execM(codeList)
+        return self
 
 def getArgs():
     parser = argparse.ArgumentParser(description='Diffentiation RNA-seq Pipeline', prog="pipeline.py")
@@ -133,8 +254,28 @@ input = getInputFromIndex(inputIndex)
 ###########################################################
 p = myPipe(input, args)
 (p
-    .run(p.salmon_gz2txt, False)
-    .run(p.removeVersion_sa2txt, True)
-    .cat(p.zipDir, True)
+    .branch(False)
+        .run(p.salmon_gz2txt, True)
+        .run(p.removeVersion_sa2txt, True)
+        .cat(p.zipDir, True)
+    .stop()
+    .branch(True)
+        .run(p.tophat_fastq2bam, True)
+        .run(p.convertToBed_bam2bed, True)
+        .run(p.uniqueSort_bed2bed, True)
+  
+        .branch(True)
+            .run(p.writeTotalMappedReads_bed2txt, True)
+        .stop()
+
+        .branch(True)
+            .run(p.splitByStrand_bed2bed, True)
+
+            .branch(True)
+                .run(p.toBg_bed2bg, True)
+                .run(p.toBw_bg2bw, True)
+            .stop()
+        .stop()
+    .stop()
 )
 

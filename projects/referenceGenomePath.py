@@ -124,6 +124,7 @@ class referenceGenomePath(object):
             "name": "S288C_R64_2_1",
             "bowtie": "/proj/sancarlb/users/wentao/S288C_reference_genome/Bt1_SacCer3/yeast_bt1.SacCer3",
             "genes": os.path.join(S288C_R64_2_1_custom_root, "genes.bed"),
+            "scoredGenes": "/proj/sancarlb/users/ogun/sancarlabutils/projects/yeast/RNA/dataDir/1801/SRR2005997.cu.bo.coToBa.coToBe.unSo.geMa.noCo.adTr.maScBe.bed",
             "genes_noNeighborIn500bp": os.path.join(S288C_R64_2_1_custom_root, "genes_noNeighborIn500bp.bed"),
             "fasta": os.path.join(S288C_R64_2_1_custom_root, "genome.fa"),
             "limits": os.path.join(S288C_R64_2_1_custom_root, "genome.fa.fai")

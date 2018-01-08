@@ -512,7 +512,8 @@ class pipeline(pipe):
         return self
 
     def transcriptIntersect_bed2txt(self, args={}):
-        transcripts = self.reference[args.get('genes', 'genes')]
+        # transcripts = self.reference[args.get('genes', 'genes')]
+        transcripts = self.reference[args.get('genes', 'scoredGenes')]
         keyword = args.get('keyword', '')
         output = [self.addExtraWord(self.output[0], keyword)]
         self.saveOutput(output)
@@ -1180,33 +1181,33 @@ def main():
        
        # TCR Analysis
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, False)
-            .run(p.addTreatment_txt2txt, False, 'real')
+            .run(p.transcriptIntersect_bed2txt, True)
+            .run(p.addTreatment_txt2txt, True, 'real')
         .stop()
 
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, False, {'random':True})
-            .run(p.addTreatment_txt2txt, False, 'random')
+            .run(p.transcriptIntersect_bed2txt, True, {'random':True})
+            .run(p.addTreatment_txt2txt, True, 'random')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":1, "keyword":'_Q1'})
-            .run(p.addTreatment_txt2txt, False, 'Q1')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
+            .run(p.addTreatment_txt2txt, True, 'Q1')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":2, "keyword":'_Q2'})
-            .run(p.addTreatment_txt2txt, False, 'Q2')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
+            .run(p.addTreatment_txt2txt, True, 'Q2')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":3, "keyword":'_Q3'})
-            .run(p.addTreatment_txt2txt, False, 'Q3')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
+            .run(p.addTreatment_txt2txt, True, 'Q3')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":4, "keyword":'_Q4'})
-            .run(p.addTreatment_txt2txt, False, 'Q4')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
+            .run(p.addTreatment_txt2txt, True, 'Q4')
         .stop()
 
        # Non overlapping transcripts

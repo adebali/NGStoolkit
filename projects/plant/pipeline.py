@@ -1143,21 +1143,55 @@ class pipeline(pipe):
 
     def GEO_bed2txt(self):
         GEOtarget = self.reference['geo']
+        def getPath(var):
+            return os.path.join(GEOtarget, os.path.basename(var)).replace('.txt', '.md5.txt')
+
+        def joinOutput(var):
+            return os.path.join(GEOtarget, os.path.basename(var))
+
+        inputList = pipeTools.listOperation(getPath, self.input)
+        outputList = pipeTools.listOperation(joinOutput, self.output)
+        outputList2 = pipeTools.listOperation(getPath, self.output)
+
         codeList = [
             'cp',
             self.input,
-            GEOtarget,
+            outputList,
             '&&',
             'md5sum',
-            os.path.join(GEOtarget, os.path.basename(self.input[0])),
+            outputList,
             '>',
-             os.path.join(GEOtarget,os.path.basename(self.output[0]))         
+            outputList2       
         ]
+        self.saveOutput(outputList)
         self.execM(codeList)
         return self
 
     def GEO_fastq2txt(self):
         self.GEO_bed2txt()
+        return self
+
+    def GEO_txt2txt(self):
+        self.GEO_bed2txt()
+        return self
+
+    def adjustColumns_txt2txt(self):
+        def getPath(var):
+            return var.replace('.txt', '.md5.txt')
+        outputList2 = pipeTools.listOperation(getPath, self.output)
+        
+        codeList = [
+            'awk \'{print $1"\\t"$2"\\t"$3"\\t"$4"\\t"$7"\\t"$6}\'',
+            self.input,
+            '>',
+            self.output,
+            '&&',
+            'md5sum',
+            self.output,
+            '>',
+            outputList2    
+        ]
+        self.execM(codeList)
         return self
 
 def getArgs():
@@ -1199,7 +1233,7 @@ input = getInputFromIndex(inputIndex)
 if __name__ == "__main__":
     p = pipeline(input, args)
     (p
-        .branch(True)
+        .branch(False)
             .run(p.GEO_fastq2txt, True)
         .stop()
         .run(p.cutadapt_fastq2fastq, False)
@@ -1310,9 +1344,7 @@ if __name__ == "__main__":
             .run(p.convertToBed_bam2bed, False)
             .run(p.uniqueSort_bed2bed, False)
             
-            .branch(True)
-                .run(p.GEO_bed2txt, True)
-            .stop()
+
 
             .branch(False)
                 .run(p.lengthDistribution_bed2csv, True)
@@ -1371,11 +1403,17 @@ if __name__ == "__main__":
             .stop()
 
         # Coding gene counts
-            .branch(False)
-                .run(p.geneStrandMap_bed2txt, True, "genes")
-                .run(p.normalizeCounts_txt2txt, True)
-                .run(p.addTSNTS_txt2txt, True)
-                .cat(p.mergeGeneCounts, True, 'merged_genes.txt')                     
+            .branch(True)
+                .run(p.geneStrandMap_bed2txt, False, "genes")
+                .run(p.normalizeCounts_txt2txt, False)
+                .run(p.addTSNTS_txt2txt, False)
+                    
+                    .branch(True)
+                        .run(p.GEO_txt2txt, True)
+                        .run(p.adjustColumns_txt2txt, True)
+                    .stop()
+                
+                .cat(p.mergeGeneCounts, False, 'merged_genes.txt')                     
             .stop()
 
         # DNase counts

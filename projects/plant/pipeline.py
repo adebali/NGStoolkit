@@ -1181,9 +1181,12 @@ class pipeline(pipe):
         outputList2 = pipeTools.listOperation(getPath, self.output)
         
         codeList = [
+            'echo -e "chromosome\\tstart\\tend\\tname\\tscore\\tstrand"',
+            '>', self.output,
+            '&&',
             'awk \'{print $1"\\t"$2"\\t"$3"\\t"$4"\\t"$7"\\t"$6}\'',
             self.input,
-            '>',
+            '>>',
             self.output,
             '&&',
             'md5sum',

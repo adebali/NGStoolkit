@@ -1181,38 +1181,38 @@ def main():
        
        # TCR Analysis
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, True)
+            .run(p.transcriptIntersect_bed2txt, False)
             .run(p.addTreatment_txt2txt, True, 'real')
         .stop()
 
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, True, {'random':True})
+            .run(p.transcriptIntersect_bed2txt, False, {'random':True})
             .run(p.addTreatment_txt2txt, True, 'random')
         .stop()
 
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
+            .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
             .run(p.addTreatment_txt2txt, True, 'Q1')
         .stop()
 
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
+            .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
             .run(p.addTreatment_txt2txt, True, 'Q2')
         .stop()
 
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
+            .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
             .run(p.addTreatment_txt2txt, True, 'Q3')
         .stop()
 
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
+            .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
             .run(p.addTreatment_txt2txt, True, 'Q4')
         .stop()
 
        # Non overlapping transcripts
         .branch(True)
-            .run(p.transcriptIntersect_bed2txt, True, {'genes': 'genes_noNeighborIn500bp', 'keyword': '_no_neighbor'})
+            .run(p.transcriptIntersect_bed2txt, False, {'genes': 'genes_noNeighborIn500bp', 'keyword': '_no_neighbor'})
             .run(p.addTreatment_txt2txt, True, 'no_neighbor')
             .cat(p.mergeTCR, True)
         .stop()

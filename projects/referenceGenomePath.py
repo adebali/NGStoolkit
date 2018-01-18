@@ -8,6 +8,7 @@ class referenceGenomePath(object):
         self.hg19 = {
             "name": "_hg19",
             "bowtie": os.path.join(hg19_root, "Sequence/BowtieIndex/genome"),
+            "bowtie2": os.path.join(hg19_root, "Sequence/Bowtie2Index/genome"),
             "salmon_quasi": os.path.join(hg19_custom_root, 'transcriptome', 'Homo_sapiens.GRCh38.all.quasi_k31_index'),
             "fasta": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
@@ -17,7 +18,6 @@ class referenceGenomePath(object):
             # "genes": "NA",
             "chromatinStates": "NA",
             "LAD": os.path.join(hg19_custom_root, "LADcenter_w100bp_noY_bed6.bed") # http://compbio.med.harvard.edu/modencode/webpage/lad/human.fibroblast.DamID.hg19.bed
-
         }
 
         self.hg19nuc = self.hg19

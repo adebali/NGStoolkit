@@ -1,0 +1,12 @@
+{
+    "SRA_id": "SRX997094",
+    "organism": "human",
+    "cell line": "NHF1",
+    "damage": "UV_CPD",
+    "time after treatment": "1h",
+    "method": "XR-seq",
+    "adapter": "",
+    "genome": "hg19",
+    "readLength": [10, 28],
+    "pairedEnd": false
+}

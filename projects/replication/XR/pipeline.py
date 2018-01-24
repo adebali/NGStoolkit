@@ -8,11 +8,13 @@ from glob import glob
 import argparse
 import argument
 sys.path.append('../..')
+sys.path.append('..')
+from parent import pipeline as parentpipe
 from referenceGenomePath import referenceGenomePath
 import numpy
 import tempfile
 
-class pipeline(pipe):
+class pipeline(parentpipe):
     def __init__(self, input, args = argument.args()):
         print(input)
         pipe.__init__(self, input, args)
@@ -204,78 +206,6 @@ class pipeline(pipe):
             '-i', self.input,
             '>', self.output
         ]
-        self.execM(codeList)
-        return self
-
-    def splitByStrand_bed2bed(self):
-        strand = ['+', '-']
-        output = [
-            self.addExtraWord(self.output[0], '_Plus'), 
-            self.addExtraWord(self.output[0], '_Minus')
-        ]
-        self.saveOutput(output)
-        self.saveOutput(self.prettyOutput())
-        codeList = [
-            'grep',
-            strand,
-            self.input[0],
-            '>',
-            self.output
-        ]
-        self.execM(codeList)
-        return self
-
-    def convertToBedGraph_bed2bdg(self):
-        if self.runFlag and self.runMode:
-            scaleFactor = float(1000000)/self.internalRun(bed.bed(self.input[0]).getHitNum, [], self.runFlag, 'get hit number')
-        else:
-            scaleFactor = 1
-        codeList = [
-            'bedtools',
-            'genomecov',
-            '-i', self.input,
-            '-g', self.reference['limits'],
-            '-bg',
-            '-scale', scaleFactor,
-            '>', self.output
-        ]
-        self.execM(codeList)
-        return self
-   
-    def toBigWig_bdg2bw(self):
-        codeList = [
-            'bedGraphToBigWig',
-            self.input,
-            self.reference['limits'],
-            self.output
-        ]
-        self.execM(codeList)
-        return self
-
-    def uniqueSort_bed2bed(self):
-        codeList = [
-            'sort',
-            '-u',
-            '-k1,1',
-            '-k2,2n',
-            '-k3,3n',
-            self.input,
-            '>', self.output
-        ]
-        self.finalBed = self.output[0]
-        self.execM(codeList)
-        return self
-
-    def sort_bed2bed(self):
-        codeList = [
-            'sort',
-            '-k1,1',
-            '-k2,2n',
-            '-k3,3n',
-            self.input,
-            '>', self.output
-        ]
-        self.finalBed = self.output[0]
         self.execM(codeList)
         return self
 
@@ -1200,6 +1130,18 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def writeTotalMappedReads_bed2txt(self):
+        codeList = [
+            'grep -c "^"',
+            self.input,
+            '>',
+            self.output
+        ]
+        self.totalMappedReadsFile = self.output[0]
+        self.execM(codeList)
+        return self
+
+
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq Mouse Organs Pipeline', prog="pipeline.py")
     parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
@@ -1252,12 +1194,16 @@ if __name__ == "__main__":
             .run(p.sort_bed2bed, False)
 
             .branch(True)
+                .run(p.writeTotalMappedReads_bed2txt, False)
+            .stop()
+
+            .branch(False)
                 .run(p.lengthDistribution_bed2csv, False)
                 .run(p.addTreatment_txt2txt, True)
                 .cat(p.mergeLength, True)                
             .stop()
 
-            .branch(True)
+            .branch(False)
                 .run(p.get27mer_bed2bed, False)
                 .run(p.convertBedToFasta_bed2fa, False)
                 .run(p.getNucleotideAbundanceTable_fa2csv, True)
@@ -1272,11 +1218,22 @@ if __name__ == "__main__":
             #     .cat(p.mergeNucleotideFrequenciesAll, False)
             # .stop()
 
-        # Get BigWig Files
-            .branch(False)
+            .branch(True)
                 .run(p.splitByStrand_bed2bed, True)
                 
                 .branch(True)
+                    .run(p.intersect10K_bed2txt, True)
+                    .run(p.normalizeCountsBasedOnOriginal_txt2txt, True)
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+
+                        .branch(True)
+                            .run(p.filterChrPos_txt2txt, True, {'chromosome': 'chr2', 'startGT': 113000000, 'startLT': 130000000})
+                            .cat(p.merge10KCounts, True, '_2_113_130')
+                        .stop()
+                    .cat(p.merge10KCounts, True)
+                .stop()
+                # Get BigWig Files
+                .branch(False)
                     .run(p.convertToBedGraph_bed2bdg, True)
                     .run(p.toBigWig_bdg2bw, True)
                 .stop()

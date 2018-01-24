@@ -49,8 +49,8 @@ os.system('mkdir -p ./log')
 
 pipelineParameters = {
     "--job-name=": "XR_replication",
-    "-n ": 8,
-    # "-n ": 1,
+    # "-n ": 8,
+    "-n ": 1,
     "--mem=": 16000,
     "--time=": "1-00:00:00",
     "--output=": "./log/%A_%a.out",

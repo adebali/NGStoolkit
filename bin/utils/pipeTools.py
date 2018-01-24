@@ -150,25 +150,28 @@ def run(codeList, pipelineObject):
             print(str(pipelineObject.jobIndex) + '.' + str(i) + ' ' + inputFile + ' ' + str(countLines(inputFile))) 
 
 
-def runWm(codeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex):
+def runWm(codeList, pipelineObject):
+    branchSpace = '  '
     code = list2gappedString(codeList)
     allStringList = list2allStringList(codeList)
-    if runFlag:
-        if printFlag:
-            print(str(jobIndex) + ' -->\t' + code)
-        if runMode:
+    jobIndex = pipelineObject.jobIndex
+    wmParams = pipelineObject.wmParams
+    dependencies = pipelineObject.getDependencies()
+    if pipelineObject.runFlag:
+        if pipelineObject.printFlag and (not pipelineObject.outputCheckMode):
+            i = 0
+            print('\033[94m' + str(pipelineObject.jobIndex) + ' =>\t' + pipelineObject.currentBranch * branchSpace + code + '\033[0m')
+        if pipelineObject.runMode:
             slurmObject = slurm.Slurm(code)
             slurmObject.addJobIndex(jobIndex)
             slurmObject.assignParams(wmParams)
             slurmObject.setDependencies(dependencies)
+            # print(slurmObject)
+            slurmObject.printScript()
             return slurmObject.run()
-            if failedHere:
-                raise ValueError('we cannot execute the code: ' + code)
-        # else:
-        # 	print("gave up running the code, because the command is not given in the default 'RUN' mode.")
     else:
-        if printFlag:
-            print(str(jobIndex) + ' X\t' + code)
+        if pipelineObject.printFlag and (not pipelineObject.outputCheckMode):
+            print(str(pipelineObject.jobIndex) + ' =X\t' + pipelineObject.currentBranch * branchSpace + code)
     return None
     # return dependencies
 
@@ -229,12 +232,12 @@ def execL(listArray, pipelineObject):
         run(codeList, pipelineObject)
     return len(parallelJobLists)
 
-def execMwm(multiCodeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex):
-    jobIndex -= 1    
+def execMwm(multiCodeList, pipelineObject):
+    # pipelineObject.jobIndex -= 1    
     parallelJobLists = codeList2multiCodeList(multiCodeList)
     jobIdList = []
     for codeList in parallelJobLists:
-        jobIndex += 1        
-        jobIdList.append(runWm(codeList, runFlag, runMode, printFlag, wmParams, dependencies, jobIndex))
+        pipelineObject.jobIndex += 1        
+        jobIdList.append(runWm(codeList, pipelineObject))
     return jobIdList
 

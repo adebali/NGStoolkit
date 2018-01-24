@@ -228,7 +228,7 @@ class bed:
 			newIntervals.append([start + i * windowSize, start + i * windowSize + windowSize])
 		return newIntervals
 
-	def makeWindows(self, windowSize, noShortFlag=False):
+	def makeWindows(self, windowSize, noShortFlag=False, placeHolderNum=0):
 		filein = open(self.file, 'r')
 		for line in filein:
 			ll = line.strip().split('\t')
@@ -244,6 +244,8 @@ class bed:
 					if newIntervalLength < windowSize:
 						printFlag = False
 				if printFlag:
+					for i in range(placeHolderNum):
+						newLineList.append('.')
 					print('\t'.join(newLineList))
 
 	def read(self):

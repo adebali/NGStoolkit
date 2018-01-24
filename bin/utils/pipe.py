@@ -202,13 +202,14 @@ class pipe(object):
 
     def execMwm(self, codeList):
         dependencyIndex = self.currentBranch
-        jobIds = pipeTools.execMwm(codeList, self.runFlag, self.runMode, self.printFlag, self.wmParams, self.branchDependencyLevels[dependencyIndex], self.jobIndex)
+        jobIds = pipeTools.execMwm(codeList, self)
         self.jobIndex += len(jobIds)        
-        # print(self.branchDependencyLevels)
         self.branchDependencyLevels[self.currentBranch] = jobIds
         self.branchDependencyLevels[self.currentBranch + 1] = jobIds
-        self.wmParams = self.defaultWmParams
+        # self.wmParams = self.defaultWmParams
         
+    def getDependencies(self):
+        return self.branchDependencyLevels[self.currentBranch]
 
     def internalRun(self, function, arguments, runFlag=True, operationName=False, force=False):
         if operationName:

@@ -13,6 +13,8 @@ class referenceGenomePath(object):
             "fasta": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
             "transcripts": os.path.join(hg19_custom_root, "geneTranscripts_sorted.bed"),
+            "1Kbed": os.path.join(hg19_custom_root, "HG19_UCSC", "genome_1K.bed"),
+            "10Kbed": os.path.join(hg19_custom_root, "HG19_UCSC", "genome_10K.bed"),
             "TSS": "NA",
             "TES": "NA",
             # "genes": "NA",

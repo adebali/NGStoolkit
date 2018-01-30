@@ -1191,10 +1191,10 @@ if __name__ == "__main__":
             # .run(p.convertToBed_sam2bed, False)
             .run(p.convertToBam_sam2bam, False)
             .run(p.convertToBed_bam2bed, False)
-            .run(p.sort_bed2bed, False)
+            .run(p.sort_bed2bed, True, {'unique': True})
 
             .branch(True)
-                .run(p.writeTotalMappedReads_bed2txt, False)
+                .run(p.writeTotalMappedReads_bed2txt, True)
             .stop()
 
             .branch(False)
@@ -1221,7 +1221,7 @@ if __name__ == "__main__":
             .branch(True)
                 .run(p.splitByStrand_bed2bed, True)
                 
-                .branch(True)
+                .branch(False)
                     .run(p.intersect10K_bed2txt, True)
                     .run(p.normalizeCountsBasedOnOriginal_txt2txt, True)
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
@@ -1231,6 +1231,42 @@ if __name__ == "__main__":
                             .cat(p.merge10KCounts, True, '_2_113_130')
                         .stop()
                     .cat(p.merge10KCounts, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 1000000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 500000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 100000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 1000000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 500000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 100000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
                 .stop()
                 # Get BigWig Files
                 .branch(False)

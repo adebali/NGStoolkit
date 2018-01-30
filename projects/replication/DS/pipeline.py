@@ -496,11 +496,11 @@ if __name__ == "__main__":
             .run(p.bowtie2_fastq2sam, False, 'hg19')
             .run(p.convertToBam_sam2bam, False)
             .run(p.convertToBed_bam2bed, False)
-            .run(p.sort_bed2bed, False)
-            .run(p.slopBed_bed2bed, False)
-            .run(p.convertToFixedRange_bed2bed, False)
-            .run(p.sort_bed2bed, False)
-            .run(p.convertBedToFasta_bed2fa, False)
+            .run(p.sort_bed2bed, True, {'unique': True})
+            .run(p.slopBed_bed2bed, True)
+            .run(p.convertToFixedRange_bed2bed, True)
+            .run(p.sort_bed2bed, True)
+            .run(p.convertBedToFasta_bed2fa, True)
 
             .branch(False) # Plot nucleotide abundance
                 .run(p.getNucleotideAbundanceTable_fa2csv, True)
@@ -514,17 +514,17 @@ if __name__ == "__main__":
                 .cat(p.mergeNucleotideAbundance, True, '_diNuc')
             .stop()
 
-            .run(p.getDamageSites_fa2bed, False)
-            .run(p.sort_bed2bed, False)
+            .run(p.getDamageSites_fa2bed, True)
+            .run(p.sort_bed2bed, True)
 
             .branch(True)
-                .run(p.writeTotalMappedReads_bed2txt, False)
+                .run(p.writeTotalMappedReads_bed2txt, True)
             .stop()
 
             .branch(True)
-                .run(p.splitByStrand_bed2bed, False)
+                .run(p.splitByStrand_bed2bed, True)
                 
-                .branch(True)
+                .branch(False)
                     .run(p.intersect10K_bed2txt, True)
                     .run(p.normalizeCountsBasedOnOriginal_txt2txt, True)
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
@@ -536,6 +536,42 @@ if __name__ == "__main__":
                     .cat(p.merge10KCounts, True)
                 .stop()
 
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 1000000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 500000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 100000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 1000000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 500000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 100000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
+
                 # Get BigWig Files
                 .branch(False)
                     .run(p.convertToBedGraph_bed2bdg, True)
@@ -543,7 +579,7 @@ if __name__ == "__main__":
                 .stop()
             .stop()
 
-        .branch(True)
+        .branch(False)
 
         # Annotated transcript counts
             # .branch(False)

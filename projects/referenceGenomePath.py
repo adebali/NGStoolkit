@@ -19,7 +19,11 @@ class referenceGenomePath(object):
             "TES": "NA",
             # "genes": "NA",
             "chromatinStates": "NA",
-            "LAD": os.path.join(hg19_custom_root, "LADcenter_w100bp_noY_bed6.bed") # http://compbio.med.harvard.edu/modencode/webpage/lad/human.fibroblast.DamID.hg19.bed
+            "LAD": os.path.join(hg19_custom_root, "LADcenter_w100bp_noY_bed6.bed"), # http://compbio.med.harvard.edu/modencode/webpage/lad/human.fibroblast.DamID.hg19.bed
+            "HeLaS3": {
+                "RIZ": os.path.join(hg19_custom_root, "GSM923449_hg19_wgEncodeUwRepliSeqHelas3PkRep1.bed"),
+                "RTZ": os.path.join(hg19_custom_root, "GSM923449_hg19_wgEncodeUwRepliSeqHelas3ValleysRep1.bed")
+            }
         }
 
         self.hg19nuc = self.hg19

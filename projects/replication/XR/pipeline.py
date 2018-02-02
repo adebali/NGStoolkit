@@ -41,19 +41,6 @@ class pipeline(parentpipe):
         self.fragmentLengths = range(10, 32+1)
         self.reference = self.paths.get('TAIR10')
         # self.fragmentLengths = range(10, 17+1)
-    
-    def prettyOutput(self):
-        newOutputs = []
-        for o in self.output:
-            if 'Plus' in o:
-                extraWord = '_Plus'
-            elif 'Minus' in o:
-                extraWord = '_Minus'
-            else:
-                extraWord = ''
-            extension = pipeTools.getExtension(o)
-            newOutputs.append(os.path.join(os.path.dirname(o),self.title + extraWord + '.' + extension))
-        return newOutputs
 
     def tailFiles(self, wildcard, headers, output):
         code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "tail --lines=+2 " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
@@ -983,15 +970,12 @@ class pipeline(parentpipe):
                 outputStringList.append(outString)
 
         self.saveOutput(outputs)
-        print(len(inputs))
-        print(len(outputs))
         codeList = [
             'bed2chromosomeSeparatedBed.py',
             '-i', self.input,
             '-chr', ' '.join(chromosomes),
             '-o', outputStringList
         ]
-        # print(codeList)
         self.execM(codeList)
         return self
 
@@ -1141,6 +1125,30 @@ class pipeline(parentpipe):
         self.execM(codeList)
         return self
 
+    def normalizeByDamage_bdg2bdg(self):
+        XRseqFile = self.input[0]
+        DamageSeqFile = os.path.join('..', 'DS', 'dataDir', '1801', os.path.basename(XRseqFile).replace(self.method + '_', 'DS_'))
+        import generalUtils
+        def normalizeByDamage(x, y, arg=None):
+            import math
+            xl = x.strip().split('\t')
+            yl = y.strip().split('\t')
+            xval = xl[3]
+            yval = yl[3]
+            
+            if xval == '.' or yval == '.':
+                return False
+            value = math.log(float(xval)/float(yval), 2)
+            xl[3] = str(value)
+            return '\t'.join(xl[0:4])
+
+        self.internalRun(
+            generalUtils.lineBasedTwoFilesOperation,
+            [XRseqFile, DamageSeqFile, self.output[0], normalizeByDamage, [None]],
+            self.runFlag, 
+            'normalize by damage'
+            )
+        return self
 
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq Mouse Organs Pipeline', prog="pipeline.py")
@@ -1191,9 +1199,9 @@ if __name__ == "__main__":
             # .run(p.convertToBed_sam2bed, False)
             .run(p.convertToBam_sam2bam, False)
             .run(p.convertToBed_bam2bed, False)
-            .run(p.sort_bed2bed, True, {'unique': True})
+            .run(p.sort_bed2bed, False, {'unique': True})
 
-            .branch(True)
+            .branch(False)
                 .run(p.writeTotalMappedReads_bed2txt, True)
             .stop()
 
@@ -1218,61 +1226,76 @@ if __name__ == "__main__":
             #     .cat(p.mergeNucleotideFrequenciesAll, False)
             # .stop()
 
-            .branch(True)
-                .run(p.splitByStrand_bed2bed, True)
+            .branch(False)
+                .run(p.splitByStrand_bed2bed, False)
                 
-                .branch(False)
-                    .run(p.intersect10K_bed2txt, True)
-                    .run(p.normalizeCountsBasedOnOriginal_txt2txt, True)
-                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                .branch(True)
+                    .run(p.intersect10K_bed2txt, False)
+                    .run(p.normalizeCountsBasedOnOriginal_txt2txt, False)
+                    
+                    .branch(False)
+                        .run(p.strandAsymmetry_txt2bdg, True)
+                    .stop()
 
-                        .branch(True)
+                    .branch(False)
+                        .run(p.strandRatio_txt2bdg, True)
+                        .run(p.normalizeByDamage_bdg2bdg, True)
+                    .stop()
+
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, False)
+
+                        .branch(False)
                             .run(p.filterChrPos_txt2txt, True, {'chromosome': 'chr2', 'startGT': 113000000, 'startLT': 130000000})
                             .cat(p.merge10KCounts, True, '_2_113_130')
                         .stop()
                     .cat(p.merge10KCounts, True)
                 .stop()
 
-                .branch(True)
-                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 1000000, 'score': 900})
-                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
-                    .cat(p.mergeLeadLag, True)
+                .branch(False)
+                    .run(p.leadLag_bed2txt, False, {'zone': 'RIZ', 'distance': 1000000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, False)
+                    .cat(p.mergeLeadLag, False)
                 .stop()
 
-                .branch(True)
-                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 500000, 'score': 900})
-                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
-                    .cat(p.mergeLeadLag, True)
+                .branch(False)
+                    .run(p.leadLag_bed2txt, False, {'zone': 'RIZ', 'distance': 500000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, False)
+                    .cat(p.mergeLeadLag, False)
                 .stop()
 
-                .branch(True)
-                    .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 100000, 'score': 900})
-                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
-                    .cat(p.mergeLeadLag, True)
+                .branch(False)
+                    .run(p.leadLag_bed2txt, False, {'zone': 'RIZ', 'distance': 100000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, False)
+                    .cat(p.mergeLeadLag, False)
                 .stop()
 
-                .branch(True)
-                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 1000000, 'score': 900})
-                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
-                    .cat(p.mergeLeadLag, True)
+                .branch(False)
+                    .run(p.leadLag_bed2txt, False, {'zone': 'RTZ', 'distance': 1000000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, False)
+                    .cat(p.mergeLeadLag, False)
                 .stop()
 
-                .branch(True)
-                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 500000, 'score': 900})
-                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
-                    .cat(p.mergeLeadLag, True)
+                .branch(False)
+                    .run(p.leadLag_bed2txt, False, {'zone': 'RTZ', 'distance': 500000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, False)
+                    .cat(p.mergeLeadLag, False)
                 .stop()
 
-                .branch(True)
-                    .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 100000, 'score': 900})
-                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
-                    .cat(p.mergeLeadLag, True)
+                .branch(False)
+                    .run(p.leadLag_bed2txt, False, {'zone': 'RTZ', 'distance': 100000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, False)
+                    .cat(p.mergeLeadLag, False)
                 .stop()
                 # Get BigWig Files
                 .branch(False)
                     .run(p.convertToBedGraph_bed2bdg, True)
                     .run(p.toBigWig_bdg2bw, True)
                 .stop()
+            .stop()
+
+            .branch(True)
+                .run(p.convertToBedGraph_bed2bdg, True)
+                .run(p.toBigWig_bdg2bw, True)
             .stop()
 
         # Annotated transcript counts

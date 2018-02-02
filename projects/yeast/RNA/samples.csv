@@ -1,2 +1,5 @@
-no,group,sample,title
-1,1,SRR2005997.fastq,NETseq_A
+no,group,SRA_id,title
+1,1,SRR2005997,NETseq_A
+2,1,SRR2005998,NETseq_B
+3,1,SRR2006002,RNAseq_A
+4,1,SRR2006003,RNAseq_B

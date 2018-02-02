@@ -112,6 +112,7 @@ class pipeline(pipe):
         return self
    
     def toBigWig_bdg2bw(self):
+        self.saveOutput(self.prettyOutput())
         codeList = [
             'bedGraphToBigWig',
             self.input,
@@ -156,6 +157,19 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def prettyOutput(self, additionalWord = ''):
+        newOutputs = []
+        for o in self.output:
+            if 'Plus' in o:
+                extraWord = '_Plus'
+            elif 'Minus' in o:
+                extraWord = '_Minus'
+            else:
+                extraWord = ''
+            extension = pipeTools.getExtension(o)
+            newOutputs.append(os.path.join(os.path.dirname(o),self.title + extraWord + additionalWord + '.' + extension))
+        return newOutputs
+
     def leadLag_bed2txt(self, args={}):
         zone = args.get('zone', 'RIZ')
         distance = args.get('distance', 1000000)
@@ -178,6 +192,57 @@ class pipeline(pipe):
             '-o', self.output
         ]
         self.execM(codeList)
+        return self
+
+    def strandAsymmetry_txt2bdg(self):
+        import generalUtils
+        def strandAssymmetry(x, y, arg=None):
+            xl = x.strip().split('\t')
+            yl = y.strip().split('\t')
+            xval = float(xl[6])
+            yval = float(yl[6])
+            
+            if xval + yval > 0:
+                value = (xval - yval)/(xval + yval)
+            else:
+                return False
+            xl[3] = str(value)
+            return '\t'.join(xl[0:4])
+
+        self.saveOutput(self.prettyOutput('_asymmetry'))
+        self.internalRun(
+            generalUtils.lineBasedTwoFilesOperation,
+            [self.input[0], self.input[1], self.output[0].replace('_Plus', ''), strandAssymmetry, [None]], self.runFlag, 
+            'strand Assymmetry'
+            )
+        return self
+
+    def strandRatio_txt2bdg(self):
+        import generalUtils
+        def strandRatio(x, y, arg=None):
+            xl = x.strip().split('\t')
+            yl = y.strip().split('\t')
+            xval = float(xl[6])
+            yval = float(yl[6])
+            
+            if yval > 0 and xval>0:
+                value = float(xval)/yval
+            else:
+                value = '.'
+            xl[3] = str(value)
+            return '\t'.join(xl[0:4])
+
+        input1 = self.input[0]
+        input2 = self.input[1]
+        self.input = [self.input[0]]
+        self.saveOutput([self.prettyOutput('_strandRatio')[0].replace('_Plus', '')])
+        output = self.output[0]
+        self.internalRun(
+            generalUtils.lineBasedTwoFilesOperation,
+            [input1, input2, output, strandRatio, [None]], self.runFlag, 
+            'strand ratio'
+            )
+        
         return self
 
     # remove the close ones (neighborDistance)

@@ -41,19 +41,6 @@ class pipeline(parentpipe):
         self.fragmentLengths = range(10, 32+1)
         self.reference = self.paths.get('TAIR10')
         # self.fragmentLengths = range(10, 17+1)
-    
-    def prettyOutput(self):
-        newOutputs = []
-        for o in self.output:
-            if 'Plus' in o:
-                extraWord = '_Plus'
-            elif 'Minus' in o:
-                extraWord = '_Minus'
-            else:
-                extraWord = ''
-            extension = pipeTools.getExtension(o)
-            newOutputs.append(os.path.join(os.path.dirname(o),self.title + extraWord + '.' + extension))
-        return newOutputs
 
     def catFiles(self, wildcard, headers, output):
         code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
@@ -496,11 +483,11 @@ if __name__ == "__main__":
             .run(p.bowtie2_fastq2sam, False, 'hg19')
             .run(p.convertToBam_sam2bam, False)
             .run(p.convertToBed_bam2bed, False)
-            .run(p.sort_bed2bed, True, {'unique': True})
-            .run(p.slopBed_bed2bed, True)
-            .run(p.convertToFixedRange_bed2bed, True)
-            .run(p.sort_bed2bed, True)
-            .run(p.convertBedToFasta_bed2fa, True)
+            .run(p.sort_bed2bed, False, {'unique': False})
+            .run(p.slopBed_bed2bed, False)
+            .run(p.convertToFixedRange_bed2bed, False)
+            .run(p.sort_bed2bed, False)
+            .run(p.convertBedToFasta_bed2fa, False)
 
             .branch(False) # Plot nucleotide abundance
                 .run(p.getNucleotideAbundanceTable_fa2csv, True)
@@ -514,59 +501,68 @@ if __name__ == "__main__":
                 .cat(p.mergeNucleotideAbundance, True, '_diNuc')
             .stop()
 
-            .run(p.getDamageSites_fa2bed, True)
-            .run(p.sort_bed2bed, True)
+            .run(p.getDamageSites_fa2bed, False)
+            .run(p.sort_bed2bed, False)
 
-            .branch(True)
+            .branch(False)
                 .run(p.writeTotalMappedReads_bed2txt, True)
             .stop()
 
-            .branch(True)
-                .run(p.splitByStrand_bed2bed, True)
+            .branch(False)
+                .run(p.splitByStrand_bed2bed, False)
                 
-                .branch(False)
-                    .run(p.intersect10K_bed2txt, True)
-                    .run(p.normalizeCountsBasedOnOriginal_txt2txt, True)
-                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                .branch(True)
+                    .run(p.intersect10K_bed2txt, False)
+                    .run(p.normalizeCountsBasedOnOriginal_txt2txt, False)
 
-                        .branch(True)
+                    .branch(False)
+                        .run(p.strandAsymmetry_txt2bdg, True)
+                    .stop()
+
+                    .branch(False)
+                        .run(p.strandRatio_txt2bdg, True)
+                    .stop()
+                    
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, False)
+
+                        .branch(False)
                             .run(p.filterChrPos_txt2txt, True, {'chromosome': 'chr2', 'startGT': 113000000, 'startLT': 130000000})
                             .cat(p.merge10KCounts, True, '_2_113_130')
                         .stop()
-                    .cat(p.merge10KCounts, True)
+                    .cat(p.merge10KCounts, False)
                 .stop()
 
-                .branch(True)
+                .branch(False)
                     .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 1000000, 'score': 900})
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
                     .cat(p.mergeLeadLag, True)
                 .stop()
 
-                .branch(True)
+                .branch(False)
                     .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 500000, 'score': 900})
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
                     .cat(p.mergeLeadLag, True)
                 .stop()
 
-                .branch(True)
+                .branch(False)
                     .run(p.leadLag_bed2txt, True, {'zone': 'RIZ', 'distance': 100000, 'score': 900})
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
                     .cat(p.mergeLeadLag, True)
                 .stop()
 
-                .branch(True)
+                .branch(False)
                     .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 1000000, 'score': 900})
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
                     .cat(p.mergeLeadLag, True)
                 .stop()
 
-                .branch(True)
+                .branch(False)
                     .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 500000, 'score': 900})
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
                     .cat(p.mergeLeadLag, True)
                 .stop()
 
-                .branch(True)
+                .branch(False)
                     .run(p.leadLag_bed2txt, True, {'zone': 'RTZ', 'distance': 100000, 'score': 900})
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
                     .cat(p.mergeLeadLag, True)
@@ -577,6 +573,11 @@ if __name__ == "__main__":
                     .run(p.convertToBedGraph_bed2bdg, True)
                     .run(p.toBigWig_bdg2bw, True)
                 .stop()
+            .stop()
+        
+            .branch(True)
+                .run(p.convertToBedGraph_bed2bdg, True)
+                .run(p.toBigWig_bdg2bw, True)
             .stop()
 
         .branch(False)

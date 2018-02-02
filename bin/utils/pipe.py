@@ -212,18 +212,20 @@ class pipe(object):
         return self.branchDependencyLevels[self.currentBranch]
 
     def internalRun(self, function, arguments, runFlag=True, operationName=False, force=False):
+        branchSpace = '  '
         if operationName:
             functionName = operationName
         else:
             functionName = function.__name__
+        
         if runFlag:
             if self.printFlag:
-                print('i->\t' + functionName)
+                print('\033[94m' + str(self.jobIndex) + ' =>\t' + self.currentBranch * branchSpace + functionName + '\033[0m')
             if self.runMode or force:
                 return function(*arguments)
         else:
             if self.printFlag:
-                print('iX\t' + functionName)
+                print(str(self.jobIndex) + ' =X\t' + self.currentBranch * branchSpace + functionName)
             return 1
 
     def mutateWmParams(self, dictionary):

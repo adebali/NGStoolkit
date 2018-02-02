@@ -124,6 +124,17 @@ def lineBasedFileOperation(input, output, function, arguments):
 			out.write(newLine.strip() + '\n')
 	out.close()
 
+def lineBasedTwoFilesOperation(input1, input2, output, function, arguments):
+	from itertools import izip
+	out = open(output, 'w')
+	with open(input1) as textfile1, open(input2) as textfile2: 
+		for x, y in izip(textfile1, textfile2):
+			currentArguments = list([x,y] + arguments)
+			newLine = function(*currentArguments)
+			if newLine:
+				out.write(newLine.strip() + '\n')
+	out.close()
+
 def lineBasedFiltering(input, output, function):
 	filein = open(input, 'r')
 	out = open(output, 'w')

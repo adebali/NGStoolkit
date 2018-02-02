@@ -1139,6 +1139,25 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def geneMap_bed2txt(self):
+        newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
+        self.saveOutput(newOutput)
+        strandParameters = ['-S', '-s'] #[different strand, same strand]
+        self.input = [self.input[0], self.input[0]]
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference["scoredGenes"],
+            '-b', self.input,
+            '-wa',
+            '-c',
+            strandParameters,
+            '-F', 0.50,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq Mouse Organs Pipeline', prog="pipeline.py")
     parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
@@ -1179,42 +1198,49 @@ def main():
     (p
         .run(p.uniqueSort_bed2bed, False)
        
+        .branch(True)
+            .run(p.geneMap_bed2txt, True)
+            .run(p.normalizeCounts_txt2txt, True)
+            .run(p.addTSNTS_txt2txt, True)
+            .cat(p.mergeGeneCounts, True)
+        .stop()
+
        # TCR Analysis
         .branch(True)
             .run(p.transcriptIntersect_bed2txt, False)
-            .run(p.addTreatment_txt2txt, True, 'real')
+            .run(p.addTreatment_txt2txt, False, 'real')
         .stop()
 
         .branch(True)
             .run(p.transcriptIntersect_bed2txt, False, {'random':True})
-            .run(p.addTreatment_txt2txt, True, 'random')
+            .run(p.addTreatment_txt2txt, False, 'random')
         .stop()
 
         .branch(True)
             .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
-            .run(p.addTreatment_txt2txt, True, 'Q1')
+            .run(p.addTreatment_txt2txt, False, 'Q1')
         .stop()
 
         .branch(True)
             .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
-            .run(p.addTreatment_txt2txt, True, 'Q2')
+            .run(p.addTreatment_txt2txt, False, 'Q2')
         .stop()
 
         .branch(True)
             .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
-            .run(p.addTreatment_txt2txt, True, 'Q3')
+            .run(p.addTreatment_txt2txt, False, 'Q3')
         .stop()
 
         .branch(True)
             .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
-            .run(p.addTreatment_txt2txt, True, 'Q4')
+            .run(p.addTreatment_txt2txt, False, 'Q4')
         .stop()
 
        # Non overlapping transcripts
         .branch(True)
             .run(p.transcriptIntersect_bed2txt, False, {'genes': 'genes_noNeighborIn500bp', 'keyword': '_no_neighbor'})
-            .run(p.addTreatment_txt2txt, True, 'no_neighbor')
-            .cat(p.mergeTCR, True)
+            .run(p.addTreatment_txt2txt, False, 'no_neighbor')
+            .cat(p.mergeTCR, False)
         .stop()
     )
 ###########################################################

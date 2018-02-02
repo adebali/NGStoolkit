@@ -24,7 +24,7 @@ class myPipe(pipe):
         self.saveInput(os.path.realpath(os.path.join(os.path.curdir, 'dataDir', OUTPUT_DIR, input)))
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', OUTPUT_DIR))
         os.system('mkdir -p ' + self.outputDir)
-        sampleDictionary = generalUtils.table2dictionary(SAMPLE_STAT_FILE, 'sample')[input][0]
+        sampleDictionary = generalUtils.table2dictionary(SAMPLE_STAT_FILE, 'SRA_id')[input][0]
         self.attributes = sorted(sampleDictionary.keys())
         self = pipeTools.assignProperty(self, sampleDictionary)
         self.paths = referenceGenomePath()
@@ -270,6 +270,18 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def dump_2fastq(self):
+        output = [self.SRA_id + '.fastq']
+        self.saveOutput([os.path.join(os.path.realpath(self.outputDir), os.path.basename(output[0]))])
+        print(self.output)
+        codeList = [
+            'fastq-dump',
+            self.SRA_id,
+            '-O', os.path.realpath(self.outputDir)
+        ]
+        self.execM(codeList)
+        return self
+
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq ZT Pipeline', prog="pipeline.py")
     parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
@@ -296,7 +308,7 @@ def sampleIO(fileName, in_, by_, out_):
 
 def getInputFromIndex(n):
     SAMPLE_STAT_FILE = 'samples.csv'
-    return sampleIO(SAMPLE_STAT_FILE, n, 'no', 'sample')
+    return sampleIO(SAMPLE_STAT_FILE, n, 'no', 'SRA_id')
 
 
 args = getArgs()
@@ -307,28 +319,29 @@ input = getInputFromIndex(inputIndex)
 ###########################################################
 p = myPipe(input, args)
 (p
+
+    .run(p.dump_2fastq, True)
     .branch(False)
         .run(p.fastqc_fastq2html, False)
     .stop()
-
-    .run(p.cutadapt_fastq2fastq, False)
-    .run(p.bowtie_fastq2sam, False)
-    .run(p.convertToBam_sam2bam, False)
-    .run(p.convertToBed_bam2bed, False)
-    .run(p.uniqueSort_bed2bed, False)
+    .run(p.cutadapt_fastq2fastq, True)
+    .run(p.bowtie_fastq2sam, True)
+    .run(p.convertToBam_sam2bam, True)
+    .run(p.convertToBed_bam2bed, True)
+    .run(p.uniqueSort_bed2bed, True)
 
     .branch(True)
-        .run(p.writeTotalMappedReads_bed2txt, False)
+        .run(p.writeTotalMappedReads_bed2txt, True)
     .stop()
 
     .branch(True)
-        .run(p.geneMap_bed2txt, False)
-        .run(p.normalizeCounts_txt2txt, False)
-        .run(p.addTreatment_txt2txt, False)
+        .run(p.geneMap_bed2txt, True)
+        .run(p.normalizeCounts_txt2txt, True)
+        .run(p.addTreatment_txt2txt, True)
         .branch(True)
             .run(p.makeScoreBed6_txt2bed, True)
         .stop()
-        .cat(p.mergeGeneCounts, False)
+        .cat(p.mergeGeneCounts, True)
     .stop()
 
     .run(p.toBg_bed2bg, False)

@@ -1226,7 +1226,7 @@ if __name__ == "__main__":
             #     .cat(p.mergeNucleotideFrequenciesAll, False)
             # .stop()
 
-            .branch(False)
+            .branch(True)
                 .run(p.splitByStrand_bed2bed, False)
                 
                 .branch(True)
@@ -1286,6 +1286,13 @@ if __name__ == "__main__":
                     .run(p.addTreatmentAndPlusMinus_txt2txt, False)
                     .cat(p.mergeLeadLag, False)
                 .stop()
+
+
+                .branch(True)
+                    .run(p.leadLagSelected_bed2txt, True, {'zone': 'selectedRIZ', 'distance': 1000000, 'score': 900})
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeLeadLag, True)
+                .stop()
                 # Get BigWig Files
                 .branch(False)
                     .run(p.convertToBedGraph_bed2bdg, True)
@@ -1293,7 +1300,7 @@ if __name__ == "__main__":
                 .stop()
             .stop()
 
-            .branch(True)
+            .branch(False)
                 .run(p.convertToBedGraph_bed2bdg, True)
                 .run(p.toBigWig_bdg2bw, True)
             .stop()

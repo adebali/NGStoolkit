@@ -23,7 +23,8 @@ class referenceGenomePath(object):
             "HeLaS3": {
                 "RIZ": os.path.join(hg19_custom_root, "GSM923449_hg19_wgEncodeUwRepliSeqHelas3PkRep1.bed"),
                 "selectedRIZ": os.path.join(hg19_custom_root, "selectedRIZ.bed"),
-                "RTZ": os.path.join(hg19_custom_root, "GSM923449_hg19_wgEncodeUwRepliSeqHelas3ValleysRep1.bed")
+                "RTZ": os.path.join(hg19_custom_root, "GSM923449_hg19_wgEncodeUwRepliSeqHelas3ValleysRep1.bed"),
+                "replicationDomains": os.path.join(hg19_custom_root, "GSE53984_GSM923449_Helas3_Rep1_segments.bed")
             }
         }
 

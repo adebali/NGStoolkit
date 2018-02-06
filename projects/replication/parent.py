@@ -216,6 +216,30 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def replicationDomain_bed2txt(self, args={}):
+        zone = args.get('zone', 'replicationDomains')
+        keyword = args.get('keyword', 'DTZ')
+        distance = args.get('distance', 100000)
+        self.leadLagExtraWord = '_' + zone + '_' + keyword + '_' + str(round(float(distance)/1000000,4)) + 'MB'
+        self.saveOutput(pipeTools.listOperation(self.addExtraWord, self.output, self.leadLagExtraWord))
+        # self.saveOutput(self.lineBa)
+        if self.runFlag and self.runMode:
+            self.scaleFactor = float(1000000)/self.internalRun(bed.bed(self.finalBed).getHitNum, [], self.runFlag, 'get hit number')
+        else:
+            self.scaleFactor = 1
+        codeList = [
+            'python ../replicationDomains.py',
+            '-i', self.input,
+            '-a', self.reference['HeLaS3'][zone],
+            '-s', self.scaleFactor,
+            '-keyword', keyword,
+            '-g', self.reference['limits'],
+            '-d', distance,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
     def strandAsymmetry_txt2bdg(self):
         import generalUtils
         def strandAssymmetry(x, y, arg=None):

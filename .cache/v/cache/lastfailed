@@ -1,9 +1,5 @@
 {
-  "bin/utils/test_pfm.py": true, 
-  "bin/utils/tests/test_bed.py": true, 
-  "bin/utils/tests/test_fasta.py": true, 
-  "bin/utils/tests/test_generalUtils.py": true, 
-  "bin/utils/tests/test_gff.py": true, 
-  "bin/utils/tests/test_pipeTools.py": true, 
-  "bin/utils/tests/test_seq.py": true
+  "bin/utils/test_pfm.py::test_pfm": true,
+  "bin/utils/tests/test_bed.py::test_bedIntersect": true,
+  "bin/utils/tests/test_bed.py::test_bedline2": true
 }

@@ -1,5 +1,5 @@
 no,group,sample,prodcut,treatment,title,replicate
 1,1,HaCat_A-_AGTTCC.fastq,GG,NA,XRseq_HaCat_A,A
 2,1,HaCat_B-_ATGTCA.fastq,GG,NA,XRseq_HaCat_B,B
-3,2,HaCatXR_C_ACTGAT_S3_L001_R1_001.fastq.gz,GG,NA,XRseq_HaCat_C,C
-4,2,HaCatXR_D_ATGAGC_S1_L001_R1_001.fastq.gz,GG,NA,XRseq_HaCat_D,D
+3,2,HaCatXR_C_ACTGAT.fastq,GG,NA,XRseq_HaCat_C,C
+4,2,HaCatXR_D_ATGAGC.fastq,GG,NA,XRseq_HaCat_D,D

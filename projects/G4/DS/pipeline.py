@@ -190,7 +190,7 @@ class myPipe(parentpipe):
         codeList = [
             'plotNucleotideAbundance.r',
             self.input,
-            self.treatment_title
+            self.title
         ]
         self.execM(codeList)
         return self
@@ -210,7 +210,7 @@ class myPipe(parentpipe):
         codeList = [
             'plotNucleotideFreqLine.r',
             self.input,
-            self.treatment_title
+            self.title
         ]
         self.execM(codeList)
         return self
@@ -300,7 +300,7 @@ class myPipe(parentpipe):
             else:
                 extraWord = ''
             extension = pipeTools.getExtension(o)
-            newOutputs.append(os.path.join(os.path.dirname(o),self.treatment_title + extraWord + '.' + extension))
+            newOutputs.append(os.path.join(os.path.dirname(o),self.title + extraWord + '.' + extension))
         return newOutputs
 
 

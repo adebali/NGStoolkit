@@ -45,8 +45,8 @@ if args.e:
 
 parameters = {
     "--job-name=": "Plant_pipeline",
-    "-n ": 1,
-    # "-n ": 8,
+    # "-n ": 1,
+    "-n ": 8,
     # "--mem=": 128000,
     # "--mem=": 64000,
     # "--mem=": 16000,

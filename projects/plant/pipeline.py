@@ -1239,7 +1239,7 @@ if __name__ == "__main__":
         .branch(False)
             .run(p.GEO_fastq2txt, True)
         .stop()
-        .run(p.cutadapt_fastq2fastq, False)
+        .run(p.cutadapt_fastq2fastq, True)
     # TAIR 9
 
         .branch(False)
@@ -1342,20 +1342,20 @@ if __name__ == "__main__":
 
     # TAIR10
         .branch(True)
-            .run(p.bowtie_fastq2sam, False, 'TAIR10')
-            .run(p.convertToBam_sam2bam, False)
-            .run(p.convertToBed_bam2bed, False)
-            .run(p.uniqueSort_bed2bed, False)
+            .run(p.bowtie_fastq2sam, True, 'TAIR10')
+            .run(p.convertToBam_sam2bam, True)
+            .run(p.convertToBed_bam2bed, True)
+            .run(p.uniqueSort_bed2bed, True)
             
 
 
-            .branch(False)
+            .branch(True)
                 .run(p.lengthDistribution_bed2csv, True)
                 .run(p.addTreatment_txt2txt, True)
                 .cat(p.mergeLength, True)                
             .stop()
 
-            .branch(False)
+            .branch(True)
                 .run(p.get27mer_bed2bed, True)
                 .run(p.convertBedToFasta_bed2fa, True)
                 .run(p.getNucleotideAbundanceTable_fa2csv, True)
@@ -1372,7 +1372,7 @@ if __name__ == "__main__":
 
 
         # Get BigWig Files
-            .branch(False)
+            .branch(True)
                 .run(p.splitByStrand_bed2bed, True)
                 
                 .branch(True)
@@ -1406,7 +1406,7 @@ if __name__ == "__main__":
             .stop()
 
         # Coding gene counts
-            .branch(True)
+            .branch(False)
                 .run(p.geneStrandMap_bed2txt, False, "genes")
                 .run(p.normalizeCounts_txt2txt, False)
                 .run(p.addTSNTS_txt2txt, False)

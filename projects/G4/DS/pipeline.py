@@ -17,7 +17,7 @@ class myPipe(pipe):
         pipe.__init__(self, input, args)
         OUTPUT_DIR = '1712'
         SAMPLE_STAT_FILE = 'samples.csv'    
-        self.input = os.path.join(os.path.curdir, 'dataDir', 'raw', self.input)
+        self.input = os.path.join(os.path.curdir, 'data', 'raw', self.input)
         self.outputDir = os.path.realpath(os.path.join(os.path.dirname(self.input), '..', OUTPUT_DIR))
         os.system('mkdir -p ' + self.outputDir)
         sampleDictionary = generalUtils.table2dictionary(SAMPLE_STAT_FILE, 'sample')[input][0]

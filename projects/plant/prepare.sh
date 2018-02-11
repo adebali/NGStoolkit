@@ -39,13 +39,17 @@ PROJECT_SCRIPT=${SCRIPTS}/projects/${PROJECT_NAME}
 # gunzip -c ${DIR}/OO_XR_cir4-_CAGATC_S17_L003_R1_001.fastq.gz >${RAW}/OO_XR_cir4-_CAGATC.fastq
 # gunzip -c ${DIR}/OO_XR_cir7-_ACTTGA_S16_L003_R1_001.fastq.gz >${RAW}/OO_XR_cir7-_ACTTGA.fastq
 
-DIR=/proj/sancarlb/HTSF/171208_UNC13-SN749_0659_AH3NTGBCX2
+# DIR=/proj/sancarlb/HTSF/171208_UNC13-SN749_0659_AH3NTGBCX2
 
-gunzip -c ${DIR}/OO_XR_cir2-10_GCCAAT_S2_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-10_GCCAAT.fastq
-gunzip -c ${DIR}/OO_XR_cir2-13_CAGATC_S3_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-13_CAGATC.fastq
-gunzip -c ${DIR}/OO_XR_cir2-16_ACTTGA_S4_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-16_ACTTGA.fastq
-gunzip -c ${DIR}/OO_XR_cir2-19_GATCAG_S5_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-19_GATCAG.fastq
-gunzip -c ${DIR}/OO_XR_cir2-1_TTAGGC_S1_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-1_TTAGGC.fastq
-gunzip -c ${DIR}/OO_XR_cir2-22_TAGCTT_S6_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-22_TAGCTT.fastq
-gunzip -c ${DIR}/OO_XR_cir2-4_TGACCA_S7_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-4_TGACCA.fastq
-gunzip -c ${DIR}/OO_XR_cir2-7_ACAGTG_S8_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-7_ACAGTG.fastq
+# gunzip -c ${DIR}/OO_XR_cir2-10_GCCAAT_S2_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-10_GCCAAT.fastq
+# gunzip -c ${DIR}/OO_XR_cir2-13_CAGATC_S3_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-13_CAGATC.fastq
+# gunzip -c ${DIR}/OO_XR_cir2-16_ACTTGA_S4_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-16_ACTTGA.fastq
+# gunzip -c ${DIR}/OO_XR_cir2-19_GATCAG_S5_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-19_GATCAG.fastq
+# gunzip -c ${DIR}/OO_XR_cir2-1_TTAGGC_S1_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-1_TTAGGC.fastq
+# gunzip -c ${DIR}/OO_XR_cir2-22_TAGCTT_S6_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-22_TAGCTT.fastq
+# gunzip -c ${DIR}/OO_XR_cir2-4_TGACCA_S7_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-4_TGACCA.fastq
+# gunzip -c ${DIR}/OO_XR_cir2-7_ACAGTG_S8_L001_R1_001.fastq.gz >${RAW}/OO_XR_cir2-7_ACAGTG.fastq
+
+DIR=/proj/sancarlb/HTSF/180207_UNC32-K00270_0079_BHN5CVBBXX
+
+gunzip -c ${DIR}/Onur_6-4_A_GTGGCC_S8_L002_R1_001.fastq.gz >${RAW}/Onur_6-4_A_GTGGCC.fastq

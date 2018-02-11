@@ -20,3 +20,4 @@ no,group,sample,product,treatment,treatment_title,replicate,time
 19,4,experiment1.fastq,CPD,all,all_NA_A,A,NA
 20,4,experiment2.fastq,CPD,all,all_NA_B,B,NA
 21,5,experiment12.fastq,CPD,all,all_NA_AB,AB,NA
+22,6,Onur_6-4_A_GTGGCC.fastq,64,LD,LD_64_ZT17_A,A,ZT17

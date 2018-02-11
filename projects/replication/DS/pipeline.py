@@ -574,16 +574,23 @@ if __name__ == "__main__":
                     .cat(p.mergeLeadLag, True)
                 .stop()
 
-                .branch(True)
+                .branch(False)
                     .run(p.replicationDomain_bed2txt, True, {'zone': 'replicationDomains', 'distance': 100000, 'keyword': 'DTZ'})
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
                     .cat(p.mergeLeadLag, True)
                 .stop()
 
-                .branch(True)
+                .branch(False)
                     .run(p.replicationDomain_bed2txt, True, {'zone': 'replicationDomains', 'distance': 100000, 'keyword': 'UTZ'})
                     .run(p.addTreatmentAndPlusMinus_txt2txt, True)
                     .cat(p.mergeLeadLag, True)
+                .stop()
+
+                .branch(True)
+                    .run(p.intersectRepChmm_bed2txt, True)
+                    .run(p.repChmmTotal_txt2txt, True)
+                    .run(p.addTreatmentAndPlusMinus_txt2txt, True)
+                    .cat(p.mergeRepChmm, True)
                 .stop()
 
                 # Get BigWig Files

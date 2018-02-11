@@ -22,6 +22,30 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def intersectRepChmm_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference["HeLaS3"]["replicationChmm"],
+            '-b', self.input,
+            '-wa',
+            '-c',
+            '-F', 0.50,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def repChmmTotal_txt2txt(self):
+        codeList = [
+            'Rscript',
+            os.path.join(os.path.dirname(os.path.realpath(__file__)), 'repChmmTotal.R'),
+            self.input,
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
     def filterChrPos_txt2txt(self, args):
         codeList = [
             'awk', 
@@ -79,6 +103,13 @@ class pipeline(pipe):
         wildcard = self.fullPath2wildcard(self.input[0]).replace("_Plus", "_*s")
         headers = ['position', 'count'] + self.attributes + ['strandName']
         output = os.path.join(self.outputDir, '..', 'merged_leadLag' + self.leadLagExtraWord + extraWord + '.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
+
+    def mergeRepChmm(self, extraWord = ''):
+        wildcard = self.fullPath2wildcard(self.input[0]).replace("_Plus", "_*s")
+        headers = ['RD', 'CH', 'length', 'RPM', 'RPKM'] + self.attributes + ['strandName']
+        output = os.path.join(self.outputDir, '..', 'merged_repChmm' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
         return self
 
@@ -194,6 +225,30 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def G1bPeaks_bed2txt(self, args={}):
+        zone = args.get('zone', 'RIZ')
+        distance = args.get('distance', 100000)
+        scoreCutoff = args.get('score', 500)
+        self.leadLagExtraWord = '_' + zone + '_' + str(round(float(distance)/1000000,4)) + 'MB' + '_c' + str(scoreCutoff)
+        self.saveOutput(pipeTools.listOperation(self.addExtraWord, self.output, self.leadLagExtraWord))
+        # self.saveOutput(self.lineBa)
+        if self.runFlag and self.runMode:
+            self.scaleFactor = float(1000000)/self.internalRun(bed.bed(self.finalBed).getHitNum, [], self.runFlag, 'get hit number')
+        else:
+            self.scaleFactor = 1
+        codeList = [
+            'python ../G1b_peaks.py',
+            '-i', self.input,
+            '-a', self.reference['HeLaS3'][zone],
+            '-s', self.scaleFactor,
+            '-g', self.reference['limits'],
+            '-d', distance,
+            '-cutoff', scoreCutoff,
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        return self
+
     def leadLagSelected_bed2txt(self, args={}):
         zone = args.get('zone', 'selectedRIZ')
         distance = args.get('distance', 100000)
@@ -239,6 +294,7 @@ class pipeline(pipe):
         ]
         self.execM(codeList)
         return self
+
 
     def strandAsymmetry_txt2bdg(self):
         import generalUtils

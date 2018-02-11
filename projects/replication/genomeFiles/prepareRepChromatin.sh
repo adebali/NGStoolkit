@@ -13,7 +13,7 @@ HELA_CHMM_URL="http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncode
 HELA_CHMM_GZ="chmm.bed.gz"
 HELA_CHMM="chmm.bed"
 HELA_CHMM_PRE="chmm_prepared.bed"
-OUTPUT="repChmm.txt"
+OUTPUT="repChmm.bed"
 
 wget -O $HELA_REPLICATION_SEGMENTS_GZ $HELA_REPLICATION_SEGMENTS_URL
 wget -O $HELA_CHMM_GZ $HELA_CHMM_URL

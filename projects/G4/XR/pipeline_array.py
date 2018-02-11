@@ -48,7 +48,7 @@ os.system('mkdir -p ./log')
 
 
 pipelineParameters = {
-    "--job-name=": "DS_G4",
+    "--job-name=": "XR_G4",
     # "-n ": 8,
     "-n ": 1,
     "--mem=": 16000,
@@ -61,7 +61,7 @@ pipelineParameters = {
 }
 
 catParameters = {
-    "--job-name=": "DS_G4_cat",
+    "--job-name=": "XR_rep_cat",
     "-n ": 1,
     "--mem=": 4000,
     "--time=": "02:00:00",

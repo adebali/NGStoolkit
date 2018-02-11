@@ -1,6 +1,5 @@
 import os
 import sys
-from pipe import pipe
 import pipeTools
 import generalUtils
 import bed
@@ -9,12 +8,14 @@ import argparse
 import argument
 sys.path.append('../..')
 from referenceGenomePath import referenceGenomePath
+sys.path.append('..')
+from parent import pipeline as parentpipe
 import numpy
 import tempfile
 
-class myPipe(pipe):
+class myPipe(parentpipe):
     def __init__(self, input, args = argument.args()):
-        pipe.__init__(self, input, args)
+        parentpipe.__init__(self, input, args)
         OUTPUT_DIR = '1712'
         SAMPLE_STAT_FILE = 'samples.csv'    
         self.input = os.path.join(os.path.curdir, 'data', 'raw', self.input)
@@ -302,23 +303,7 @@ class myPipe(pipe):
             newOutputs.append(os.path.join(os.path.dirname(o),self.treatment_title + extraWord + '.' + extension))
         return newOutputs
 
-    def splitByStrand_bed2bed(self):
-        strand = ['"\\t\+$"', '"\\t\-$"']
-        output = [
-            self.addExtraWord(self.output[0], '_Plus'), 
-            self.addExtraWord(self.output[0], '_Minus')
-        ]
-        self.saveOutput(output)
-        self.saveOutput(self.prettyOutput())
-        codeList = [
-            'grep -P ',
-            strand,
-            self.input[0],
-            '>',
-            self.output
-        ]
-        self.execM(codeList)
-        return self
+
 
 ##########################################################
 def getArgs():

@@ -1,5 +1,9 @@
-no,group,sample,treatment,title,rep
-1,1,HaCat_BG4_cis_B-_GAGTGG.fastq,HaCat_BG4_cis,HaCat_BG4_cis_A,A
-2,1,HaCat_BG4_cont_B-_GTGAAA.fastq,HaCat_BG4_con,HaCat_BG4_con_A,A
-3,1,HaCat_cis_B-_AGTTCC.fastq,HaCat_cis,HaCat_cis_A,A
-4,1,HaCat_cont_B-_AGTCAA.fastq,HaCat_con,HaCat_con_A,A
+no,group,sample,antibody,treatment,title,replicate
+1,1,HaCat_BG4_cis_B-_GAGTGG.fastq,BG4,cisplatin,cis_BG4_A,A
+2,1,HaCat_BG4_cont_B-_GTGAAA.fastq,BG4,control,con_BG4_A,A
+3,1,HaCat_cis_B-_AGTTCC.fastq,cisplatin,cisplatin,cis_cis_A,A
+4,1,HaCat_cont_B-_AGTCAA.fastq,cisplatin,control,con_cis_A,A
+5,2,HaCat_BG4_cis_CCGTCC.fastq,BG4,cisplatin,cis_BG4_B,B
+6,2,HaCat_BG4_cont_ATGTCA.fastq,BG4,control,con_BG4_B,B
+7,2,HaCat_cis_AGTTCC.fastq,cisplatin,cisplatin,cis_cis_B,B
+8,2,HaCat_cont_AGTCAA.fastq,cisplatin,control,on_cis_B,B

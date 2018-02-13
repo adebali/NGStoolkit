@@ -344,31 +344,31 @@ input = getInputFromIndex(inputIndex)
 ###########################################################
 p = myPipe(input, args)
 (p
-    .run(p.cutadapt_fastq2fastq, False)
-    .run(p.bowtie_fastq2sam, False)
-    .run(p.convertToBam_sam2bam, False)
-    .run(p.convertToBed_bam2bed, False)
-    .run(p.uniqueSort_bed2bed, False)
-    .run(p.slopBed_bed2bed, False)
-    .run(p.sort_bed2bed, False)
+    .run(p.cutadapt_fastq2fastq, True)
+    .run(p.bowtie_fastq2sam, True)
+    .run(p.convertToBam_sam2bam, True)
+    .run(p.convertToBed_bam2bed, True)
+    .run(p.uniqueSort_bed2bed, True)
+    .run(p.slopBed_bed2bed, True)
+    .run(p.sort_bed2bed, True)
     .branch(True)
-        .run(p.convertBedToFasta_bed2fa, False)
-        .branch(False) # Plot nucleotide abundance
-            .run(p.getNucleotideAbundanceTable_fa2csv, False)
-            .run(p.addTreatment_csv2txt, False)
-            .cat(p.mergeNucleotideAbundance, False)
+        .run(p.convertBedToFasta_bed2fa, True)
+        .branch(True) # Plot nucleotide abundance
+            .run(p.getNucleotideAbundanceTable_fa2csv, True)
+            .run(p.addTreatment_csv2txt, True)
+            .cat(p.mergeNucleotideAbundance, True)
         .stop()
 
-        .branch(False) # Plot dinucleotide abundance
-            .run(p.getDimerAbundanceTable_fa2csv, False)
-            .run(p.addTreatment_csv2txt, False)
-            .cat(p.mergeNucleotideAbundance, False, '_dimer')
+        .branch(True) # Plot dinucleotide abundance
+            .run(p.getDimerAbundanceTable_fa2csv, True)
+            .run(p.addTreatment_csv2txt, True)
+            .cat(p.mergeNucleotideAbundance, True, '_dimer')
         .stop()
 
-        .run(p.getDamageSites_fa2bed, False)
-        .run(p.sort_bed2bed, False)
+        .run(p.getDamageSites_fa2bed, True)
+        .run(p.sort_bed2bed, True)
 
-        .branch(False)
+        .branch(True)
             .run(p.writeTotalMappedReads_bed2txt, True)
         .stop()
 

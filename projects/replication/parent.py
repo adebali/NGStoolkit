@@ -347,6 +347,17 @@ class pipeline(pipe):
         
         return self
 
+    def subsample_bed2bed(self, readNumber):
+        codeList = [
+            'subsample',
+            '-n', readNumber,
+            '--seed', 123,
+            self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
     # remove the close ones (neighborDistance)
     # get only 900 to 1000 (awk command: colNo, sign, value)
     # center and flanking (exists)

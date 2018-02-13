@@ -976,9 +976,9 @@ class pipeline(pipe):
         return self
 
     def mergeTCR(self, extraWord = '', prefix = ''):
-        wildcard =  self.fullPath2wildcard(self.input[0], prefix).replace("_no_neighbor", "*")
+        wildcard =  self.fullPath2wildcard(self.input[0], prefix).replace("_no_neighbor", "*").replace('/*', '/' + self.sample.replace('.fastq', '') + '*')
         headers = ['pos', 'count', 'cat', 'label']
-        output = os.path.join(self.outputDir, '..', 'merged_TCR' + extraWord + '.txt')
+        output = os.path.join(self.outputDir, '..', 'merged_TCR_' + str(self.no) + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
         return self
 
@@ -1239,7 +1239,7 @@ if __name__ == "__main__":
         .branch(False)
             .run(p.GEO_fastq2txt, True)
         .stop()
-        .run(p.cutadapt_fastq2fastq, True)
+        .run(p.cutadapt_fastq2fastq, False)
     # TAIR 9
 
         .branch(False)
@@ -1342,20 +1342,20 @@ if __name__ == "__main__":
 
     # TAIR10
         .branch(True)
-            .run(p.bowtie_fastq2sam, True, 'TAIR10')
-            .run(p.convertToBam_sam2bam, True)
-            .run(p.convertToBed_bam2bed, True)
-            .run(p.uniqueSort_bed2bed, True)
+            .run(p.bowtie_fastq2sam, False, 'TAIR10')
+            .run(p.convertToBam_sam2bam, False)
+            .run(p.convertToBed_bam2bed, False)
+            .run(p.uniqueSort_bed2bed, False)
             
 
 
-            .branch(True)
+            .branch(False)
                 .run(p.lengthDistribution_bed2csv, True)
                 .run(p.addTreatment_txt2txt, True)
                 .cat(p.mergeLength, True)                
             .stop()
 
-            .branch(True)
+            .branch(False)
                 .run(p.get27mer_bed2bed, True)
                 .run(p.convertBedToFasta_bed2fa, True)
                 .run(p.getNucleotideAbundanceTable_fa2csv, True)
@@ -1372,7 +1372,7 @@ if __name__ == "__main__":
 
 
         # Get BigWig Files
-            .branch(True)
+            .branch(False)
                 .run(p.splitByStrand_bed2bed, True)
                 
                 .branch(True)
@@ -1550,42 +1550,42 @@ if __name__ == "__main__":
         
         # TCR Analysis
 
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False)
-                .run(p.addValue_txt2txt, False, 'real')
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True)
+                .run(p.addValue_txt2txt, True, 'real')
             .stop()
 
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {'random':False})
-                .run(p.addValue_txt2txt, False, 'random')
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {'random':True})
+                .run(p.addValue_txt2txt, True, 'random')
             .stop()
 
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":1, "keyword":'_Q1'})
-                .run(p.addValue_txt2txt, False, 'Q1')
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
+                .run(p.addValue_txt2txt, True, 'Q1')
             .stop()
 
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":2, "keyword":'_Q2'})
-                .run(p.addValue_txt2txt, False, 'Q2')
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
+                .run(p.addValue_txt2txt, True, 'Q2')
             .stop()
 
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":3, "keyword":'_Q3'})
-                .run(p.addValue_txt2txt, False, 'Q3')
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
+                .run(p.addValue_txt2txt, True, 'Q3')
             .stop()
 
-            .branch(False)
-                .run(p.transcriptIntersect_bed2txt, False, {"slice":False, "n":4, "sliceNum":4, "keyword":'_Q4'})
-                .run(p.addValue_txt2txt, False, 'Q4')
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
+                .run(p.addValue_txt2txt, True, 'Q4')
             .stop()
 
         # Non overlapping transcripts
 
-            .branch(False)
+            .branch(True)
                 .run(p.transcriptIntersect_bed2txt, False, {'transcripts': 'transcriptsNoNeighbor5K', 'keyword': '_no_neighbor'})
                 .run(p.addValue_txt2txt, False, 'no_neighbor')
-                .cat(p.mergeTCR, False)
+                .cat(p.mergeTCR, True)
             .stop()
 
         # DNase Analysis

@@ -186,7 +186,7 @@ class myPipe(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.reference["genes"],
+            '-a', self.reference["scoredGenes"],
             '-b', self.input,
             '-wa',
             '-c',
@@ -238,11 +238,11 @@ class myPipe(pipe):
         return self
 
     def mergeGeneCounts(self, extraWord = ""):
-        wildcard = self.fullPath2wildcard(self.input[0])
-        headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes
+        wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "_*")
+        headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['strandName']
         output = os.path.join(self.outputDir, '..', 'merged_geneCounts' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
-        os.system("Rscript dcast.r " + output + ' ' + output.replace('.txt', '_dcasted.txt'))
+        # os.system("Rscript dcast.r " + output + ' ' + output.replace('.txt', '_dcasted.txt'))
         return self
    
     def toBg_bed2bg(self):
@@ -606,13 +606,13 @@ p = myPipe(input, args)
     .run(p.sort_bed2bed, False)
     .run(p.convertBedToFasta_bed2fa, False)
 
-    .branch(True) # Plot nucleotide abundance
+    .branch(False) # Plot nucleotide abundance
         .run(p.getNucleotideAbundanceTable_fa2csv, False)
         .run(p.addTreatment_csv2txt, True)
         .cat(p.mergeNucleotideAbundance, True)
     .stop()
 
-    .branch(True) # Plot dinucleotide abundance
+    .branch(False) # Plot dinucleotide abundance
         .run(p.getDimerAbundanceTable_fa2csv, False)
         .run(p.addTreatment_csv2txt, True)
         .cat(p.mergeNucleotideAbundance, True, '_diNuc')
@@ -630,39 +630,39 @@ p = myPipe(input, args)
         .run(p.geneMap_bed2txt, False)
         .run(p.normalizeCounts_txt2txt, False)
         .run(p.addTSNTS_txt2txt, True)
-        .branch(False)
-            .run(p.makeScoreBed6_txt2bed, True)
-        .stop()
-        .cat(p.mergeGeneCounts, False)
+        # .branch(True)
+        #     .run(p.makeScoreBed6_txt2bed, True)
+        # .stop()
+        .cat(p.mergeGeneCounts, True)
     .stop()
 
    # TCR Analysis
-    .branch(True)
+    .branch(False)
         .run(p.transcriptIntersect_bed2txt, False)
         .run(p.addTreatment_txt2txt, True, 'real')
     .stop()
 
-    .branch(True)
+    .branch(False)
         .run(p.transcriptIntersect_bed2txt, False, {'random':True})
         .run(p.addTreatment_txt2txt, True, 'random')
     .stop()
 
-    .branch(True)
+    .branch(False)
         .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
         .run(p.addTreatment_txt2txt, True, 'Q1')
     .stop()
 
-    .branch(True)
+    .branch(False)
         .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
         .run(p.addTreatment_txt2txt, True, 'Q2')
     .stop()
 
-    .branch(True)
+    .branch(False)
         .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
         .run(p.addTreatment_txt2txt, True, 'Q3')
     .stop()
 
-    .branch(True)
+    .branch(False)
         .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
         .run(p.addTreatment_txt2txt, True, 'Q4')
         .cat(p.mergeTCR, True)

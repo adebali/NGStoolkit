@@ -64,11 +64,11 @@ if not reportFlag:
     job.printScript()
     jobId = job.run()
 
-    catJob = slurm.Slurm('python ' + args.script + ' cat')
-    catJob.assignParams(parameters)
-    catJob.setDependencies([jobId])
-    catJob.printScript()
-    catJobId = catJob.run()
+    # catJob = slurm.Slurm('python ' + args.script + ' cat')
+    # catJob.assignParams(parameters)
+    # catJob.setDependencies([jobId])
+    # catJob.printScript()
+    # catJobId = catJob.run()
 
 else:
     os.system('rm dataDir/report.txt')

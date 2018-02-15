@@ -135,6 +135,13 @@ class pipeline(pipe):
         output = os.path.join(self.outputDir, '..', outputName)
         self.catFiles(wildcard, headers, output)
         return self
+
+    def mergeHundred(self, outputName):
+        wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "*")
+        headers = ['chromosome', 'start', 'end', 'gene', 'score', 'strand', 'category', 'geneNo', 'position', 'count'] + self.attributes
+        output = os.path.join(self.outputDir, '..', outputName)
+        self.catFiles(wildcard, headers, output)
+        return self
     
     def mergeBinCounts(self, outputName):
         wildcard = self.fullPath2wildcard(self.input[0])
@@ -655,6 +662,26 @@ class pipeline(pipe):
         return self
 
 
+    def intersectToTranscript_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference['scoredGenes'],
+            '-b', self.input,
+            '-wa',
+            '-wb',
+            '-F', 0.50,
+            '|',
+            'bedIntersect2positionTxt.py',
+            '-fieldsToSwitch', 2,3,5,
+            '|',
+            '../position2list.py',
+            '>',
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
     def dnaseIntersect_bed2txt(self, args={}):
         bedAfile = self.reference['dnase']
 
@@ -1157,6 +1184,17 @@ class pipeline(pipe):
         ]
         self.execM(codeList)
         return self
+    
+    def subsample_bed2bed(self, readNumber):
+        codeList = [
+            'subsample',
+            '-n', readNumber,
+            '--seed', 123,
+            self.input,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
 
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq Mouse Organs Pipeline', prog="pipeline.py")
@@ -1198,46 +1236,53 @@ def main():
     (p
         .run(p.uniqueSort_bed2bed, False)
        
-        .branch(True)
+        .branch(False)
             .run(p.geneMap_bed2txt, True)
             .run(p.normalizeCounts_txt2txt, True)
             .run(p.addTSNTS_txt2txt, True)
-            .cat(p.mergeGeneCounts, True)
+            .cat(p.mergeGeneCounts, True, 'merged_geneCounts.txt')
+        .stop()
+
+        .branch(True)
+            .run(p.subsample_bed2bed, True, 6000000)
+            .run(p.intersectToTranscript_bed2txt, True)
+            .run(p.addTreatment_txt2txt, True)            
+            .cat(p.mergeHundred, True, 'merged_hundred.txt')    
         .stop()
 
        # TCR Analysis
-        .branch(True)
+        .branch(False)
             .run(p.transcriptIntersect_bed2txt, False)
             .run(p.addTreatment_txt2txt, False, 'real')
         .stop()
 
-        .branch(True)
+        .branch(False)
             .run(p.transcriptIntersect_bed2txt, False, {'random':True})
             .run(p.addTreatment_txt2txt, False, 'random')
         .stop()
 
-        .branch(True)
+        .branch(False)
             .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
             .run(p.addTreatment_txt2txt, False, 'Q1')
         .stop()
 
-        .branch(True)
+        .branch(False)
             .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
             .run(p.addTreatment_txt2txt, False, 'Q2')
         .stop()
 
-        .branch(True)
+        .branch(False)
             .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
             .run(p.addTreatment_txt2txt, False, 'Q3')
         .stop()
 
-        .branch(True)
+        .branch(False)
             .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
             .run(p.addTreatment_txt2txt, False, 'Q4')
         .stop()
 
        # Non overlapping transcripts
-        .branch(True)
+        .branch(False)
             .run(p.transcriptIntersect_bed2txt, False, {'genes': 'genes_noNeighborIn500bp', 'keyword': '_no_neighbor'})
             .run(p.addTreatment_txt2txt, False, 'no_neighbor')
             .cat(p.mergeTCR, False)

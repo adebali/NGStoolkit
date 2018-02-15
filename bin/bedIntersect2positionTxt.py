@@ -15,6 +15,7 @@ parser.add_argument('--flanking', action='store_true', default=False, help='''
     Input must go line by line: upstream, downstream, up, down ...
     ''')
 parser.add_argument('--fixed', action='store_true', default=False, help='should be used when for flankings we want to get absolute range')
+parser.add_argument('-fieldsToSwitch', required=False, default=[], type=int, nargs='+', help='normally we use all fields from the B bed file (-b) the one aligned. If a field needs to be replaced from A bed file please enter the index (1-based) number of the column(s). For example: I want the score from A bed: use -fieldsToSwitch 5 (as the score column is the fifth.')
 # parser.add_argument('-length', type=int, default=1000, help='if bed file is for the flanking regions of interest such as TSS upstream and TES downstream')
 parser.add_argument('-w', type=int, default=1, help='bin (window) size')
 
@@ -61,6 +62,8 @@ for line in filein:
     allFields = intersectLine.fields()
     name1 = allFields[3]
     fields = allFields[6:]
+    for n in args.fieldsToSwitch:
+        fields[n-1] = allFields[n-1]
     fields[3] = name1.replace('_upstream', '').replace('_downstream', '')
     fields.append(str(distance))
     fields.append(strands)

@@ -1,5 +1,6 @@
 #!/bin/bash
 DEFAULT_MEM='8000'
 DEFAULT_TIME='24:00:00'
-OPTS="--mail-type=ALL --mail-user=oadebali@gmail.com -t $DEFAULT_TIME --mem=$DEFAULT_MEM"
+DEFAULT_CPU='1'
+OPTS="--mail-type=ALL --mail-user=oadebali@gmail.com -n $DEFAULT_CPU -t $DEFAULT_TIME --mem=$DEFAULT_MEM"
 sbatch $OPTS "$@"

@@ -249,7 +249,7 @@ class bed:
 					print('\t'.join(newLineList))
 
 	def read(self):
-		if hasattr(self, 'input'):
+		if hasattr(self, 'file'):
 			lines = open(self.file, 'r')
 		else:
 			lines = self.lines

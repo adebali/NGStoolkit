@@ -1,6 +1,0 @@
-no,group,sample,dose,dna,replicate,treatment_title
-1,1,DA0NAK_GGCTAC_1.fastq,0,naked,A,naked_0_A
-2,1,DA20NAK_CTTGTA_1.fastq,20,naked,A,naked_20_A
-3,1,DA20CEL_ACTTGA_1.fastq,20,cell,A,cell_20_A
-4,1,DA80CEL_GATCAG_1.fastq,80,cell,A,cell_80_A
-5,1,DA600CEL_TAGCTT_1.fastq,600,cell,A,cell_600_A

@@ -1,9 +1,0 @@
-no,group,SRA_id,treatment,DNA,replicate,time,dose,title
-1,1,SRR3340990,control,cell,A,0h,NA,noUV
-2,1,SRR3340991,UV,cell,A,0h,125,UV_cell_0h_A
-3,1,SRR3340992,UV,cell,A,1h,125,UV_cell_1h_A
-4,1,SRR3340993,UV,cell,B,0h,125,UV_cell_0h_B
-5,1,SRR3340994,UV,cell,B,20min,125,UV_cell_20min_B
-6,1,SRR3340995,UV,cell,B,2h,125,UV_cell_2h_B
-7,1,SRR3340996,UV,naked,A,0h,60,UV_naked_60_0h_A
-8,1,SRR3340997,UV,naked,A,0h,90,UV_naked_90_0h_A

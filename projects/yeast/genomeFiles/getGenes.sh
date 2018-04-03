@@ -1,1 +1,0 @@
-cat saccharomyces_cerevisiae_R64-2-1_20150113.gff | awk '$3 ~ "gene"' | awk '{split($9,a,";"); split(a[1],b,"="); print $1"\t"$4"\t"$5"\t"b[2]"\t"$8"\t"$7}' 

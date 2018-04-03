@@ -56,6 +56,34 @@
             "args": ["run", "-n", "1", "--mock"]
         },
         {
+            "name": "pipelinedb",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": true,
+            "pythonPath": "${config:python.pythonPath}",
+            "program": "${file}",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ],
+            "args": ["run", "--mock"]
+        },
+        {
+            "name": "pipeline_cat",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": true,
+            "pythonPath": "${config:python.pythonPath}",
+            "program": "${file}",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ],
+            "args": ["cat", "-n", "1", "--mock"]
+        },
+        {
             "name": "reduce",
             "type": "python",
             "request": "launch",

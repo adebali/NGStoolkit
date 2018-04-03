@@ -1,44 +1,20 @@
-# Sancar Lab Scripts
+# NGS Toolkit
 
-This repository is developed for project-specific NGS analysis.
-
-## Prerequisites
-  * bowtie
-  * ...
+This repository is developed for analyzing NGS datasets, specifically the ones related with genome-wide DNA Damage and Repair.
 
 ## Setup
   ```
   cd ~
   
-  git clone git@bitbucket.org:adebali/sancarlabutils.git
+  git clone git@bitbucket.org:adebali/NGStoolkit.git
   
-  cd sancarlabutils
+  cd NGStoolkit
   
   bash setup.sh
   ```
-## Examples
-
-## Running the tests
-
-## Built with
-  * python
-  * LSF
-
+  
 ## Authors
   * Ogun Adebali
 
 ## Licence
   This project is licensed under the MIT License
-
-## Acknowledgments
-  * ...
-
-
-## Examples
-### DamageSeq MiSeq
-```
-cd /proj/sancarlb/users/ogun/scripts/projects/DamageSeq/miseq
-loopThroughFiles.py -code "bsub python pipeline.py #IN" -files "dataDir/160831_UNC23_0048_000000000-ARR90/*.fastq"
-
-```
-

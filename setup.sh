@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-echo "EXECUTABLE_SCRIPTS=\$HOME/sancarlabutils/bin
+echo "EXECUTABLE_SCRIPTS=\$HOME/NGStoolkit/bin
 PATH=\$PATH:\$EXECUTABLE_SCRIPTS
 export PATH
 CUSTOM_PYTHON_SCRIPTS=\$EXECUTABLE_SCRIPTS/utils

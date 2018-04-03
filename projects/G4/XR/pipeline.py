@@ -9,6 +9,7 @@ sys.path.append('../..')
 from referenceGenomePath import referenceGenomePath
 sys.path.append('..')
 from parent import pipeline as parentpipe
+import tempfile
 
 class pipeline(parentpipe):
     def __init__(self, input, args = argument.args()):
@@ -417,147 +418,6 @@ class pipeline(parentpipe):
         self.execM(codeList)
         return self
 
-    def transcriptIntersect_bed2txt(self, args={}):
-        transcripts = self.reference[args.get('transcripts', 'transcripts2')]
-        keyword = args.get('keyword', '')
-        output = [self.addExtraWord(self.output[0], keyword)]
-        self.saveOutput(output)
-        
-        sliceFlag = args.get('slice', False)
-        if sliceFlag:
-            numberOfSlices = args.get('n')
-            currentSlice = args.get('sliceNum')
-            keyword = args.get('keyword')
-            sliceTemp_, sliceTemp = tempfile.mkstemp()
-            codeList = [
-                'bed2sliceByScore.py',
-                '-i', transcripts,
-                '-n', numberOfSlices,
-                '-slice', currentSlice,
-                '>', sliceTemp
-            ]
-            self.execM(codeList)
-            transcripts = sliceTemp
-
-        random = args.get('random', False)
-        if random:
-            output = [
-                self.addExtraWord(self.output[0], '_random'),
-            ]
-            self.saveOutput(output)
-
-        averageLength = totalRecord = totalMappedReads = perNmappedReads= 1
-        if self.runMode == True and self.runFlag == True:
-            inputBed = bed.bed(self.input[0])
-            totalMappedReads = inputBed.getHitNum()
-            bedA = bed.bed(transcripts)
-            averageLength = bedA.getAverageLength()
-            totalRecord = bedA.getHitNum()
-            perNmappedReads = 1000000
-        
-        shuffleCode = [
-            'bedtools',
-            'shuffle',
-            '-i', transcripts,
-            '-g', self.reference['limits'],
-            '|',
-            'sort',
-            '-k1,1',
-            '-k2,2n',
-            '-k3,3n'
-        ]
-        if random:
-            codeList = list(shuffleCode)
-        else:
-            codeList = [
-                'cat',
-                transcripts
-            ]
-
-        codeList += [
-            '|',
-            'bedtools',
-            'intersect',
-            '-a', 'stdin',
-            '-b', self.input,
-            '-wa',
-            '-wb',
-            '-F', 0.50,
-            '|',
-            'bedIntersect2positionTxt.py',
-            '|',
-            'bedIntersectPositionCount.py',
-            '-count', 7,
-            '-cat', 8,
-            '-ends', 'double',
-            '-scale',
-            1/float(totalRecord),
-            100/float(averageLength),
-            perNmappedReads/float(totalMappedReads),
-            '-o', self.output
-        ]
-        self.execM(codeList)
-        
-        _temp, temp = tempfile.mkstemp()
-
-        windowLength = 100
-        oneSideFlankingLength = 10000
-
-        if random:
-            prepareAbedCodeList = list(shuffleCode)
-        else:
-            prepareAbedCodeList = [
-                'cat',
-                transcripts
-            ]
-        prepareAbedCodeList += [
-            '|',
-            'bed2updownstream.py',
-            '--fixed',
-            '-l', oneSideFlankingLength,
-            '|',
-            'bed2removeChromosomeEdges.py',
-            '--fixed',
-            '-l', 10000,
-            '-g', self.reference['limits'],
-            '>', temp
-        ]
-        self.execM(prepareAbedCodeList)
-
-        totalRecord = 1
-        if self.runMode == True and self.runFlag == True:
-            bedA = bed.bed(temp)
-            totalRecord = bedA.getHitNum()/2
-
-        flankingCodeList = [
-            'bedtools',
-            'intersect',
-            # '-a', 'stdin',
-            '-a', temp,
-            '-b', self.input,
-            '-wa',
-            '-wb',
-            '-F', 0.50,
-            '|',
-            'bedIntersect2positionTxt.py',
-            '--flanking',
-            '--fixed',
-            '-w', windowLength,
-            '|',
-            'bedIntersectPositionCount.py',
-            '-count', 7,
-            '-cat', 8,
-            '-ends', 'remove',
-            '-scale', 
-            1/float(totalRecord), 
-            1/float(windowLength),
-            perNmappedReads/float(totalMappedReads),
-            '>>', self.output,
-            '&&',
-            'rm', temp
-        ]
-        self.execM(flankingCodeList)
-        return self
 
 
     def dnaseIntersect_bed2txt(self, args={}):
@@ -1202,7 +1062,7 @@ if __name__ == "__main__":
                 .cat(p.mergeLength, True)                
             .stop()
 
-            .branch(True)
+            .branch(False)
                 .run(p.get27mer_bed2bed, True)
                 .run(p.convertBedToFasta_bed2fa, True)
                 .run(p.getNucleotideAbundanceTable_fa2csv, True)
@@ -1210,19 +1070,26 @@ if __name__ == "__main__":
             .stop()
 
             .branch(False)
+                .run(p.bg4Intersect_bed2txt, True)
+                .run(p.addTreatment_txt2txt, True)
+                .cat(p.mergeBG4, True)
+            .stop()
+            
+            .branch(True)
                 .run(p.splitByStrand_bed2bed, False)
 
                 # Get BigWig Files
-                .branch(False)
-                    .run(p.convertToBedGraph_bed2bdg, True)
+                .branch(True)
+                    # .run(p.convertToBedGraph_bed2bdg, False)
+                    .run(p.convertToBedGraphTwoPolars_bed2bdg, True)
                     .run(p.toBigWig_bdg2bw, True)
                 .stop()
             .stop()
 
-            .branch(False)
-                .run(p.convertToBedGraph_bed2bdg, True)
-                .run(p.toBigWig_bdg2bw, True)
-            .stop()
+            # .branch(False)
+            #     .run(p.convertToBedGraph_bed2bdg, True)
+            #     .run(p.toBigWig_bdg2bw, True)
+            # .stop()
 
         # Annotated transcript counts
             # .branch(False)

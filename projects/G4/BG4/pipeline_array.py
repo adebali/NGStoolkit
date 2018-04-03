@@ -11,6 +11,7 @@ parser.add_argument('-s', required= False, type=str, nargs='+', help='space sepa
 parser.add_argument('-e', required= False, type=str, nargs='+', help='space separated samples to be excluded')
 parser.add_argument('-samples', required= False, default='samples.csv', help='sample list (default:samples.csv)')
 parser.add_argument('-script', required= False, default='pipeline.py', help='script command (default:pipeline.py)')
+parser.add_argument('-subprogram', required= False, default='run', choices=['run', 'cat', 'report'], help='sub program. default: run')
 parser.add_argument('--report', action='store_true',help='get report only')
 parser.add_argument('-reportDir', required= False, default='dataDir', help='report directory')
 
@@ -48,7 +49,7 @@ os.system('mkdir -p ./log')
 
 
 pipelineParameters = {
-    "--job-name=": "DS_G4",
+    "--job-name=": "loXR",
     # "-n ": 8,
     "-n ": 1,
     "--mem=": 16000,
@@ -61,7 +62,7 @@ pipelineParameters = {
 }
 
 catParameters = {
-    "--job-name=": "DS_G4_cat",
+    "--job-name=": "loXR_cat",
     "-n ": 1,
     "--mem=": 4000,
     "--time=": "02:00:00",
@@ -74,7 +75,7 @@ catParameters = {
 
 print(samples)
 if not reportFlag:
-    job = slurm.Slurm('python ' + args.script + ' run -n $SLURM_ARRAY_TASK_ID')
+    job = slurm.Slurm('python ' + args.script + ' ' + args.subprogram + ' -n $SLURM_ARRAY_TASK_ID')
     job.assignParams(pipelineParameters)
     job.printScript()
     jobId = job.run()

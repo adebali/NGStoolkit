@@ -8,7 +8,11 @@
 # filename='merged_1kCounts.txt'
 # filename='merged_leadLag.txt'
 # ARRAY=(merged_leadLag_RIZ_1.0MB_c900.txt merged_leadLag_RIZ_0.5MB_c900.txt merged_leadLag_RIZ_0.1MB_c900.txt merged_leadLag_RTZ_1.0MB_c900.txt merged_leadLag_RTZ_0.5MB_c900.txt merged_leadLag_RTZ_0.1MB_c900.txt merged_leadLag_selectedRIZ_1.0MB.txt merged_leadLag_replicationDomains_DTZ_0.1MB.txt merged_leadLag_replicationDomains_UTZ_0.1MB.txt)
-ARRAY=(merged_repChmm.txt)
+
+# ARRAY=(merged_repChmm.txt)
+# ARRAY=(merged_repRNA.txt)
+# ARRAY=(merged_TCR.txt)
+ARRAY=(merged_TCRshuffled.txt)
 
 cd XR
 python pipeline.py cat

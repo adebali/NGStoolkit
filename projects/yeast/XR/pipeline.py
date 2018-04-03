@@ -35,6 +35,8 @@ class pipeline(pipe):
         self.wmParams = self.defaultWmParams
         self.paths = referenceGenomePath()
         self.reference = self.paths.get('S288C_R64_2_1')        
+        # self.scoredTranscripts = self.reference['scoredGenes']
+        self.scoredTranscripts = self.reference['scoredGenesLengthFiltered']
 
     def prettyOutput(self):
         newOutputs = []
@@ -336,14 +338,16 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
-    def getAllLengths_bed2bed(self):
-        self.addWordsToOutput(self.fragmentLengths)
-        print(self.output)
+    def getPopulations_bed2bed(self):
+        self.addWordsToOutput(['_short', '_long'])
+        shortPopulation = ' '.join(str(x) for x in range(12,20))
+        longPopulation = ' '.join(str(x) for x in range(20,28))
+        readLengths = [shortPopulation, longPopulation]
         codeList = [
             'bed2getCertainIntervalLengths.py',
-            '-i', self.input * len(self.fragmentLengths),
+            '-i', self.input * 2,
             '-o', self.output,
-            '-l', self.fragmentLengths
+            '-l', readLengths
         ]
         self.execM(codeList)
         return self
@@ -374,6 +378,20 @@ class pipeline(pipe):
             '-i', self.input,
             '-o', self.output,
             '-c', ' '.join(columns)
+        ]
+        self.execM(codeList)
+        columnHeaders = self.attributes
+        return self
+
+    def addTreatmentShortLong_txt2txt(self, *nargs):
+        columns = self.list2attributes(self.attributes) + list(nargs)
+        columnString = ' '.join(columns)
+        columnList = [columnString + ' ' + 'short', columnString + ' ' + 'long']
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', columnList
         ]
         self.execM(codeList)
         columnHeaders = self.attributes
@@ -520,10 +538,12 @@ class pipeline(pipe):
 
     def transcriptIntersect_bed2txt(self, args={}):
         # transcripts = self.reference[args.get('genes', 'genes')]
-        transcripts = self.reference[args.get('genes', 'scoredGenes')]
+        transcripts = self.scoredTranscripts
         keyword = args.get('keyword', '')
-        output = [self.addExtraWord(self.output[0], keyword)]
+        output = pipeTools.listOperation(self.addExtraWord, self.output, keyword)
         self.saveOutput(output)
+        # output = [self.addExtraWord(self.output[0], keyword)]
+        # self.saveOutput(output)
         
         sliceFlag = args.get('slice', False)
         if sliceFlag:
@@ -534,8 +554,8 @@ class pipeline(pipe):
             codeList = [
                 'bed2sliceByScore.py',
                 '-i', transcripts,
-                '-n', numberOfSlices,
-                '-slice', currentSlice,
+                '-n', str(numberOfSlices),
+                '-slice', str(currentSlice),
                 '>', sliceTemp
             ]
             self.execM(codeList)
@@ -543,10 +563,12 @@ class pipeline(pipe):
 
         random = args.get('random', False)
         if random:
-            output = [
-                self.addExtraWord(self.output[0], '_random'),
-            ]
+            output = pipeTools.listOperation(self.addExtraWord, self.output, '_random')
             self.saveOutput(output)
+            # output = [
+            #     self.addExtraWord(self.output[0], '_random'),
+            # ]
+            # self.saveOutput(output)
 
         averageLength = totalRecord = totalMappedReads = perNmappedReads= 1
         if self.runMode == True and self.runFlag == True:
@@ -654,9 +676,7 @@ class pipeline(pipe):
             1/float(totalRecord), 
             1/float(windowLength),
             perNmappedReads/float(totalMappedReads),
-            '>>', self.output,
-            '&&',
-            'rm', temp
+            '>>', self.output
         ]
         self.execM(flankingCodeList)
         return self
@@ -666,7 +686,7 @@ class pipeline(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.reference['scoredGenes'],
+            '-a', self.scoredTranscripts,
             '-b', self.input,
             '-wa',
             '-wb',
@@ -798,9 +818,7 @@ class pipeline(pipe):
             1/float(totalRecord), 
             1/float(windowLength),
             perNmappedReads/float(totalMappedReads),
-            '>>', self.output,
-            '&&',
-            'rm', temp
+            '>>', self.output
         ]
         self.execM(flankingCodeList)
         return self
@@ -923,9 +941,7 @@ class pipeline(pipe):
             1/float(totalRecord), 
             1/float(windowLength),
             perNmappedReads/float(totalMappedReads),
-            '>>', self.output,
-            '&&',
-            'rm', temp
+            '>>', self.output
         ]
         self.execM(flankingCodeList)
         return self
@@ -1006,6 +1022,13 @@ class pipeline(pipe):
         output = os.path.join(self.outputDir, '..', 'merged_TCR' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
         return self
+    
+    def mergeTCRshortLong(self, extraWord = '', prefix = ''):
+        wildcard =  self.fullPath2wildcard(self.input[0], prefix).replace("_Q4", "*").replace("_short", "*")
+        headers = ['pos', 'count', 'cat'] + self.attributes +  ['label', 'population']
+        output = os.path.join(self.outputDir, '..', 'merged_TCR_twoPop' + extraWord + '.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
 
     def mergeDNase(self, extraWord = '', prefix = ''):
         wildcard =  self.fullPath2wildcard(self.input[0], prefix).replace("_random", "*")
@@ -1052,6 +1075,16 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def seperatePopulations_bed2bed(self):
+        self.addWordsToOutput(self.fragmentLengths)
+        codeList = [
+            'bed2getCertainIntervalLengths.py',
+            '-i', self.input * len(self.fragmentLengths),
+            '-o', self.output,
+            '-l', self.fragmentLengths
+        ]
+        self.execM(codeList)
+        return self
 
     def chromosomeCounts_bed2txt(self):
         codeList = [
@@ -1174,7 +1207,7 @@ class pipeline(pipe):
         codeList = [
             'bedtools',
             'intersect',
-            '-a', self.reference["scoredGenes"],
+            '-a', self.scoredTranscripts,
             '-b', self.input,
             '-wa',
             '-c',
@@ -1240,52 +1273,88 @@ def main():
             .run(p.geneMap_bed2txt, True)
             .run(p.normalizeCounts_txt2txt, True)
             .run(p.addTSNTS_txt2txt, True)
-            .cat(p.mergeGeneCounts, True, 'merged_geneCounts.txt')
+            .cat(p.mergeGeneCounts, False, 'merged_geneCounts.txt')
         .stop()
 
-        .branch(True)
+        .branch(False)
             .run(p.subsample_bed2bed, True, 6000000)
             .run(p.intersectToTranscript_bed2txt, True)
             .run(p.addTreatment_txt2txt, True)            
-            .cat(p.mergeHundred, True, 'merged_hundred.txt')    
+            .cat(p.mergeHundred, False, 'merged_hundred.txt')    
+        .stop()
+
+        .branch(False)
+            .run(p.getPopulations_bed2bed, False)
+       
+            # TCR Analysis
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True)
+                .run(p.addTreatmentShortLong_txt2txt, True, 'real')
+            .stop()
+
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {'random':True})
+                .run(p.addTreatmentShortLong_txt2txt, True, 'random')
+            .stop()
+
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
+                .run(p.addTreatmentShortLong_txt2txt, True, 'Q1')
+            .stop()
+
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
+                .run(p.addTreatmentShortLong_txt2txt, True, 'Q2')
+            .stop()
+
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
+                .run(p.addTreatmentShortLong_txt2txt, True, 'Q3')
+            .stop()
+
+            .branch(True)
+                .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
+                .run(p.addTreatmentShortLong_txt2txt, True, 'Q4')
+                .cat(p.mergeTCRshortLong, True)
+            .stop()
         .stop()
 
        # TCR Analysis
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False)
-            .run(p.addTreatment_txt2txt, False, 'real')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True)
+            .run(p.addTreatment_txt2txt, True, 'real')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {'random':True})
-            .run(p.addTreatment_txt2txt, False, 'random')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {'random':True})
+            .run(p.addTreatment_txt2txt, True, 'random')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
-            .run(p.addTreatment_txt2txt, False, 'Q1')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":1, "keyword":'_Q1'})
+            .run(p.addTreatment_txt2txt, True, 'Q1')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
-            .run(p.addTreatment_txt2txt, False, 'Q2')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":2, "keyword":'_Q2'})
+            .run(p.addTreatment_txt2txt, True, 'Q2')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
-            .run(p.addTreatment_txt2txt, False, 'Q3')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":3, "keyword":'_Q3'})
+            .run(p.addTreatment_txt2txt, True, 'Q3')
         .stop()
 
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
-            .run(p.addTreatment_txt2txt, False, 'Q4')
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {"slice":True, "n":4, "sliceNum":4, "keyword":'_Q4'})
+            .run(p.addTreatment_txt2txt, True, 'Q4')
         .stop()
 
        # Non overlapping transcripts
-        .branch(False)
-            .run(p.transcriptIntersect_bed2txt, False, {'genes': 'genes_noNeighborIn500bp', 'keyword': '_no_neighbor'})
-            .run(p.addTreatment_txt2txt, False, 'no_neighbor')
-            .cat(p.mergeTCR, False)
+        .branch(True)
+            .run(p.transcriptIntersect_bed2txt, True, {'genes': 'genes_noNeighborIn500bp', 'keyword': '_no_neighbor'})
+            .run(p.addTreatment_txt2txt, True, 'no_neighbor')
+            .cat(p.mergeTCR, True)
         .stop()
     )
 ###########################################################

@@ -60,10 +60,11 @@ class pipe(object):
         self.prepare_(function.__name__)
         if runFlag == "Skip":
             return self
-        if runFlag == True and self.branchRunFlag == True:
+        if runFlag == True and self.branchRunFlag == True and self.args.get("subprogram") == "run":
             runFlag = True
         else:
             runFlag = False
+        
         self.runFlag = runFlag
         # print(function.__name__)
         if self.justBranched == True:
@@ -81,9 +82,17 @@ class pipe(object):
 
     def cat(self, function, runFlag=True, *nargs):
         if runFlag == True and self.branchRunFlag == True and self.args.get("subprogram") == "cat":
+        # if runFlag == True and self.args.get("subprogram") == "cat":
+        # if self.args.get("subprogram") == "cat":
             function(*nargs)
         return self
     
+    def report(self, function, runFlag=True, *nargs):
+        self.runFlag = runFlag
+        if runFlag == True and self.branchRunFlag == True and self.args.get("subprogram") == "report":
+            function(*nargs)
+        return self
+
     def runSingle(self, function, runFlag=True):
         self.output = self.input
         if runFlag == True and self.branchRunFlag == True:

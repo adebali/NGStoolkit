@@ -1,0 +1,6 @@
+{
+    "bowtie": "/nas/longleaf/apps/bowtie/1.1.2/bin/bowtie",
+    "bowtie2": "/nas/longleaf/apps/bowtie2/2.3.4.1/bin/bowtie2",
+    "cutadapt": "/nas/longleaf/apps/cutadapt/1.12/bin/cutadapt",
+    "bedtools": "/nas/longleaf/apps/bedtools/2.25.0/bin/bedtools"
+}

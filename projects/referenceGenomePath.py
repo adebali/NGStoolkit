@@ -9,6 +9,7 @@ class referenceGenomePath(object):
             "name": "_hg19",
             "bowtie": os.path.join(hg19_root, "Sequence/BowtieIndex/genome"),
             "bowtie2": os.path.join(hg19_root, "Sequence/Bowtie2Index/genome"),
+            "bwa": os.path.join(hg19_root, "Sequence/BWAIndex/genome.fa"),
             "salmon_quasi": os.path.join(hg19_custom_root, 'transcriptome', 'Homo_sapiens.GRCh38.all.quasi_k31_index'),
             "fasta": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(hg19_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
@@ -25,7 +26,8 @@ class referenceGenomePath(object):
                 "selectedRIZ": os.path.join(hg19_custom_root, "selectedRIZ.bed"),
                 "RTZ": os.path.join(hg19_custom_root, "GSM923449_hg19_wgEncodeUwRepliSeqHelas3ValleysRep1.bed"),
                 "replicationDomains": os.path.join(hg19_custom_root, "GSE53984_GSM923449_Helas3_Rep1_segments.bed"),
-                "replicationChmm": os.path.join(hg19_custom_root, "repChmm.bed")
+                "replicationChmm": os.path.join(hg19_custom_root, "repChmm.bed"),
+                "replicationRNAseq": os.path.join(hg19_custom_root, "repRNAcount.bed")
             }
         }
 
@@ -70,6 +72,7 @@ class referenceGenomePath(object):
         self.TAIR10 = {
             "name": "_TAIR10",
             "bowtie": os.path.join(TAIR10_root, "Sequence/BowtieIndex/genome"),
+            "bowtie2": os.path.join(TAIR10_root, "Sequence/Bowtie2Index/genome"),
             "fasta": os.path.join(TAIR10_root, "Sequence/WholeGenomeFasta/genome.fa"),
             "limits": os.path.join(TAIR10_root, "Sequence/WholeGenomeFasta/genome.fa.fai"),
             "limits_bed": os.path.join(TAIR10_custom_root, "genome.bed"),
@@ -134,6 +137,7 @@ class referenceGenomePath(object):
             "bowtie": "/proj/sancarlb/users/wentao/S288C_reference_genome/Bt1_SacCer3/yeast_bt1.SacCer3",
             "genes": os.path.join(S288C_R64_2_1_custom_root, "genes.bed"),
             "scoredGenes": "/proj/sancarlb/users/ogun/sancarlabutils/projects/yeast/RNA/dataDir/1801/SRR2005997.cu.bo.coToBa.coToBe.unSo.geMa.noCo.adTr.maScBe.bed",
+            "scoredGenesLengthFiltered": "/proj/sancarlb/users/ogun/yeast/RNA/1801/SRR2005997.cu.bo.coToBa.coToBe.unSo.geMa.noCo.adTr.maScBe.fiByLe.bed", # Genes >300bp
             "genes_noNeighborIn500bp": os.path.join(S288C_R64_2_1_custom_root, "genes_noNeighborIn500bp.bed"),
             "fasta": os.path.join(S288C_R64_2_1_custom_root, "genome.fa"),
             "limits": os.path.join(S288C_R64_2_1_custom_root, "genome.fa.fai")

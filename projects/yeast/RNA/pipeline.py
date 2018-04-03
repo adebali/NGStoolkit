@@ -282,6 +282,17 @@ class myPipe(pipe):
         self.execM(codeList)
         return self
 
+    def filterByLength_bed2bed(self):
+        lengthCutoff = 300
+        codeList = [
+            "awk '$3 - $2 >=" + str(lengthCutoff) + "'", 
+            self.input,
+            '>',
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
 def getArgs():
     parser = argparse.ArgumentParser(description='XR-seq ZT Pipeline', prog="pipeline.py")
     parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
@@ -320,26 +331,27 @@ input = getInputFromIndex(inputIndex)
 p = myPipe(input, args)
 (p
 
-    .run(p.dump_2fastq, True)
+    .run(p.dump_2fastq, False)
     .branch(False)
         .run(p.fastqc_fastq2html, False)
     .stop()
-    .run(p.cutadapt_fastq2fastq, True)
-    .run(p.bowtie_fastq2sam, True)
-    .run(p.convertToBam_sam2bam, True)
-    .run(p.convertToBed_bam2bed, True)
-    .run(p.uniqueSort_bed2bed, True)
+    .run(p.cutadapt_fastq2fastq, False)
+    .run(p.bowtie_fastq2sam, False)
+    .run(p.convertToBam_sam2bam, False)
+    .run(p.convertToBed_bam2bed, False)
+    .run(p.uniqueSort_bed2bed, False)
 
-    .branch(True)
+    .branch(False)
         .run(p.writeTotalMappedReads_bed2txt, True)
     .stop()
 
     .branch(True)
-        .run(p.geneMap_bed2txt, True)
-        .run(p.normalizeCounts_txt2txt, True)
-        .run(p.addTreatment_txt2txt, True)
+        .run(p.geneMap_bed2txt, False)
+        .run(p.normalizeCounts_txt2txt, False)
+        .run(p.addTreatment_txt2txt, False)
         .branch(True)
-            .run(p.makeScoreBed6_txt2bed, True)
+            .run(p.makeScoreBed6_txt2bed, False)
+            .run(p.filterByLength_bed2bed, True)
         .stop()
         .cat(p.mergeGeneCounts, True)
     .stop()

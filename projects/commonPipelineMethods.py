@@ -8,6 +8,10 @@ class commonPipeline(pipe):
         pipe.__init__(self, input, args)
     
     def sort_bed2bed(self, args={}):
+        '''sort bed (or a related) file based on the first 3 columns:
+        chromosome(string) start(integer) end(integer)
+        {'unique': True} dictionary input will remove the identical rows based on the three columns
+        '''
         uniqueFlag = ''
         if args.get('unique', False):
             uniqueFlag = '-u'
@@ -23,3 +27,6 @@ class commonPipeline(pipe):
         self.finalSortedBed = self.output
         self.execM(codeList)
         return self
+
+    def sort_bdg2bdg(self, args={}):
+        return self.sort_bed2bed()

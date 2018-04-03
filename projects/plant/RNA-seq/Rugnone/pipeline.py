@@ -8,50 +8,26 @@ import argparse
 import argument
 import json
 import bed
-import slurm
-from configHelpers import samples, paths
+sys.path.append('../../..')
+from referenceGenomePath import referenceGenomePath
+from sampleHelpers import samples
 
-def getArgs():
-    parser = argparse.ArgumentParser(description='Standard XR-seq and Damage-seq Pipeline', prog="pipeline.py")
-    parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
-    
-    subparsers = parser.add_subparsers(help='pipeline help', dest="subprogram")
+sampleClass = samples('sample.json')
 
-    parser_run = subparsers.add_parser('run', help='run help')
-    parser_run.add_argument('-samples', default='sample.json', required= False, help='file for sample configuration in JSON format')
-    parser_run.add_argument('-reference', default='reference.json', required= False, help='file for reference paths in JSON format')
-    parser_run.add_argument('-e', required= True, type=int, help='experiment index')
-    parser_run.add_argument('-cpu', required= False, type=int, default=1, help='requested cpu number')
-    parser_run.add_argument('-n', required= True, type=int, help='input index')
-    parser_run.add_argument('--mock', required= False, default=False, action='store_true', help='mock flag')
-    parser_run.add_argument('--noPrint', required= False, default=False, action='store_true', help='prints no code when stated')
+# def id2attribute(id, inputJson="sample.json"):
+#     def recursiveBase(master, d):
+#         if d.get('base', False):
+#             baseD = master[d['base']]
+#             d_updatedWithBase = recursiveBase(master, baseD)
+#             d_updatedWithBase.update(d)
+#             return d_updatedWithBase
+#         return d
+#     sheet = json.load(open(inputJson))
+#     sampleDict = sheet[id]
+#     completeSampleDict = recursiveBase(sheet, sampleDict)
+#     return completeSampleDict
 
-    parser_cat = subparsers.add_parser('cat', help='cat help')
-    parser_cat.add_argument('-samples', default='sample.json', required= False, help='file for sample configuration in JSON format')
-    parser_cat.add_argument('-reference', default='reference.json', required= False, help='file for reference paths in JSON format')
-    parser_cat.add_argument('-e', required= True, type=int, help='experiment index')
-    parser_cat.add_argument('-cpu', required= False, type=int, default=1, help='requested cpu number')    
-    parser_cat.add_argument('-n', required= False, type=int, default=1, help='input index')
-    parser_cat.add_argument('--mock', required= False, default=True, action='store_true', help='mock flag')
-    parser_cat.add_argument('--noPrint', required= False, default=True, action='store_true', help='prints no code when stated')
-
-    parser_batch = subparsers.add_parser('batch', help='batch help')
-    parser_batch.add_argument('-samples', default='sample.json', required= False, help='file for sample configuration in JSON format')
-    parser_batch.add_argument('-reference', default='reference.json', required= False, help='file for reference paths in JSON format')
-    parser_batch.add_argument('-e', required= True, type=int, help='experiment index')
-    parser_batch.add_argument('-cpu', required= False, type=int, default=1, help='requested cpu number')    
-    parser_batch.add_argument('-mem', required= False, type=int, default=16000, help='requested memory (MB)')    
-    parser_batch.add_argument('-s', required= False, type=int, nargs='+', help='space separated sample list')
-    parser_batch.add_argument('--mock', required= False, default=False, action='store_true', help='mock flag')
-    parser_batch.add_argument('--noPrint', required= False, default=True, action='store_true', help='prints no code when stated')
-
-    args = parser.parse_args()
-    return argument.args(args)
-
-args = getArgs()
-
-sampleClass = samples(args.get('samples'))
-pathClass = paths(args.get('reference'))
+# print(id2attribute('SRX997094'))
 
 class pipeline(pipe):
     def __init__(self, input, args = argument.args()):
@@ -62,8 +38,12 @@ class pipeline(pipe):
             setattr(self, key, information[key])
         self.outputDir = 'data'
         self.saveInput(os.path.join(self.outputDir, self.SRA_id + '.txt'))
-        self.reference = pathClass.getGenome(self.genome)
-        self.noCpus = args.get('cpu')
+        self.paths = referenceGenomePath()
+        self.reference = self.paths.get(self.genome)
+        self.noCpus = 8
+        self.categories = []
+        for e in self.columns:
+            self.categories.append(getattr(self, e))
 
     def fastqdump_txt2fastq(self):
         self.saveOutput([os.path.join(self.outputDir, self.SRA_id + '.fastq')])
@@ -72,6 +52,17 @@ class pipeline(pipe):
             codeList += ['&&', 'fastq-dump', '--stdout', run]
         codeList += ['>>', self.output]
 
+        self.execM(codeList)
+        return self
+
+    def addTreatment_txt2txt(self):
+        columns = self.categories
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', ' '.join(str(x) for x in self.categories)
+        ]
         self.execM(codeList)
         return self
 
@@ -255,9 +246,10 @@ class pipeline(pipe):
     def geneStrandMap_bed2txt(self):
         if self.stranded:
             extensions = ['_TS', '_NTS']
-            strandParameters = ['-S', '-s']
-            if self.method == "CPD-seq":
-                strandParameters.reverse()
+            if self.method == "XR-seq" or self.method == "Damage-seq":
+                strandParameters = ['-S', '-s']
+            elif self.method == "CPD-seq":
+                strandParameters = ['-s', '-S']
             newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
             self.saveOutput(newOutput)
             self.input = [self.input[0], self.input[0]]
@@ -302,8 +294,6 @@ class pipeline(pipe):
 
     def splitByStrand_bed2bed(self):
         strand = ['"\\t\+$"', '"\\t\-$"']
-        if self.method == "CPD-seq":
-            strand.reverse()        
         output = [
             self.addExtraWord(self.output[0], '_Plus'), 
             self.addExtraWord(self.output[0], '_Minus')
@@ -394,17 +384,54 @@ class pipeline(pipe):
 
     def mergeGeneCounts(self, outputFile = 'mergedGeneCounts.txt'):
         for f in self.input:
-            codeList = ['cut -f 7', f, '|', 'paste -s', '>>', outputFile]
+            codeList = ['cat ', f, '>>', outputFile]
             os.system(' '.join(codeList))
         return self
 
+def getArgs():
+    parser = argparse.ArgumentParser(description='Standard XR-seq and Damage-seq Pipeline', prog="pipeline.py")
+    parser.add_argument('--outputCheck', required= False, default=False, action='store_true', help='checkOutput flag')
+    
+    subparsers = parser.add_subparsers(help='pipeline help', dest="subprogram")
+
+    parser_run = subparsers.add_parser('run', help='run help')
+    parser_run.add_argument('-e', required= True, type=int, help='experiment index')
+    parser_run.add_argument('-n', required= True, type=int, help='input index')
+    parser_run.add_argument('--mock', required= False, default=False, action='store_true', help='mock flag')
+    parser_run.add_argument('--noPrint', required= False, default=False, action='store_true', help='prints no code when stated')
+
+    parser_cat = subparsers.add_parser('cat', help='cat help')
+    parser_cat.add_argument('-e', required= True, type=int, help='experiment index')
+    parser_cat.add_argument('-n', required= False, type=int, default=1, help='input index')
+    parser_cat.add_argument('--mock', required= False, default=True, action='store_true', help='mock flag')
+    parser_cat.add_argument('--noPrint', required= False, default=True, action='store_true', help='prints no code when stated')
+
+    args = parser.parse_args()
+    return argument.args(args)
+
+def sampleIO(fileName, in_, by_, out_):
+    d1 = generalUtils.table2dictionary(generalUtils.file(fileName), by_)
+    d2 = d1[in_][0]
+    return d2[out_]
+ 
+def getInputFromIndex(n):
+    SAMPLE_STAT_FILE = 'samples.csv'
+    return sampleIO(SAMPLE_STAT_FILE, n, 'no', 'sample')
+
+args = getArgs()
+# inputIndex = args.get("n")
+# input = getInputFromIndex(inputIndex)
+
+# input = "SRX997094"
+# def experimentAndNo2id(experiment, no):
+
+# input = "SRX220485"
+input = sampleClass.experimentNoAndNo2id(args.get('e'), args.get('n'))
 
 ###########################################################
 #  Pipeline
 ###########################################################
-def chain():
-    input = sampleClass.experimentNoAndNo2id(args.get('e'), args.get('n'))
-
+if __name__ == "__main__":
     p = pipeline(input, args)
     (p
         .run(p.fastqdump_txt2fastq, True)
@@ -413,6 +440,7 @@ def chain():
 
     if p.method == 'RNA-seq':
         p.run(p.tophat_fastq2bam, True)
+
     else:
         p.run(p.bowtie2_fastq2sam, True)
         p.run(p.convertToBam_sam2bam, True)
@@ -445,8 +473,6 @@ def chain():
             .run(p.sort_bed2bed, True)
         )
 
-    p.finalBed = p.input
-
     (p
         .branch(True)
             .run(p.writeTotalMappedReads_bed2txt, True)
@@ -455,58 +481,28 @@ def chain():
         .branch(True)
             .run(p.geneStrandMap_bed2txt, True)
             .run(p.normalizeCountsBasedOnOriginal_txt2txt, True)
+            .run(p.addTreatment_txt2txt, True)
             .cat(p.mergeGeneCounts, True)
         .stop()
     )
  
     if p.stranded:
         (p
-            .branch(True)
-                .run(p.splitByStrand_bed2bed, True)
+            .branch(False)
+                .run(p.splitByStrand_bed2bed, False)
                 
-                .branch(True)
-                    .run(p.convertToBedGraph_bed2bdg, True)
-                    .run(p.toBigWig_bdg2bw, True)
+                .branch(False)
+                    .run(p.convertToBedGraph_bed2bdg, False)
+                    .run(p.toBigWig_bdg2bw, False)
                 .stop()
             .stop()
         )
     else:
         (p
-            .branch(True)
-                .run(p.convertToBedGraph_bed2bdg, True)
-                .run(p.toBigWig_bdg2bw, True)
-
+            .branch(False)
+                .run(p.convertToBedGraph_bed2bdg, False)
+                .run(p.toBigWig_bdg2bw, False)
             .stop()
         )
-        
-    return p
-
-if __name__ == "__main__" and args.get("subprogram") == "batch":
-    os.system('mkdir -p log')
-    sampleClass = samples(args.get('samples'))
-    if args.get('s'):
-        sampleNoList = args.get('s')
-    else:
-        sampleNoList = sampleClass.experiment2sampleNoList(args.get('e'))
-
-    pipelineParameters = {
-        "--job-name=": "db_pipeline",
-        "-n ": args.get('cpu'),
-        "--mem=": args.get('mem'),
-        "--time=": "1-00:00:00",
-        "--output=": "./log/%A_%a.out",
-        "--error=": "./log/%A_%a.err",
-        "--array=": ','.join(str(x) for x in sampleNoList),
-        "--mail-type=": "END,FAIL",      # notifications for job done & fail
-        "--mail-user=": "oadebali@gmail.com" # send-to address
-    }
-
-    job = slurm.Slurm('python ' + os.path.basename(__file__) + ' run -e ' + str(args.get('e')) + ' -n $SLURM_ARRAY_TASK_ID' + ' -cpu ' + str(args.get('cpu')))
-    job.assignParams(pipelineParameters)
-    job.printScript()
-    if not args.get('mock'):
-        jobId = job.run()
-elif __name__ == "__main__" and (args.get("subprogram") in ["run", "cat"]):
-    chain()
 
 ###########################################################

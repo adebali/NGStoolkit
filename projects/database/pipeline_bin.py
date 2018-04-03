@@ -64,6 +64,8 @@ class pipeline(pipe):
         self.saveInput(os.path.join(self.outputDir, self.SRA_id + '.txt'))
         self.reference = pathClass.getGenome(self.genome)
         self.noCpus = args.get('cpu')
+        self.attributes = self.list2attributes(self.columns)
+        self.attributesString = list((str(x) for x in self.attributes))
 
     def fastqdump_txt2fastq(self):
         self.saveOutput([os.path.join(self.outputDir, self.SRA_id + '.fastq')])
@@ -255,9 +257,10 @@ class pipeline(pipe):
     def geneStrandMap_bed2txt(self):
         if self.stranded:
             extensions = ['_TS', '_NTS']
-            strandParameters = ['-S', '-s']
-            if self.method == "CPD-seq":
-                strandParameters.reverse()
+            if self.method == "XR-seq" or self.method == "Damage-seq":
+                strandParameters = ['-S', '-s']
+            elif self.method == "CPD-seq":
+                strandParameters = ['-s', '-S']
             newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
             self.saveOutput(newOutput)
             self.input = [self.input[0], self.input[0]]
@@ -278,6 +281,27 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
   
+    def binMap_bed2txt(self):
+        codeList = [
+            'bedtools makewindows',
+            '-g', self.reference['limits'],
+            '-w', 10000,
+            '|',
+            'addColumns.py',
+            '-c . . .',
+            '|',
+            'bedtools',
+            'intersect',
+            '-a', 'stdin',
+            '-b', self.input,
+            '-wa',
+            '-c',
+            '-F', 0.50,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
     def normalizeCountsBasedOnOriginal_txt2txt(self):
         try:
             totalMappedReads = int(open(self.totalMappedReadsFile, 'r').readline())
@@ -302,8 +326,6 @@ class pipeline(pipe):
 
     def splitByStrand_bed2bed(self):
         strand = ['"\\t\+$"', '"\\t\-$"']
-        if self.method == "CPD-seq":
-            strand.reverse()        
         output = [
             self.addExtraWord(self.output[0], '_Plus'), 
             self.addExtraWord(self.output[0], '_Minus')
@@ -316,6 +338,18 @@ class pipeline(pipe):
             self.input[0],
             '>',
             self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def addTreatment_txt2txt(self):
+        columns = self.list2attributes(self.columns)
+        columnStringList = ' '.join(str(e) for e in columns)
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', columnStringList
         ]
         self.execM(codeList)
         return self
@@ -397,90 +431,31 @@ class pipeline(pipe):
             codeList = ['cut -f 7', f, '|', 'paste -s', '>>', outputFile]
             os.system(' '.join(codeList))
         return self
+    
+    def catFiles(self, wildcard, headers, output):
+        code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
+        # code = "echo -e '" + '\t'.join(headers) + "' >" + output + " & " + "cat " + wildcard + " | grep -v '^==' | grep -v -e '^$' >>" + output
+        print(code)
+        os.system(code)
+
+    def fullPath2wildcard(self, fullPath, prefix = ''):
+        basename = os.path.basename(fullPath)
+        directory = os.path.dirname(fullPath)
+        wildcard = ".".join([prefix + "*"] + basename.split(".")[1:])
+        fullWildcard = os.path.join(directory, wildcard)
+        return fullWildcard
+
+    def mergeBinCounts(self, outputName = 'mergedBinCounts.txt'):
+        wildcard = self.fullPath2wildcard(self.input[0])        
+        headers = ['chromosome', 'start', 'end', 'gene', 'score', 'strand', 'count'] + self.columns
+        output = os.path.join(outputName)
+        self.catFiles(wildcard, headers, output)
+        return self
 
 
 ###########################################################
 #  Pipeline
 ###########################################################
-def chain():
-    input = sampleClass.experimentNoAndNo2id(args.get('e'), args.get('n'))
-
-    p = pipeline(input, args)
-    (p
-        .run(p.fastqdump_txt2fastq, True)
-        .run(p.cutadapt_fastq2fastq, True)
-    )
-
-    if p.method == 'RNA-seq':
-        p.run(p.tophat_fastq2bam, True)
-    else:
-        p.run(p.bowtie2_fastq2sam, True)
-        p.run(p.convertToBam_sam2bam, True)
-    
-    p.run(p.convertToBed_bam2bed, True)
-    p.run(p.sort_bed2bed, True, {'unique': p.sortUnique})
-
-    if p.method == 'XR-seq':
-        (p
-            .run(p.getCertainLengths_bed2bed, True)
-            .run(p.sort_bed2bed, True)
-        )  
-    elif p.method == 'Damage-seq':
-        (p
-            .run(p.slopBed_bed2bed, True)
-            .run(p.convertToFixedRange_bed2bed, True)
-            .run(p.sort_bed2bed, True)
-            .run(p.convertBedToFasta_bed2fa, True)
-            .run(p.getDamageSites_fa2bed, True)
-            .run(p.sort_bed2bed, True)
-        )
-
-    elif p.method == 'CPD-seq':
-        (p
-            .run(p.slopBed_bed2bed, True)
-            .run(p.convertToFixedRange_bed2bed, True)
-            .run(p.sort_bed2bed, True)
-            .run(p.convertBedToFasta_bed2fa, True)
-            .run(p.getDamageSites_fa2bed, True)
-            .run(p.sort_bed2bed, True)
-        )
-
-    p.finalBed = p.input
-
-    (p
-        .branch(True)
-            .run(p.writeTotalMappedReads_bed2txt, True)
-        .stop()
-
-        .branch(True)
-            .run(p.geneStrandMap_bed2txt, True)
-            .run(p.normalizeCountsBasedOnOriginal_txt2txt, True)
-            .cat(p.mergeGeneCounts, True)
-        .stop()
-    )
- 
-    if p.stranded:
-        (p
-            .branch(True)
-                .run(p.splitByStrand_bed2bed, True)
-                
-                .branch(True)
-                    .run(p.convertToBedGraph_bed2bdg, True)
-                    .run(p.toBigWig_bdg2bw, True)
-                .stop()
-            .stop()
-        )
-    else:
-        (p
-            .branch(True)
-                .run(p.convertToBedGraph_bed2bdg, True)
-                .run(p.toBigWig_bdg2bw, True)
-
-            .stop()
-        )
-        
-    return p
-
 if __name__ == "__main__" and args.get("subprogram") == "batch":
     os.system('mkdir -p log')
     sampleClass = samples(args.get('samples'))
@@ -506,7 +481,87 @@ if __name__ == "__main__" and args.get("subprogram") == "batch":
     job.printScript()
     if not args.get('mock'):
         jobId = job.run()
-elif __name__ == "__main__" and (args.get("subprogram") in ["run", "cat"]):
-    chain()
+
+
+if __name__ == "__main__" and (args.get("subprogram") in ["run", "cat"]):
+    input = sampleClass.experimentNoAndNo2id(args.get('e'), args.get('n'))
+
+    p = pipeline(input, args)
+    (p
+        .run(p.fastqdump_txt2fastq, False)
+        .run(p.cutadapt_fastq2fastq, False)
+    )
+
+    if p.method == 'RNA-seq':
+        p.run(p.tophat_fastq2bam, False)
+    else:
+        p.run(p.bowtie2_fastq2sam, False)
+        p.run(p.convertToBam_sam2bam, False)
+    
+    p.run(p.convertToBed_bam2bed, False)
+    p.run(p.sort_bed2bed, False, {'unique': p.sortUnique})
+
+    if p.method == 'XR-seq':
+        (p
+            .run(p.getCertainLengths_bed2bed, False)
+            .run(p.sort_bed2bed, False)
+        )  
+    elif p.method == 'Damage-seq':
+        (p
+            .run(p.slopBed_bed2bed, False)
+            .run(p.convertToFixedRange_bed2bed, False)
+            .run(p.sort_bed2bed, False)
+            .run(p.convertBedToFasta_bed2fa, False)
+            .run(p.getDamageSites_fa2bed, False)
+            .run(p.sort_bed2bed, False)
+        )
+
+    elif p.method == 'CPD-seq':
+        (p
+            .run(p.slopBed_bed2bed, False)
+            .run(p.convertToFixedRange_bed2bed, False)
+            .run(p.sort_bed2bed, False)
+            .run(p.convertBedToFasta_bed2fa, False)
+            .run(p.getDamageSites_fa2bed, False)
+            .run(p.sort_bed2bed, False)
+        )
+
+    (p
+        .branch(False)
+            .run(p.writeTotalMappedReads_bed2txt, False)
+        .stop()
+
+        .branch(True)
+            .run(p.binMap_bed2txt, False)
+            .run(p.normalizeCountsBasedOnOriginal_txt2txt, False)
+            .run(p.addTreatment_txt2txt, True)
+            .cat(p.mergeBinCounts, True, 'mergedBins.txt')            
+        .stop()
+
+        .branch(False)
+            .run(p.geneStrandMap_bed2txt, False)
+            .run(p.normalizeCountsBasedOnOriginal_txt2txt, False)
+            .cat(p.mergeGeneCounts, False)
+        .stop()
+    )
+
+    if p.stranded:
+        (p
+            .branch(False)
+                .run(p.splitByStrand_bed2bed, False)
+                
+                .branch(False)
+                    .run(p.convertToBedGraph_bed2bdg, False)
+                    .run(p.toBigWig_bdg2bw, False)
+                .stop()
+            .stop()
+        )
+    else:
+        (p
+            .branch(False)
+                .run(p.convertToBedGraph_bed2bdg, False)
+                .run(p.toBigWig_bdg2bw, False)
+            .stop()
+        )
 
 ###########################################################

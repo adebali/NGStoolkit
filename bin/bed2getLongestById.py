@@ -25,6 +25,9 @@ def getLongest(bedlineList):
     for bedline in bedlineList:
         if bedline.length() > selectedLine.length():
             selectedLine = bedline
+        elif bedline.length() == selectedLine.length():
+            if bedline.score() > selectedLine.score():
+                selectedLine = bedline
     return selectedLine
 
 for bedline in bedObject.read():

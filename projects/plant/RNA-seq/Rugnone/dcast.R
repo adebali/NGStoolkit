@@ -1,0 +1,5 @@
+library("reshape2")
+args<-commandArgs(TRUE)
+d <- read.csv(args[1], header = T, sep="\t")
+dd <- dcast(d, formula = gene ~ time, value.var="count")
+write.table(dd, file = args[2], sep="\t", row.names=F)

@@ -483,11 +483,11 @@ if __name__ == "__main__":
             .run(p.bowtie2_fastq2sam, False, 'hg19')
             .run(p.convertToBam_sam2bam, False)
             .run(p.convertToBed_bam2bed, False)
-            .run(p.sort_bed2bed, True, {'unique': True})
-            .run(p.slopBed_bed2bed, True)
-            .run(p.convertToFixedRange_bed2bed, True)
-            .run(p.sort_bed2bed, True)
-            .run(p.convertBedToFasta_bed2fa, True)
+            .run(p.sort_bed2bed, False, {'unique': True})
+            .run(p.slopBed_bed2bed, False)
+            .run(p.convertToFixedRange_bed2bed, False)
+            .run(p.sort_bed2bed, False)
+            .run(p.convertBedToFasta_bed2fa, False)
 
             .branch(False) # Plot nucleotide abundance
                 .run(p.getNucleotideAbundanceTable_fa2csv, True)
@@ -501,16 +501,49 @@ if __name__ == "__main__":
                 .cat(p.mergeNucleotideAbundance, True, '_diNuc')
             .stop()
 
-            .run(p.getDamageSites_fa2bed, True)
-            .run(p.subsample_bed2bed, True, 9500000)
-            .run(p.sort_bed2bed, True)
+            .run(p.getDamageSites_fa2bed, False)
+            .run(p.subsample_bed2bed, False, 9500000)
+            .run(p.sort_bed2bed, False)
 
-            .branch(True)
+            .branch(False)
                 .run(p.writeTotalMappedReads_bed2txt, True)
             .stop()
 
+            .branch(False)
+                .run(p.intersectRepRNA_bed2txt, True)
+                .run(p.normalizeCountsBasedOnOriginal_txt2txt, True)
+                .run(p.addTreatmentAndTSNTS_txt2txt, True)
+                .cat(p.mergeRepRNA, True)
+            .stop()
+
+            .branch(False)
+                .run(p.transcriptIntersect_bed2txt, True)
+                .run(p.addTreatment_txt2txt, True, 'real')
+            .stop()
+
+            .branch(False)
+                .run(p.transcriptIntersect_bed2txt, True, {'random':True})
+                .run(p.addTreatment_txt2txt, True, 'random')
+                .cat(p.mergeTCR, True)
+            .stop()
+
             .branch(True)
-                .run(p.splitByStrand_bed2bed, True)
+                .run(p.shuffleReads_bed2bed, True)
+
+                .branch(True)
+                    .run(p.transcriptIntersect_bed2txt, True)
+                    .run(p.addTreatment_txt2txt, True, 'real')
+                .stop()
+
+                .branch(True)
+                    .run(p.transcriptIntersect_bed2txt, True, {'random':True})
+                    .run(p.addTreatment_txt2txt, True, 'random')
+                    .cat(p.mergeTCR, True, 'shuffled')
+                .stop()
+            .stop()
+
+            .branch(False)
+                .run(p.splitByStrand_bed2bed, False)
                 
                 .branch(True)
                     .run(p.intersect10K_bed2txt, False)

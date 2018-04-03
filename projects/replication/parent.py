@@ -3,6 +3,7 @@ from pipe import pipe
 import argument
 import bed
 import pipeTools
+import tempfile
 
 class pipeline(pipe):
     def __init__(self, input, args = argument.args()):
@@ -30,6 +31,27 @@ class pipeline(pipe):
             '-b', self.input,
             '-wa',
             '-c',
+            '-F', 0.50,
+            '>', self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def intersectRepRNA_bed2txt(self):
+        extensions = ['_TS', '_NTS']
+        strandParameters = ['-S', '-s']
+        newOutput = [self.addExtraWord(self.output[0], '_TS'), self.addExtraWord(self.output[0], '_NTS')]
+        self.saveOutput(newOutput)
+        self.input = [self.input[0], self.input[0]]
+
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference["HeLaS3"]["replicationRNAseq"],
+            '-b', self.input,
+            '-wa',
+            '-c',
+            strandParameters,
             '-F', 0.50,
             '>', self.output
         ]
@@ -92,6 +114,18 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def addTreatmentAndTSNTS_txt2txt(self):
+        columns = self.list2attributes(self.attributes)
+        columnStringList = [' '.join(columns + ['TS']), ' '.join(columns + ['NTS'])]
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', columnStringList
+        ]
+        self.execM(codeList)
+        return self
+
     def merge10KCounts(self, extraWord = ''):
         wildcard = self.fullPath2wildcard(self.input[0]).replace("_Plus", "_*s")
         headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['strandName']
@@ -112,6 +146,14 @@ class pipeline(pipe):
         output = os.path.join(self.outputDir, '..', 'merged_repChmm' + extraWord + '.txt')
         self.catFiles(wildcard, headers, output)
         return self
+
+    def mergeRepRNA(self, extraWord = ''):
+        wildcard = self.fullPath2wildcard(self.input[0]).replace("_TS", "_*")
+        headers = ['chr', 'start', 'end', 'name', 'score', 'strand', 'count'] + self.attributes + ['strandName']        
+        output = os.path.join(self.outputDir, '..', 'merged_repRNA' + extraWord + '.txt')
+        self.catFiles(wildcard, headers, output)
+        return self
+
 
     def writeTotalMappedReads_bed2txt(self):
         codeList = [
@@ -295,6 +337,36 @@ class pipeline(pipe):
         self.execM(codeList)
         return self
 
+    def geneCount_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'intersect',
+            '-a', self.reference["transcripts"],
+            '-b', self.input,
+            '-c',
+            '-F', 0.49,
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
+    
+    def shuffledGeneCount_bed2txt(self):
+        codeList = [
+            'bedtools',
+            'shuffle',
+            '-i', self.reference["transcripts"],
+            '-g', self.reference['limits'],
+            '|',
+            'bedtools',
+            'intersect',
+            '-a', 'stdin',
+            '-b', self.input,
+            '-c',
+            '-F', 0.49,
+            '>', self.output 
+        ]
+        self.execM(codeList)
+        return self
 
     def strandAsymmetry_txt2bdg(self):
         import generalUtils
@@ -356,6 +428,186 @@ class pipeline(pipe):
             '>', self.output
         ]
         self.execM(codeList)
+        return self
+
+    def shuffleReads_bed2bed(self):
+        codeList = [
+            'bedtools',
+            'shuffle',
+            '-i', self.input,
+            '-g', self.reference['limits'],
+            '|',
+            'sort',
+            '-k1,1',
+            '-k2,2n',
+            '-k3,3n',
+            '>',
+            self.output
+        ]
+        self.execM(codeList)
+        return self
+
+    def transcriptIntersect_bed2txt(self, args={}):
+        transcripts = self.reference[args.get('transcripts', 'transcripts')]
+        keyword = args.get('keyword', '')
+        output = [self.addExtraWord(self.output[0], keyword)]
+        self.saveOutput(output)
+        
+        sliceFlag = args.get('slice', False)
+        if sliceFlag:
+            numberOfSlices = args.get('n')
+            currentSlice = args.get('sliceNum')
+            keyword = args.get('keyword')
+            sliceTemp_, sliceTemp = tempfile.mkstemp()
+            codeList = [
+                'bed2sliceByScore.py',
+                '-i', transcripts,
+                '-n', numberOfSlices,
+                '-slice', currentSlice,
+                '>', sliceTemp
+            ]
+            self.execM(codeList)
+            transcripts = sliceTemp
+
+        random = args.get('random', False)
+        if random:
+            output = [
+                self.addExtraWord(self.output[0], '_random'),
+            ]
+            self.saveOutput(output)
+
+        averageLength = totalRecord = totalMappedReads = perNmappedReads= 1
+        if self.runMode == True and self.runFlag == True:
+            inputBed = bed.bed(self.input[0])
+            totalMappedReads = inputBed.getHitNum()
+            bedA = bed.bed(transcripts)
+            averageLength = bedA.getAverageLength()
+            totalRecord = bedA.getHitNum()
+            perNmappedReads = 1000000
+        
+        shuffleCode = [
+            'bedtools',
+            'shuffle',
+            '-i', transcripts,
+            '-g', self.reference['limits'],
+            '|',
+            'sort',
+            '-k1,1',
+            '-k2,2n',
+            '-k3,3n'
+        ]
+        if random:
+            codeList = list(shuffleCode)
+        else:
+            codeList = [
+                'cat',
+                transcripts
+            ]
+
+        codeList += [
+            '|',
+            'bedtools',
+            'intersect',
+            '-a', 'stdin',
+            '-b', self.input,
+            '-wa',
+            '-wb',
+            '-F', 0.50,
+            '|',
+            'bedIntersect2positionTxt.py',
+            '|',
+            'bedIntersectPositionCount.py',
+            '-count', 7,
+            '-cat', 8,
+            '-ends', 'double',
+            '-scale',
+            1/float(totalRecord),
+            100/float(averageLength),
+            perNmappedReads/float(totalMappedReads),
+            '-o', self.output
+        ]
+        self.execM(codeList)
+        
+        _temp, temp = tempfile.mkstemp()
+
+        windowLength = 100
+        oneSideFlankingLength = 10000
+
+        if random:
+            prepareAbedCodeList = list(shuffleCode)
+        else:
+            prepareAbedCodeList = [
+                'cat',
+                transcripts
+            ]
+        prepareAbedCodeList += [
+            '|',
+            'bed2updownstream.py',
+            '--fixed',
+            '-l', oneSideFlankingLength,
+            '|',
+            'bed2removeChromosomeEdges.py',
+            '--fixed',
+            '-l', 10000,
+            '-g', self.reference['limits'],
+            '>', temp
+        ]
+        self.execM(prepareAbedCodeList)
+
+        totalRecord = 1
+        if self.runMode == True and self.runFlag == True:
+            bedA = bed.bed(temp)
+            totalRecord = bedA.getHitNum()/2
+
+        flankingCodeList = [
+            'bedtools',
+            'intersect',
+            # '-a', 'stdin',
+            '-a', temp,
+            '-b', self.input,
+            '-wa',
+            '-wb',
+            '-F', 0.50,
+            '|',
+            'bedIntersect2positionTxt.py',
+            '--flanking',
+            '--fixed',
+            '-w', windowLength,
+            '|',
+            'bedIntersectPositionCount.py',
+            '-count', 7,
+            '-cat', 8,
+            '-ends', 'remove',
+            '-scale', 
+            1/float(totalRecord), 
+            1/float(windowLength),
+            perNmappedReads/float(totalMappedReads),
+            '>>', self.output,
+            '&&',
+            'rm', temp
+        ]
+        self.execM(flankingCodeList)
+        return self
+
+    def addTreatment_txt2txt(self, *nargs):
+        columns = self.list2attributes(self.attributes) + list(nargs)
+        codeList = [
+            'addColumns.py',
+            '-i', self.input,
+            '-o', self.output,
+            '-c', ' '.join(columns)
+        ]
+        self.execM(codeList)
+        columnHeaders = self.attributes
+        return self
+
+
+    def mergeTCR(self, extraWord = '', prefix = ''):
+        wildcard =  self.fullPath2wildcard(self.input[0], prefix).replace("_random", "*")
+        # wildcard =  self.fullPath2wildcard(self.input[0], prefix)
+        headers = ['pos', 'count', 'cat'] + self.attributes +  ['label']
+        output = os.path.join(self.outputDir, '..', 'merged_TCR' + extraWord + '.txt')
+        self.catFiles(wildcard, headers, output)
         return self
 
     # remove the close ones (neighborDistance)

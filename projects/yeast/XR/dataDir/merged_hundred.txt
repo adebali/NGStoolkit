@@ -1,0 +1,1 @@
+-e chromosome	start	end	gene	score	strand	category	geneNo	position	count	group	no	product	replicate	sample	time	title

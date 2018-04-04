@@ -10,7 +10,7 @@ parser.add_argument('-k', required= False, type=int, default=1, help='k of kmer'
 parser.add_argument('-l', required=  False, type=int, help='sequence length of interest')
 parser.add_argument('-c', nargs = '+', required=  False, help='class dictionary: space-separated comma-separated pairs. Eg: product,CPD replicate,A')
 parser.add_argument('--percentage', action='store_true', help = 'Write percentages instead if actual counts')
-parser.add_argument('--header', action='store_true', help = 'Write percentages instead if actual counts')
+parser.add_argument('--header', action='store_true', help = 'Write header')
 
 args = parser.parse_args()
 

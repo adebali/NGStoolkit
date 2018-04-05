@@ -8,10 +8,10 @@ cutadapt -a TGGAATTCTCGGGTGCCAAGGAACTCCAGTNNNNNNACGATCTCGTATGCCGTCTTCTGCTTG
 -o ${SAMPLE}_cutadapt.fastq ${SAMPLE}.fastq
 
 # Align with the reference genome
-bowtie2 -x GCRh38 -U ${SAMPLE}_cutadapt.fastq -S ${SAMPLE}_cutadapt.sam
+bowtie2 -x /data/genomes/GCRh38/Bowtie2/genome -U ${SAMPLE}_cutadapt.fastq -S ${SAMPLE}_cutadapt.sam
 
 # Convert to bam
-samtools view -b -o ${SAMPLE}_cutadapt.sam ${SAMPLE}_cutadapt.bam
+samtools view -b -q 20 -o ${SAMPLE}_cutadapt.sam ${SAMPLE}_cutadapt.bam
 
 # Convert to bed
 bedtools bamtobed -i ${SAMPLE}_cutadapt.bam ${SAMPLE}_cutadapt.bed

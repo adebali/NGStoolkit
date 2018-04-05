@@ -1,0 +1,10 @@
+version: '3'
+services:
+  main:
+    build: .
+    tty: true
+    volumes:
+      - ./data:/data
+      - ./:/NGStoolkit
+volumes:
+  data:

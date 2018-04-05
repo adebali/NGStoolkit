@@ -9,7 +9,10 @@ git clone git@bitbucket.org:adebali/NGStoolkit.git
 cd NGStoolkit
 bash setup.sh
 ```
-  
+
+## Docker setup
+Make sure that you have `Docker` and `docker-compose` are installed.
+
 ## Authors
   * Ogun Adebali
 

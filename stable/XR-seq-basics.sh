@@ -1,45 +1,47 @@
 #!/usr/bin/env bash
 
-# Define the sample basename (eg. you have fastq file named as runSample.fastq)
+echo "Define the sample basename (eg. you have fastq file named as runSample.fastq)"
 SAMPLE=runSample
 
-# Cut adapter
-cutadapt -a TGGAATTCTCGGGTGCCAAGGAACTCCAGTNNNNNNACGATCTCGTATGCCGTCTTCTGCTTG 
--o ${SAMPLE}_cutadapt.fastq ${SAMPLE}.fastq
+SAMPLE=SRR1976056
+fastq-dump $SAMPLE
 
-# Align with the reference genome
-bowtie2 -x /data/genomes/GCRh38/Bowtie2/genome -U ${SAMPLE}_cutadapt.fastq -S ${SAMPLE}_cutadapt.sam
+echo "Cut adapter"
+cutadapt -a TGGAATTCTCGGGTGCCAAGGAACTCCAGTNNNNNNACGATCTCGTATGCCGTCTTCTGCTTG -o ${SAMPLE}_cutadapt.fastq ${SAMPLE}.fastq
 
-# Convert to bam
-samtools view -b -q 20 -o ${SAMPLE}_cutadapt.sam ${SAMPLE}_cutadapt.bam
+echo "Align with the reference genome"
+bowtie2 -p 4 -x /data/genomes/GRCh38/Bowtie2/genome -U ${SAMPLE}_cutadapt.fastq -S ${SAMPLE}_cutadapt.sam
 
-# Convert to bed
-bedtools bamtobed -i ${SAMPLE}_cutadapt.bam ${SAMPLE}_cutadapt.bed
+echo "Convert to bam"
+samtools view -q 20 -b -o ${SAMPLE}_cutadapt.bam ${SAMPLE}_cutadapt.sam
 
-# Sort bed file. Use -u to remove duplicates
-sort -u -k1,1 -k2,2n –k3,3n ${SAMPLE}_cutadapt.bed > ${SAMPLE}_cutadapt_sorted.bed
+echo "Convert to bed"
+bedtools bamtobed -i ${SAMPLE}_cutadapt.bam >${SAMPLE}_cutadapt.bed
 
-# Count number of mapped reads
-grep -c “^” ${SAMPLE}_cutadapt_sorted.bed > ${SAMPLE}_cutadapt_sorted_readCount.txt 
+echo "Sort bed file. Use -u to remove duplicates"
+sort -u -k1,1 -k2,2n -k3,3n ${SAMPLE}_cutadapt.bed >${SAMPLE}_cutadapt_sorted.bed
 
-# Get the read length distribution of the aligned and deduplicated reads
-awk '{print $3-$2}' ${SAMPLE}_cutadapt_sorted.bed | uniq -c | sed 's/\s\s*/ /g' | awk '{print $2"\t"$1}' | sort -k1,1n
+echo "Count number of mapped reads"
+grep -c "^" ${SAMPLE}_cutadapt_sorted.bed > ${SAMPLE}_cutadapt_sorted_readCount.txt 
 
-# Get the certain-sized reads (eg 27)
-awk '{ if ($3-$2 == 27) { print } }' ${SAMPLE}_cutadapt_sorted.bed >${SAMPLE}_cutadapt_sorted_27.bed
+echo "Get the read length distribution of the aligned and deduplicated reads"
+awk '{print $3-$2}' ${SAMPLE}_cutadapt_sorted.bed | sort -k1,1n | uniq -c | sed 's/\s\s*/ /g' | awk '{print $2"\t"$1}'
 
-# Retrieve sequences in fasta format
-bedtools getfasta -fi GCRh38.fa -bed ${SAMPLE}_cutadapt_sorted_27.bed -fo ${SAMPLE}_cutadapt_sorted_27.fa
+echo "Get the certain-sized reads (eg 26)"
+awk '{ if ($3-$2 == 26) { print } }' ${SAMPLE}_cutadapt_sorted.bed >${SAMPLE}_cutadapt_sorted_26.bed
 
-# Get the dinucleotide content of the reads
-fa2kmerAbundanceTable.py -i ${SAMPLE}_cutadapt_sorted_27.fa -k 2 -o ${SAMPLE}_cutadapt_sorted_27_dinucleotideTable.txt
+echo "Retrieve sequences in fasta format"
+bedtools getfasta -fi /data/genomes/GRCh38/genome.fa -bed ${SAMPLE}_cutadapt_sorted_26.bed -fo ${SAMPLE}_cutadapt_sorted_26.fa
 
-# Convert bed to bedgraph
-bedtools genomecov -i ${SAMPLE}_cutadapt_sorted.bed -g genome.fa.fai -bg -scale $(${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print 1000000/$1}') >${SAMPLE}_cutadapt_sorted.bdg
+echo "Get the dinucleotide content of the reads"
+fa2kmerAbundanceTable.py -i ${SAMPLE}_cutadapt_sorted_26.fa -k 2 -o ${SAMPLE}_cutadapt_sorted_26_dinucleotideTable.txt
 
-# Convert bedgraph to bigwig
-bedGraphToBigWig ${SAMPLE}_cutadapt_sorted.bdg genome.fa.fai ${SAMPLE}_cutadapt_sorted.bw
+echo "Convert bed to bedgraph"
+bedtools genomecov -i ${SAMPLE}_cutadapt_sorted.bed -g /data/genomes/GRCh38/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print 1000000/$1}') >${SAMPLE}_cutadapt_sorted.bdg
 
-# Count read values for transcribed (TS) and nontranscribed (NTS) strands
-bedtools intersect -a geneList.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -S -F 0.5 > ${SAMPLE}_cutadapt_sorted_ TScount.txt
-bedtools intersect -a geneList.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -s -F 0.5 > ${SAMPLE}_cutadapt_sorted_NTScount.txt
+echo "Convert bedgraph to bigwig"
+bedGraphToBigWig ${SAMPLE}_cutadapt_sorted.bdg /data/genomes/GRCh38/genome.fa.fai ${SAMPLE}_cutadapt_sorted.bw
+
+echo "Count read values for transcribed (TS) and nontranscribed (NTS) strands"
+bedtools intersect -a /data/genomes/GRCh38/genes.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -S -F 0.5 > ${SAMPLE}_cutadapt_sorted_TScount.txt
+bedtools intersect -a /data/genomes/GRCh38/genes.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -s -F 0.5 > ${SAMPLE}_cutadapt_sorted_NTScount.txt

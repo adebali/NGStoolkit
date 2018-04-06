@@ -6,20 +6,19 @@ import generalUtils
 
 # Uses chr as chromosome identifier.
 parser = argparse.ArgumentParser(description='converts gff to bed')
-parser.add_argument('-i', required= True, help='input')
-parser.add_argument('-o', required= True, help='output')
+parser.add_argument('-i', nargs='?', type=argparse.FileType('r'), default=sys.stdin, help='input')
+parser.add_argument('-o', nargs='?', type=argparse.FileType('w'), default=sys.stdout, help='output')
 parser.add_argument('-r', required= False, help='region')
 
 args = parser.parse_args()
-gffFile = args.i
-outBedFile = args.o
+
 if args.r:
     region = args.r
 else:
     region = "NA"
 
-filein = open(gffFile, 'r')
-out = open(outBedFile, 'w')
+filein = args.i
+out = args.o
 
 for line in filein:
     if not line.startswith('#'):

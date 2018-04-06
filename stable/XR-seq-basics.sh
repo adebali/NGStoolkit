@@ -10,7 +10,8 @@ echo "Cut adapter"
 cutadapt -a TGGAATTCTCGGGTGCCAAGGAACTCCAGTNNNNNNACGATCTCGTATGCCGTCTTCTGCTTG -o ${SAMPLE}_cutadapt.fastq ${SAMPLE}.fastq
 
 echo "Align with the reference genome"
-bowtie2 -p 4 -x /data/genomes/GRCh38/Bowtie2/genome -U ${SAMPLE}_cutadapt.fastq -S ${SAMPLE}_cutadapt.sam
+BOWTIE2_IND=/data/genomes/GCRh38/Bowtie2/genome
+bowtie2 -p 4 -x $BOWTIE2_IND -U ${SAMPLE}_cutadapt.fastq -S ${SAMPLE}_cutadapt.sam
 
 echo "Convert to bam"
 samtools view -q 20 -b -o ${SAMPLE}_cutadapt.bam ${SAMPLE}_cutadapt.sam

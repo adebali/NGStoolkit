@@ -15,7 +15,7 @@ Make sure that you have `Docker` and `docker-compose` are installed.
 
 ```
 docker-compose -p ngs up --build -d
-docker exec -it ngs_main_1 bash
+docker-compose run main bash
 ```
 
 `docker-compose` maps the data directory to `/data` in the container. All the programs should be installed for the docker container.

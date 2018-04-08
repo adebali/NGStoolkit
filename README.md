@@ -6,13 +6,13 @@ This repository is developed for analyzing NGS datasets, specifically the ones r
 
 Custom setup assumes that you have the necessary programs installed and they are exectuble in your `$PATH`. 
 
-The list of necessary programs are:
-* Bowtie2
-* cutadapt
-* sra-tools
-* samtools
-* bedtools
-* bedGraphToBigWig (uscstools)
+The list of the necessary programs are:
+* [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+* [cutadapt](http://cutadapt.readthedocs.io/en/stable/)
+* [sra toolkit](https://www.ncbi.nlm.nih.gov/sra/docs/toolkitsoft/)
+* [samtools](http://samtools.sourceforge.net/)
+* [bedtools](http://bedtools.readthedocs.io/en/latest/)
+* [ucsc tools](http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/)
 
 To place the source code of this repository in your path, please follow these commands:
 ```

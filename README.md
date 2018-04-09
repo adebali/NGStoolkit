@@ -24,6 +24,7 @@ bash setup.sh
 
 ## Docker setup
 Make sure that you have `Docker` and `docker-compose` are installed.
+The recommended mamory for the pipeline is at least 6GB. Allow docker to use that much memory from the Docker settings.
 
 ```
 docker-compose -p ngs up --build -d

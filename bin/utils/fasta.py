@@ -325,6 +325,7 @@ class fasta:
 		separator = '\t'
 		out = open(output, writeMode)
 		positions = kmerAbundanceDict.keys()
+		out.write('kmer')
 		for position in positions:
 			out.write(separator + str(position))
 		out.write("\n")

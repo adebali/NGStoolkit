@@ -50,9 +50,9 @@ RUN wget "http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/${VERSION}/sratoolkit.${VERS
     cp -r sratoolkit.${VERSION}-ubuntu64/bin/* /home/biodocker/bin
 USER biodocker
 
-ADD ./ /toolkit
-ENV PATH="/toolkit/bin:${PATH}"
-ENV PYTHONPATH="/toolkit/bin/utils:${PYTHONPATH}"
+ADD ./ /NGStoolkit
+ENV PATH="/NGStoolkit/bin:${PATH}"
+ENV PYTHONPATH="/NGStoolkit/bin/utils:${PYTHONPATH}"
 
 WORKDIR /data
 CMD ["/bin/bash"]

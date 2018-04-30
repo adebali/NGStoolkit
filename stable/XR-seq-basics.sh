@@ -2,11 +2,17 @@
 
 echo "Define the sample basename (eg. you have fastq file named as runSample.fastq)"
 SAMPLE=runSample # Change based on your file base name.
-fastq-dump --stdout SRR1976056 >${SAMPLE}.fastq && fastq-dump --stdout SRR1976057 >>${SAMPLE}.fastq # Comment out this line when you run the pipeline for your local file. 
+SAMPLE=CPD3 # Change based on your file base name.
+GENOME_DIR=/data/genomes/GRCh38
+BOWTIE2_IND=${GENOME_DIR}/Bowtie2/genome
+# fastq-dump --stdout SRR1976056 >${SAMPLE}.fastq && fastq-dump --stdout SRR1976057 >>${SAMPLE}.fastq # CPD example. Comment out this line when you run the pipeline for your local file. 
+# fastq-dump --stdout SRR3062635 >${SAMPLE}.fastq && fastq-dump --stdout SRR3062636 >>${SAMPLE}.fastq # (6-4)PP example. Comment out this line when you run the pipeline for your local file. 
+fastq-dump --stdout SRR3062593 >${SAMPLE}.fastq && fastq-dump --stdout SRR3062594 >>${SAMPLE}.fastq  && fastq-dump --stdout SRR3062595 >>${SAMPLE}.fastq # (6-4)PP example. Comment out this line when you run the pipeline for your local file. 
 
-# # # Comment out these two lines when you run the pipeline for your local file. These lines are necessary for testing purposes only.
-# # SAMPLE=SRR1976056
-# # fastq-dump $SAMPLE
+
+# # Comment out these two lines when you run the pipeline for your local file. These lines are necessary for testing purposes only.
+# SAMPLE=SRR1976056
+# fastq-dump $SAMPLE
 
 
 
@@ -14,7 +20,6 @@ echo "Cut adapter"
 cutadapt -a TGGAATTCTCGGGTGCCAAGGAACTCCAGTNNNNNNACGATCTCGTATGCCGTCTTCTGCTTG -o ${SAMPLE}_cutadapt.fastq ${SAMPLE}.fastq
 
 echo "Align with the reference genome"
-BOWTIE2_IND=/data/genomes/GRCh38/Bowtie2/genome
 bowtie2 -p 4 -x $BOWTIE2_IND -U ${SAMPLE}_cutadapt.fastq -S ${SAMPLE}_cutadapt.sam
 
 echo "Convert to bam"
@@ -36,7 +41,7 @@ echo "Get the certain-sized reads (eg 26)"
 awk '{ if ($3-$2 == 26) { print } }' ${SAMPLE}_cutadapt_sorted.bed >${SAMPLE}_cutadapt_sorted_26.bed
 
 echo "Retrieve sequences in fasta format"
-bedtools getfasta -fi /data/genomes/GRCh38/genome.fa -bed ${SAMPLE}_cutadapt_sorted_26.bed -fo ${SAMPLE}_cutadapt_sorted_26.fa
+bedtools getfasta -fi ${GENOME_DIR}/genome.fa -bed ${SAMPLE}_cutadapt_sorted_26.bed -fo ${SAMPLE}_cutadapt_sorted_26.fa
 
 echo "Get the dinucleotide content of the reads"
 fa2kmerAbundanceTable.py -i ${SAMPLE}_cutadapt_sorted_26.fa -k 2 --percentage -o ${SAMPLE}_cutadapt_sorted_26_dinucleotideTable.txt
@@ -46,16 +51,16 @@ awk '{if($6=="+"){print}}' ${SAMPLE}_cutadapt_sorted.bed >${SAMPLE}_cutadapt_sor
 awk '{if($6=="-"){print}}' ${SAMPLE}_cutadapt_sorted.bed >${SAMPLE}_cutadapt_sorted_minus.bed
 
 echo "Convert bed to bedgraph"
-bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_plus.bed -g /data/genomes/GRCh38/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print 1000000/$1}') >${SAMPLE}_cutadapt_sorted_plus.bdg
-bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_minus.bed -g /data/genomes/GRCh38/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print -1000000/$1}') >${SAMPLE}_cutadapt_sorted_minus.bdg
+bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_plus.bed -g ${GENOME_DIR}/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print 1000000/$1}') >${SAMPLE}_cutadapt_sorted_plus.bdg
+bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_minus.bed -g ${GENOME_DIR}/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print -1000000/$1}') >${SAMPLE}_cutadapt_sorted_minus.bdg
 
 echo "Convert bedgraph to bigwig"
-bedGraphToBigWig ${SAMPLE}_cutadapt_sorted_plus.bdg /data/genomes/GRCh38/genome.fa.fai ${SAMPLE}_cutadapt_sorted_plus.bw
-bedGraphToBigWig ${SAMPLE}_cutadapt_sorted_minus.bdg /data/genomes/GRCh38/genome.fa.fai ${SAMPLE}_cutadapt_sorted_minus.bw
+bedGraphToBigWig ${SAMPLE}_cutadapt_sorted_plus.bdg ${GENOME_DIR}/genome.fa.fai ${SAMPLE}_cutadapt_sorted_plus.bw
+bedGraphToBigWig ${SAMPLE}_cutadapt_sorted_minus.bdg ${GENOME_DIR}/genome.fa.fai ${SAMPLE}_cutadapt_sorted_minus.bw
 
 echo "Count read values for transcribed (TS) and nontranscribed (NTS) strands"
-bedtools intersect -a /data/genomes/GRCh38/genes.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -S -F 0.5 > ${SAMPLE}_cutadapt_sorted_TScount.txt
-bedtools intersect -a /data/genomes/GRCh38/genes.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -s -F 0.5 > ${SAMPLE}_cutadapt_sorted_NTScount.txt
+bedtools intersect -sorted -a ${GENOME_DIR}/genes.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -S -F 0.5 > ${SAMPLE}_cutadapt_sorted_TScount.txt
+bedtools intersect -sorted -a ${GENOME_DIR}/genes.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -s -F 0.5 > ${SAMPLE}_cutadapt_sorted_NTScount.txt
 
 # chr5:168,478,195-168,593,555
 # chr17:7,400,388-7,597,844

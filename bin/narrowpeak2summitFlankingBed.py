@@ -6,8 +6,8 @@ import bed
 import generalUtils
 
 parser = argparse.ArgumentParser(description='takes bed as input, get the middle point and extend it to both sides')
-parser.add_argument('-i', required= True, help='input')
-parser.add_argument('-o', required= True, help='output')
+parser.add_argument('-i', nargs='?', type=argparse.FileType('r'), default=sys.stdin, help='input')
+parser.add_argument('-o', nargs='?', type=argparse.FileType('w'), default=sys.stdout, help='output')
 parser.add_argument('-w', required= True, help='windowSize')
 parser.add_argument('-g', required= False, default=False, help='genomeFile')
 parser.add_argument('--randomMid', required= False, action='store_true', help='for cases of .5 middle point, randomly select between positions 0 or 1')

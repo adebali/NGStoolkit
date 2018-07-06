@@ -1,0 +1,112 @@
+
+# XR-seq Basic Steps for Preliminary Analysis
+
+* Define variables. If the FASTQ file is named as runSample.fastq the base name of the file would be runSample. $SAMPLE variable can be defined with
+
+    ```
+    SAMPLE=runSample
+    ```
+
+* Genome paths can be defined with
+
+    ```
+    GENOME_DIR=/data/genomes/GRCh38
+    BOWTIE2_IND=${GENOME_DIR}/Bowtie2/genome
+    ```
+    From this point, in the same session `${SAMPLE}` usage will place its value (runSample) until it is redefined or the session is terminated. 
+
+
+* To retrieve a previously published XR-seq dataset for testing purposes, it is possible to use the `sra-toolkit`  to download the data from `Sequence Read Archive` with the following command.
+
+    ```
+    fastq-dump --stdout SRR1976056 >${SAMPLE}.fastq
+    fastq-dump --stdout SRR1976057 >>${SAMPLE}.fastq
+    ```
+
+* Trim the 3’ adapter using cutadapt59.
+    ```
+    cutadapt -a TGGAATTCTCGGGTGCCAAGGAACTCCAGTNNNNNNACGATCTCGTATGCCGTCTTCTGCTTG -o ${SAMPLE}_cutadapt.fastq ${SAMPLE}.fastq
+    ```
+
+* Align sequence reads to the reference genome (e.g. GRCh38) with `Bowtie2`. 
+    ```
+    bowtie2 -p 4 -x $BOWTIE2_IND -U ${SAMPLE}_cutadapt.fastq -S ${SAMPLE}_cutadapt.sam
+    ```
+
+    See the Bowtie2 manual for advance parameters (such as quality control) and to build the reference genome index. Our repository also has the set of commands to download genome files from Ensembl database61 and prepare the genome files including the Bowtie2 index as well as the gene list for the GRCh38 genome assembly.
+
+* Convert the alignment to bed format. 
+    ```
+    samtools view -q 20 -b -o ${SAMPLE}_cutadapt.bam ${SAMPLE}_cutadapt.sam 
+    bedtools bamtobed -i ${SAMPLE}_cutadapt.bam > ${SAMPLE}_cutadapt.bed
+    ```
+    Standard bed-formatted files consist of six tab-separated columns: chromosome; start; end; name; score; strand. With a two-step conversion process the sam format is first converted (with samtools) to bam which is then converted to bed with bedtools.
+
+* Sort coordinates by removing duplicates. 
+    ```
+    sort -u -k1,1 -k2,2n -k3,3n ${SAMPLE}_cutadapt.bed > ${SAMPLE}_cutadapt_sorted.bed
+    ```
+
+    If the total genome coverage is low (< 1X), the likelihood of retrieving the same excised oligomer multiple times would be low as well. The identical oligomers are more likely to be the products of PCR amplification. The same excised oligomer can be represented more than one time as a result of PCR artifact. Therefore, we remove this artifact by keeping one of the duplicated reads (regions) in the bed file. If the genome size is low (eg. Escherichia coli), the genome coverage would be high and therefore the deduplication process would remove the real duplicated excised products. In that case, the `-u` option can be deleted to sort the bed file without deduplication. A sorted bed file is necessary for efficient further processing.
+
+To analyze the data, carry out the following steps. 
+
+* Firstly, count total mapped reads as follows:
+
+    ```
+    grep -c "^" ${SAMPLE}_cutadapt_sorted.bed > ${SAMPLE}_cutadapt_sorted_readCount.txt
+    ```
+ * Generate the read length distribution by executing the following command:
+    
+    ```
+    awk '{print $3-$2}' ${SAMPLE}_cutadapt_sorted.bed | sort -k1,1n | uniq -c | sed 's/\s\s*/ /g' | awk '{print $2"\t"$1}'
+    ```
+
+* To generate dinucleotide distribution of sequences at a certain read length firstly retrieving sequences at a certain length (eg. n=26, the most abundant read length can be used) with the following command:
+    ```
+    awk '{ if ($3-$2 == 26) { print } }' ${SAMPLE}_cutadapt_sorted.bed > ${SAMPLE}_cutadapt_sorted_26.bed
+    ```
+
+* Then, to retrieve sequences in FASTA format, type the following:
+    ```
+    bedtools getfasta -fi ${GENOME_DIR}/genome.fa -bed ${SAMPLE}_cutadapt_sorted_26.bed -fo ${SAMPLE}_cutadapt_sorted_26.fa
+    ```
+
+* Compute the (di)nucleotide content of sequences at a certain length. Unlike other steps which mostly benefit from simple bash commands, here we use a custom script retrieved from [our repository](https://github.com/adebali/NGStoolkit). The module should be installed as instructed in the repository front page. In order to retrieve the dinucleotide content we use `fa2kmerAbundanceTable.py` script.
+
+    ```
+    fa2kmerAbundanceTable.py -i ${SAMPLE}_cutadapt_sorted_26.fa -k 2 -o ${SAMPLE}_cutadapt_sorted_26_dinucleotideTable.txt
+    ```
+    `-k` can be defined as 1 to retrieve mononucleotide content. 
+
+* To generate bigwig files to visualize on a genome browser using bedtools and bedGraphtoBigWig script retrieved from ucsctools64, firstly  separate reads mapping onto two strands with the following commands:
+
+    ```
+    awk '{if($6=="+"){print}}' ${SAMPLE}_cutadapt_sorted.bed > ${SAMPLE}_cutadapt_sorted_plus.bed
+    awk '{if($6=="-"){print}}' ${SAMPLE}_cutadapt_sorted.bed > ${SAMPLE}_cutadapt_sorted_minus.bed
+    ```
+
+* Then, generate bedgraph files by typing the following:
+    ```
+    bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_plus.bed -g ${GENOME_DIR}/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | 
+    awk '{print 1000000/$1}') >${SAMPLE}_cutadapt_sorted_plus.bdg > bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_minus.bed -g   ${GENOME_DIR}/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print -1000000/$1}') >${SAMPLE}_cutadapt_sorted_minus.bdg
+    ```
+
+* Generate BigWig files
+
+    ```
+    bedGraphToBigWig ${SAMPLE}_cutadapt_sorted_plus.bdg  ${GENOME_DIR}/genome.fa.fai  ${SAMPLE}_cutadapt_sorted_plus.bw
+    bedGraphToBigWig ${SAMPLE}_cutadapt_sorted_minus.bdg  ${GENOME_DIR}/genome.fa.fai  ${SAMPLE}_cutadapt_sorted_minus.bw
+    ```
+* Count normalized read values for transcribed and nontranscribed strands of the genes separately with the following commands:
+
+    ```
+    bedtools intersect -sorted -a ${GENOME_DIR}/genes.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -S -F 0.5 >  ${SAMPLE}_cutadapt_sorted_TScount.txt
+    bedtools intersect -sorted -a ${GENOME_DIR}/genes.bed -b ${SAMPLE}_cutadapt_sorted.bed -wa -c -s -F 0.5 > ${SAMPLE}_cutadapt_sorted_NTScount.txt
+    ```
+
+    After the gene counts are generated they should be normalized to RPKM (reads per kilobase per million mapped reads) values for a meaningful comparison across samples. RPKM conversion can be performed with the following formula for each gene:
+
+    $$RPKM=10^9\frac{n}{lm}$$
+
+    where `n` is the read count, `l` is the length of the gene and `m` is the total number of mapped reads. It is important to note that repair in genic regions provides only a subset of the entire map. For advanced analyses on the entire genome, `${SAMPLE}_cutadapt_sorted.bed` should be used as the starting file.

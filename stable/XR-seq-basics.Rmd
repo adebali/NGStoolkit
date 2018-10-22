@@ -88,8 +88,8 @@ To analyze the data, carry out the following steps.
 
 * Then, generate bedgraph files by typing the following:
     ```
-    bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_plus.bed -g ${GENOME_DIR}/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | 
-    awk '{print 1000000/$1}') >${SAMPLE}_cutadapt_sorted_plus.bdg > bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_minus.bed -g   ${GENOME_DIR}/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print -1000000/$1}') >${SAMPLE}_cutadapt_sorted_minus.bdg
+    bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_plus.bed -g ${GENOME_DIR}/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print 1000000/$1}') >${SAMPLE}_cutadapt_sorted_plus.bdg
+    bedtools genomecov -i ${SAMPLE}_cutadapt_sorted_minus.bed -g   ${GENOME_DIR}/genome.fa.fai -bg -scale $(cat ${SAMPLE}_cutadapt_sorted_readCount.txt | awk '{print -1000000/$1}') >${SAMPLE}_cutadapt_sorted_minus.bdg
     ```
 
 * Generate BigWig files

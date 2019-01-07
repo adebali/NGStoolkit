@@ -1,3 +1,6 @@
 [submodule "projects"]
 	path = projects
 	url = git@github.com:adebali/projects
+[submodule "repairrepo"]
+	path = repairrepo
+	url = https://github.com/adebali/repairrepo

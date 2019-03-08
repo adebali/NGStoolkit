@@ -41,7 +41,7 @@ echo "Get the certain-sized reads (eg 26)"
 awk '{ if ($3-$2 == 26) { print } }' ${SAMPLE}_cutadapt_sorted.bed >${SAMPLE}_cutadapt_sorted_26.bed
 
 echo "Retrieve sequences in fasta format"
-bedtools getfasta -fi ${GENOME_DIR}/genome.fa -bed ${SAMPLE}_cutadapt_sorted_26.bed -fo ${SAMPLE}_cutadapt_sorted_26.fa
+bedtools getfasta -fi ${GENOME_DIR}/genome.fa -bed ${SAMPLE}_cutadapt_sorted_26.bed -fo ${SAMPLE}_cutadapt_sorted_26.fa -s
 
 echo "Get the dinucleotide content of the reads"
 fa2kmerAbundanceTable.py -i ${SAMPLE}_cutadapt_sorted_26.fa -k 2 --percentage -o ${SAMPLE}_cutadapt_sorted_26_dinucleotideTable.txt
